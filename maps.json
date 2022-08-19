@@ -1,0 +1,57 @@
+{
+	"info": {
+		"id": "ID",
+		"role": "KEG",
+		"title": "LEMBAGA"
+	},
+	"rekanan": {
+		"kode": "KODE",
+		"jenis_rekanan": "CHOICE:perperusahaan",
+		"kategori": "non_pns",
+		"nik": "NIK",
+		"npwp": "000000000000000",
+		"nama": "KETUA",
+		"instansi": "LEMBAGA",
+		"jenisUsaha": "-",
+		"dataBank": "BANK",
+		"cabang": "BANK_CAB",
+		"noRek": "BANK_REK",
+		"nama_rekening": "LEMBAGA",
+		"telp": "TELEPON",
+		"alamat": "ALAMAT"
+	},
+	"spp": {
+		"tanggalSpp": "TGL_SPP",
+		"pegawaiPptk": "ROLE:pptk",
+		"keteranganSpp": "UNTUK",
+		"spp:NO": "NO_SPP",
+		"spp:TGL": "TGL_SPP",
+		"spp:KEG": "KEG",
+		"spp:REK": "REK",
+		"spp:NOMINAL": "AFEKTASI",
+		"?nomorSpp": "SPP"
+	},
+	"sptjm-spp": {
+		"nomor_sptjm": "NO_SPP",
+		"tanggalLengkap": "TGL_SPP"
+	},
+	"verifikasi-spp": {
+		"#syarat_ls!=.//text()[contains(.,'Salinan SPD 1')]/../input": true,
+		"#syarat_ls!=.//text()[contains(.,'Salinan DPA')]/../input": true,
+		"#syarat_ls!=.//text()[contains(.,'Dokumen SPP-LS')]/../input": true,
+		"#syarat_ls!=.//text()[contains(.,'Surat Pernyataan Tanggung Jawab Mutlak PA')]/../input": true,
+		"#syarat_ls!statusVerifikasi": "CHOICE:ya",
+		"#syarat_ls!tanggalDisetujuiSPP": "TGL_SPP"
+	},
+	"spm": {
+		"tanggalSpm": "TGL_SPM",
+		"+statusRekanan": "CHOICE:ya",
+		"+model:dataRekanan": "LEMBAGA",
+		"spm:REKENING": ".//button[@ng-click='validateBank(formTambah.nomor_rekening, formTambah.bank)']",
+		"?nomorSpm": "SPM"
+	},
+	"sptjm-spm": {
+		"nomor_sptjm": "NO_SPM",
+		"tanggalLengkap": "TGL_SPM"
+	}
+}

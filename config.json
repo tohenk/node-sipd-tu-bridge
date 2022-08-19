@@ -1,0 +1,13 @@
+{
+    "global": {
+        "url":"https://sipd.kemendagri.go.id/siap/",
+        "browser":"chrome",
+        "readinessTimeout":60000
+    },
+    "bridges": {
+        "siap-2022": {
+            "daerah":"Provinsi Jawa Timur",
+            "year":2022
+        }
+    }
+}

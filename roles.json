@@ -1,0 +1,24 @@
+{
+	"users": {
+		"bpp-user": {
+			"username": "CHANGEME",
+			"password": "CHANGEME"
+		},
+		"kpa-user": {
+			"username": "CHANGEME",
+			"password": "CHANGEME"
+		},
+		"ppk-user": {
+			"username": "CHANGEME",
+			"password": "CHANGEME"
+		}
+	},
+	"roles": {
+		"4010410101": {
+			"bpp": "bpp-user",
+			"kpa": "kpa-user",
+			"ppk": "ppk-user",
+			"pptk": "CHANGEME"
+		}
+	}
+}

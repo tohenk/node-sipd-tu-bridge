@@ -1,0 +1,15 @@
+{
+  "name": "siap-bridge",
+  "version": "1.0.0",
+  "description": "SIAP automation tools",
+  "author": "Toha <tohenk@yahoo.com>",
+  "license": "MIT",
+  "main": "app.js",
+  "dependencies": {
+    "@ntlab/ntlib": "^2.0.0",
+    "@ntlab/webrobot": "^1.4.4",
+    "@ntlab/work": "^1.0.4",
+    "moment": "^2.29.4",
+    "socket.io": "^4.5.1"
+  }
+}

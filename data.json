@@ -1,0 +1,21 @@
+{
+	"ID": "Identifikasi unik",
+	"NO_SPP": "Nomor SPP",
+	"TGL_SPP": "Tanggal SPP",
+	"NO_SPM": "Nomor SPM",
+	"TGL_SPM": "Tanggal SPM",
+	"KODE": "Kode penerima DPA",
+	"LEMBAGA": "Nama Lembaga",
+	"ALAMAT": "Alamat Lembaga",
+	"TELEPON": "Telepon Lembaga",
+	"UNTUK": "Peruntukan hibah",
+	"AFEKTASI": "Nominal hibah",
+	"KEG": "Kode kegiatan",
+	"REK": "Kode rekening",
+	"BANK": "Nama Bank",
+	"BANK_CAB": "Cabang Bank",
+	"BANK_REK": "Nomor rekening Bank",
+	"NPWP": "Nomor Pokok Wajib Pajak",
+	"NIK": "Nomor Induk Kependudukan Ketua Lembaga",
+	"KETUA": "Nama Ketua Lembaga"
+}

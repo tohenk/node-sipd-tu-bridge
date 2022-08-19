@@ -1,0 +1,29 @@
+{
+	"active": "slow",
+	"profiles": {
+		"fast": {
+			"timeout": 5000,
+			"wait": 2000,
+			"delay": 500,
+			"opdelay": 500
+		},
+		"normal": {
+			"timeout": 8000,
+			"wait": 2500,
+			"delay": 750,
+			"opdelay": 600
+		},
+		"moderate": {
+			"timeout": 10000,
+			"wait": 3000,
+			"delay": 1000,
+			"opdelay": 750
+		},
+		"slow": {
+			"timeout": 15000,
+			"wait": 5000,
+			"delay": 2000,
+			"opdelay": 1000
+		}
+	}
+}
