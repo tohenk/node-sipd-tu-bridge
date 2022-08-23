@@ -276,9 +276,11 @@ class SiapBridge {
             [w => new Promise((resolve, reject) => {
                 const q = new Queue(w.getRes(1), tr => {
                     Work.works([
-                        [w => this.siap.getText([By.xpath('./td[3]')], tr)],
+                        [w => this.siap.getText([By.xpath('./td[3]'), By.xpath('./td[4]')], tr)],
                         [w => Promise.resolve(this.getDate(w.getRes(0)[0]))],
                         [w => this.siap.click({el: tr, data: By.xpath('./td[1]/input[@type="checkbox"]')}),
+                            w => w.getRes(1).valueOf() <= tgl.valueOf()],
+                        [w => Promise.resolve(this.SPD = w.getRes(0)[1]),
                             w => w.getRes(1).valueOf() <= tgl.valueOf()],
                     ])
                     .then(() => q.next())
@@ -332,6 +334,11 @@ class SiapBridge {
                         ]);
                     }); // sub kegiatan
                 }); // kegiatan
+            }, (row) => {
+                return Work.works([
+                    [w => this.siap.getText([By.xpath('./td[2]')], row)],
+                    [w => Promise.resolve(w.getRes(0)[0].trim() == this.SPD)],
+                ]);
             })], // spd
         ]);
     }
@@ -558,6 +565,7 @@ class SiapBridge {
     fillForm(queue, name, form, submit, dismiss = true) {
         return Work.works([
             [w => this.siap.sleep(this.siap.opdelay)],
+            [w => this.siap.scrollTo(0)],
             [w => this.siap.fillInForm(
                 this.handleFormFill(name, 'formTambah', queue),
                 form,
@@ -641,7 +649,7 @@ class SiapBridge {
             [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getActiveSubTabLs()"]'))],
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.isSppLsNeeded(queue)],
-            [w => this.siap.waitAndClick(By.xpath('//button/i[contains(@class,"fa-chevron-down")]/..')), w => w.getRes(3)],
+            [w => this.siap.waitAndFocus(By.xpath('//button/i[contains(@class,"fa-chevron-down")]/..')), w => w.getRes(3)],
             [w => this.siap.waitAndClick(By.xpath('//ul/li/a/b[text()="SPP LS"]/..')), w => w.getRes(3)],
             [w => Promise.resolve(this.spp = {}), w => w.getRes(3)],
             [w => this.fillForm(queue, 'spp',

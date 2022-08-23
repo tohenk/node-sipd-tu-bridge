@@ -90,16 +90,23 @@ class Siap extends WebRobot {
         ]);
     }
 
-    focusTo(el) {
+    waitAndFocus(data) {
+        return Work.works([
+            [w => this.waitFor(data)],
+            [w => this.focusTo(w.getRes(0))],
+        ]);
+    }
+
+    focusTo(el, click = true) {
         return Work.works([
             [w => el.getRect()],
-            [w => this.getDriver().executeScript(this.scrollTo(w.getRes(0).y))],
-            [w => el.click()],
+            [w => this.scrollTo(w.getRes(0).y)],
+            [w => el.click(), w => click],
         ]);
     }
 
     scrollTo(top) {
-        return `
+        return this.getDriver().executeScript(`
 let top = ${top};
 let header = document.getElementById('header');
 if (header) {
@@ -107,7 +114,7 @@ if (header) {
 }
 window.scrollTo(0, top);
 `
-        ;
+        );
     }
 
     waitLoader() {
