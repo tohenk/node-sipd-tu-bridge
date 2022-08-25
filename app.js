@@ -209,12 +209,25 @@ class App {
                 socket.emit('setup', {version: this.VERSION});
             })
             .on('spp', data => {
-                const queue = SiapQueue.createSppQueue(data, socket.callback);
-                queue.maps = this.config.maps;
-                queue.info = queue.getMappedData('info.title');
-                console.log('SPP: %s', queue.info ? queue.info : '');
-                const res = SiapQueue.addQueue(queue);
-                socket.emit('spp', res);
+                const batch = Array.isArray(data.items);
+                const items = batch ? data.items : [data];
+                let result;
+                let cnt = 0;
+                items.forEach(spp => {
+                    const queue = SiapQueue.createSppQueue(spp, socket.callback);
+                    queue.maps = this.config.maps;
+                    queue.info = queue.getMappedData('info.title');
+                    console.log('SPP: %s', queue.info ? queue.info : '');
+                    const res = SiapQueue.addQueue(queue);
+                    cnt++;
+                    if (!batch) {
+                        result = res;
+                    }
+                });
+                if (batch) {
+                    result = {count: cnt, message: 'SPP is being queued'};
+                }
+                socket.emit('spp', result);
             })
         ;
     }
