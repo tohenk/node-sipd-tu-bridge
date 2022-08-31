@@ -883,7 +883,7 @@ class SiapBridge {
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
-                    if (queue.SPP == values[0]) {
+                    if (queue.SPM == values[0]) {
                         result = false;
                         reject(DataTable.stop());
                     } else {
@@ -908,7 +908,7 @@ class SiapBridge {
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
-                    if (queue.SPP == values[0]) {
+                    if (queue.SPM == values[0]) {
                         Work.works([
                             [y => el.findElement(By.xpath('./td[5]/button'))],
                             [y => y.getRes(0).click()],
