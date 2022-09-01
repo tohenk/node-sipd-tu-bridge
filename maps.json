@@ -46,7 +46,7 @@
 	"spm": {
 		"tanggalSpm": "TGL_SPM",
 		"+statusRekanan": "CHOICE:ya",
-		"+model:dataRekanan": "LEMBAGA",
+		"+model:dataRekanan": "CONCAT:KETUA,LEMBAGA",
 		"spm:REKENING": ".//button[@ng-click='validateBank(formTambah.nomor_rekening, formTambah.bank)']",
 		"?nomorSpm": "SPM"
 	},

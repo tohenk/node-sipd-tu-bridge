@@ -442,6 +442,13 @@ class SiapBridge {
                         key = f.selector;
                         value = true;
                         break;
+                    case 'CONCAT':
+                        const list = [];
+                        vvalue.split(',').forEach(n => {
+                            list.push(queue.getDataValue(n.trim()));
+                        });
+                        value = list.join(' - ');
+                        break;
                     case 'ROLE':
                         const user = this.getUser(vvalue);
                         if (user) {

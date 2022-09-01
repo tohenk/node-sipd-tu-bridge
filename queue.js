@@ -245,8 +245,11 @@ class SiapQueue
     }
 
     getMappedData(name) {
-        const key = this.getMap(name);
-        if (typeof key == 'string' && typeof this.data[key] != undefined) {
+        return this.getDataValue(this.getMap(name));
+    }
+
+    getDataValue(key) {
+        if (typeof key == 'string' && this.data[key] != undefined) {
             return this.data[key];
         }
     }
