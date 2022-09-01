@@ -385,7 +385,7 @@ class SiapBridge {
     waitExpandedRows(table) {
         return Work.works([
             [w => table.findElement(By.xpath('./tbody/tr[contains(@ng-show,"length") or contains(@ng-show,"status")]'))],
-            [w => this.siap.waitUntilHidden(w.getRes(0))],
+            [w => this.siap.waitForVisibility(w.getRes(0), false)],
         ]);
     }
 
@@ -910,7 +910,7 @@ class SiapBridge {
                     const values = x.getRes(0); 
                     if (queue.SPM == values[0]) {
                         Work.works([
-                            [y => el.findElement(By.xpath('./td[5]/button'))],
+                            [y => el.findElement(By.xpath('./td[5]/button/i'))],
                             [y => y.getRes(0).click()],
                             [y => this.fillForm(queue, 'sptjm-spm',
                                 By.xpath('//form[@ng-submit="TambahSptjmSpm($event)"]'),

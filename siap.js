@@ -41,7 +41,7 @@ class Siap extends WebRobot {
 
     isLoggedIn() {
         return Work.works([
-            [w => this.getDriver().findElements(By.id('loginForm'))],
+            [w => this.findElements(By.id('loginForm'))],
             [w => Promise.resolve(w.getRes(0).length > 0 ? false : true)],
         ]);
     }
@@ -75,6 +75,7 @@ class Siap extends WebRobot {
             [w => this.findElement(By.xpath('//ul[contains(@class,"nav")]/li[2]/a'))],
             [w => w.getRes(0).click()],
             [w => w.getRes(0).findElement(By.xpath('./../ul/li/a/span[text()="Logout"]'))],
+            [w => this.waitForVisibility(w.getRes(2), true)],
             [w => w.getRes(2).click()],
         ]);
     }
@@ -120,16 +121,16 @@ window.scrollTo(0, top);
     waitLoader() {
         return Work.works([
             [w => this.waitFor(By.xpath('//div[contains(@class,"loader")]'))],
-            [w => this.waitUntilHidden(w.getRes(0))],
+            [w => this.waitForVisibility(w.getRes(0), false)],
             [w => this.sleep(this.opdelay)],
         ]);
     }
 
-    waitUntilHidden(el) {
+    waitForVisibility(el, visible = true) {
         return new Promise((resolve, reject) => {
             const f = () => {
-                el.isDisplayed().then(visible => {
-                    if (visible) {
+                el.isDisplayed().then(result => {
+                    if (result != visible) {
                         setTimeout(f, 500);
                     } else {
                         resolve();
