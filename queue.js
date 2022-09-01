@@ -38,7 +38,7 @@ class SiapDequeue extends EventEmitter {
         super();
         this.time = new Date();
         this.queues = [];
-        this.queue = new Queue([], queue => this.doQueue(queue), () => this.isProcessing());
+        this.queue = new Queue([], queue => this.doQueue(queue), () => this.canProcess());
         this.timeout = 5 * 60 * 1000;
     }
 
@@ -69,12 +69,8 @@ class SiapDequeue extends EventEmitter {
         }
     }
 
-    isProcessing() {
-        if (this.consumer) {
-            const queue = this.getNext();
-            return queue && this.consumer.canHandle(queue) ? true : false;
-        }
-        return false;
+    canProcess() {
+        return this.consumer ? this.consumer.readyCount() > 0 : false;
     }
 
     setConsumer(consumer) {
@@ -93,14 +89,14 @@ class SiapDequeue extends EventEmitter {
                         queue.data.timeout : this.timeout;
                     if (timeout > 0 && d > timeout) {
                         queue.setStatus(SiapQueue.STATUS_TIMED_OUT);
-                        this.queue.next();
-                    }
-                }
-                // check for next queue
-                queue = this.getNext();
-                if (queue) {
-                    if (this.consumer.canHandleNext(queue)) {
-                        this.queue.next();
+                        if (typeof queue.ontimeout == 'function') {
+                            queue.ontimeout()
+                                .then(() => this.queue.next())
+                                .catch(() => this.queue.next())
+                            ;
+                        } else {
+                            this.queue.next();
+                        }
                     }
                 }
                 // run on next
@@ -151,7 +147,7 @@ class SiapDequeue extends EventEmitter {
     }
 
     getStatus() {
-        const status = Object.assign({}, this.info, {
+        const status = Object.assign({}, this.buildInfo(this.info), {
             time: this.time.toString(),
             total: this.queues.length,
             queue: this.queue.queues.length,
@@ -173,6 +169,18 @@ class SiapDequeue extends EventEmitter {
             }
         }
         return status;
+    }
+
+    buildInfo(info) {
+        const result = {};
+        Object.keys(info).forEach(k => {
+            let v = info[k];
+            if (typeof v == 'function') {
+                v = v();
+            }
+            result[k] = v;
+        });
+        return result;
     }
 }
 

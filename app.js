@@ -105,7 +105,7 @@ class App {
 
     createDequeuer() {
         this.dequeue = SiapQueue.createDequeuer();
-        this.dequeue.setInfo({version: this.VERSION});
+        this.dequeue.setInfo({version: this.VERSION, ready: () => this.ready ? 'Yes' : 'No'});
         this.dequeue
             .on('queue', queue => this.handleNotify(queue))
             .on('queue-done', queue => this.handleNotify(queue))
@@ -170,8 +170,8 @@ class App {
         this.startTime = Date.now();
         let interval = setInterval(() => {
             let now = Date.now();
-            let isReady = this.readyCount() == this.bridges.length;
-            if (isReady) {
+            this.ready = this.readyCount() == this.bridges.length;
+            if (this.ready) {
                 clearInterval(interval);
                 console.log('Readiness checking is done...');
             } else {
@@ -260,14 +260,6 @@ class App {
         return bridge;
     }
 
-    canHandle(queue) {
-        if (queue.type == SiapQueue.QUEUE_CALLBACK) {
-            return true;
-        }
-        // only handle when bridge is ready
-        return this.readyCount() > 0;
-    }
-
     readyCount() {
         let readyCnt = 0;
         this.bridges.forEach(b => {
@@ -276,42 +268,15 @@ class App {
         return readyCnt;
     }
 
-    canHandleNext(queue) {
-        if (queue.type == SiapQueue.QUEUE_CALLBACK) {
-            return !this.notify;
-        }
-        const bridge = this.getQueueHandler(queue);
-        const current = this.dequeue.getCurrent();
-        if (bridge && current) {
-            // bridge currently has no queue, so it can handle next
-            if (typeof bridge.queue == 'undefined') {
-                return true;
-            }
-            return current.bridge != bridge && bridge.queue.status != SiapQueue.STATUS_PROCESSING;
-        }
-        return false;
-    }
-
     processQueue(queue) {
         if (queue.type == SiapQueue.QUEUE_CALLBACK) {
-            return new Promise((resolve, reject) => {
-                this.notify = true;
-                SiapNotifier.notify(queue)
-                    .then(result => {
-                        this.notify = false;
-                        resolve(result);
-                    })
-                    .catch(err => {
-                        this.notify = false;
-                        reject(err);
-                    })
-                ;
-            });
+            return SiapNotifier.notify(queue);
         }
         const bridge = this.getQueueHandler(queue);
         if (bridge) {
             bridge.queue = queue;
             queue.bridge = bridge;
+            queue.ontimeout = () => bridge.siap.stop();
             switch (queue.type) {
                 case SiapQueue.QUEUE_SPP:
                     return bridge.createSpp(queue);
