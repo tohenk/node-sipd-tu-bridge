@@ -121,7 +121,7 @@ class SiapDequeue extends EventEmitter {
             queue.setId(this.genId());
         }
         this.queues.push(queue);
-        this.queue.requeue([queue]);
+        this.queue.requeue([queue], queue.type == SiapQueue.QUEUE_CALLBACK ? true : false);
         return {status: 'queued', id: queue.id};
     }
 
