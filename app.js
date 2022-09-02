@@ -268,6 +268,30 @@ class App {
         return readyCnt;
     }
 
+    isBridgeIdle(queue) {
+        const bridge = this.getQueueHandler(queue);
+        if (bridge) {
+            // bridge currently has no queue
+            // or the last queue has been finished
+            if (bridge.queue == undefined || bridge.queue.finished()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    canProcessQueue() {
+        if (this.readyCount() > 0) {
+            const queue = this.dequeue.getNext();
+            return queue && (queue.type == SiapQueue.QUEUE_CALLBACK || this.isBridgeIdle(queue));
+        }
+        return false;
+    }
+
+    canHandleNextQueue(queue) {
+        return this.isBridgeIdle(queue);
+    }
+
     processQueue(queue) {
         if (queue.type == SiapQueue.QUEUE_CALLBACK) {
             return SiapNotifier.notify(queue);
