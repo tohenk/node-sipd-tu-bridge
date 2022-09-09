@@ -23,7 +23,6 @@
  */
 
 const WebRobot = require('@ntlab/webrobot');
-const Work = require('@ntlab/work/work');
 const { By } = require('selenium-webdriver');
 
 class Siap extends WebRobot {
@@ -40,14 +39,14 @@ class Siap extends WebRobot {
     }
 
     isLoggedIn() {
-        return Work.works([
+        return this.works([
             [w => this.findElements(By.id('loginForm'))],
             [w => Promise.resolve(w.getRes(0).length > 0 ? false : true)],
         ]);
     }
 
     login(username, password) {
-        return Work.works([
+        return this.works([
             [w => this.isLoggedIn()],
             [w => this.logout(), w => w.getRes(0)],
             [w => this.sleep(), w => w.getRes(0)],
@@ -57,7 +56,7 @@ class Siap extends WebRobot {
                     {parent: w.getRes(3), target: By.name('password'), value: password},
                     {parent: w.getRes(3), target: By.name('tahunanggaran'), value: this.year},
                     {parent: w.getRes(3), target: By.name('namaDaerah'), value: this.daerah, onfill: (el, value) => {
-                        return Work.works([
+                        return this.works([
                             [w => el.click()],
                             [w => el.findElement(By.xpath('./../ul/li[contains(text(),"_X_")]'.replace(/_X_/, value)))],
                             [w => w.getRes(1).click()],
@@ -71,7 +70,7 @@ class Siap extends WebRobot {
     }
     
     logout() {
-        return Work.works([
+        return this.works([
             [w => this.findElement(By.xpath('//ul[contains(@class,"nav")]/li[2]/a'))],
             [w => w.getRes(0).click()],
             [w => w.getRes(0).findElement(By.xpath('./../ul/li/a/span[text()="Logout"]'))],
@@ -81,7 +80,7 @@ class Siap extends WebRobot {
     }
 
     navigateTo($category, $title) {
-        return Work.works([
+        return this.works([
             [w => this.findElement(By.xpath('//nav/ul/li/a/span[text()="_X_"]/..'.replace(/_X_/, $category)))],
             [w => this.focusTo(w.getRes(0))],
             [w => this.sleep(this.opdelay)],
@@ -92,14 +91,14 @@ class Siap extends WebRobot {
     }
 
     waitAndFocus(data) {
-        return Work.works([
+        return this.works([
             [w => this.waitFor(data)],
             [w => this.focusTo(w.getRes(0))],
         ]);
     }
 
     focusTo(el, click = true) {
-        return Work.works([
+        return this.works([
             [w => el.getRect()],
             [w => this.scrollTo(w.getRes(0).y)],
             [w => el.click(), w => click],
@@ -119,7 +118,7 @@ window.scrollTo(0, top);
     }
 
     waitLoader() {
-        return Work.works([
+        return this.works([
             [w => this.waitFor(By.xpath('//div[contains(@class,"loader")]'))],
             [w => this.waitForVisibility(w.getRes(0), false)],
             [w => this.sleep(this.opdelay)],
@@ -146,7 +145,7 @@ window.scrollTo(0, top);
     }
 
     dismissSwal2(caption = 'OK') {
-        return Work.works([
+        return this.works([
             [w => this.waitSwal2()],
             [w => this.waitAndClick(By.xpath('//button[@type="button"][contains(@class,"swal2-confirm")][contains(text(),"' + caption + '")]'))],
         ]);

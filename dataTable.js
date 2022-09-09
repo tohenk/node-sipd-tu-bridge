@@ -23,17 +23,17 @@
  */
 
 const { By } = require('selenium-webdriver');
-const Work = require('@ntlab/work/work');
 const Queue = require('@ntlab/work/queue');
 
 class DataTable {
 
     constructor(owner) {
         this.owner = owner;
+        this.owner.constructor.expectErr(DataTableStopError);
     }
 
     setup(options) {
-        return Work.works([
+        return this.owner.works([
             [w => Promise.reject('Data table wrapper element not specified!'), w => !options.wrapper],
             [w => this.owner.findElement(options.wrapper)],
             [w => Promise.resolve(this._wrapper = w.getRes(1))],
@@ -46,7 +46,7 @@ class DataTable {
     }
 
     isProcessing() {
-        return Work.works([
+        return this.owner.works([
             [w => this._wrapper.findElements(By.xpath('.//div[@class="dataTables_processing"]'))],
             [w => Promise.resolve(false), w => w.getRes(0).length == 0],
             [w => w.getRes(0)[0].isDisplayed(), w => w.getRes(0).length > 0],
@@ -73,7 +73,7 @@ class DataTable {
     }
 
     getPage() {
-        return Work.works([
+        return this.owner.works([
             [w => Promise.reject('Pager element not specified!'), w => !this._pager],
             [w => this._pager.findElement(By.xpath('.//*[contains(@class,"paginate_button") and (contains(@class,"current") or contains(@class,"active"))]'))],
             [w => w.getRes(1).getAttribute('innerText')],
@@ -82,7 +82,7 @@ class DataTable {
     }
 
     getPages() {
-        return Work.works([
+        return this.owner.works([
             [w => Promise.reject('Pager element not specified!'), w => !this._pager],
             [w => this._pager.findElements(By.xpath('.//*[contains(@class,"paginate_button") and not (contains(@class,"previous") or contains(@class,"next"))]'))],
             [w => w.getRes(1)[w.getRes(1).length - 1].getAttribute('innerText'), w => w.getRes(1).length],
@@ -92,7 +92,7 @@ class DataTable {
     }
 
     gotoPage(page) {
-        return Work.works([
+        return this.owner.works([
             [w => Promise.reject('Pager element not specified!'), w => !this._pager],
             [w => this._pager.findElement(By.xpath('.//*[contains(@class,"paginate_button") and text()="_X_"]'.replace(/_X_/, page)))],
             [w => w.getRes(1).click()],
@@ -101,7 +101,7 @@ class DataTable {
     }
 
     eachPage(page, onwork) {
-        return Work.works([
+        return this.owner.works([
             // get current page
             [w => this.getPage()],
             // activate page if not current
@@ -113,7 +113,7 @@ class DataTable {
                 const q = new Queue(w.getRes(2), row => {
                     const works = onwork(row);
                     try {
-                        Work.works(works)
+                        this.owner.works(works)
                             .then(() => q.next())
                             .catch(err => reject(err));
                     }
@@ -131,7 +131,7 @@ class DataTable {
     }
 
     search(term) {
-        return Work.works([
+        return this.owner.works([
             [w => Promise.reject('Search element not specified!'), w => !this._search],
             [w => this._search.sendKeys(term)],
             [w => this.owner.sleep(this.owner.opdelay)],
@@ -143,7 +143,7 @@ class DataTable {
     }
 
     each(callback) {
-        return Work.works([
+        return this.owner.works([
             [w => this.getRows()],
             [w => this.getPages(), w => w.getRes(0).length],
             [w => new Promise((resolve, reject) => {

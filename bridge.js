@@ -24,7 +24,6 @@
 
 const util = require('util');
 const Queue = require('@ntlab/work/queue');
-const Work = require('@ntlab/work/work');
 const SiapQueue = require('./queue');
 const Siap = require('./siap');
 const DataTable = require('./dataTable');
@@ -45,6 +44,7 @@ class SiapBridge {
         this.options = options;
         this.state = this.STATE_NONE;
         this.siap = new Siap(options);
+        this.works = this.siap.works;
     }
 
     selfTest() {
@@ -164,8 +164,8 @@ class SiapBridge {
         if (typeof theworks == 'function') {
             works.push(theworks);
         }
-        return Work.works(works, {
-            done: () => Work.works([
+        return this.works(works, {
+            done: () => this.works([
                 [w => this.siap.stop()],
                 [w => new Promise((resolve, reject) => setTimeout(() => resolve(), this.siap.opdelay))],
             ])
@@ -210,7 +210,7 @@ class SiapBridge {
     }
 
     fillSearchable(el, value) {
-        return Work.works([
+        return this.works([
             [w => el.findElement(By.xpath('.//input[@type="text"]'))],
             [w => w.getRes(0).click()],
             [w => el.findElement(By.xpath('.//li[contains(text(),"_X_")]'.replace(/_X_/, value)))],
@@ -219,7 +219,7 @@ class SiapBridge {
     }
 
     fillKategoriRekanan(el, value) {
-        return Work.works([
+        return this.works([
             [w => el.click()],
             [w => el.sendKeys(Key.ALT, Key.DOWN)],
             [w => el.sendKeys(Key.DOWN, Key.DOWN, Key.ENTER), w => value == 'pns'],
@@ -228,7 +228,7 @@ class SiapBridge {
     }
 
     fillDatePicker(el, value) {
-        return Work.works([
+        return this.works([
             [w => Promise.reject('Not a valid date!'), w => value instanceof Date && isNaN(value)],
             [w => el.click()],
             [w => new Promise((resolve, reject) => {
@@ -249,7 +249,7 @@ class SiapBridge {
     }
 
     datePickerNavigate(date) {
-        return Work.works([
+        return this.works([
             [w => this.siap.findElement(By.xpath('//div[contains(@class,"daterangepicker") and contains(@style,"display: block;")]/div[contains(@class,"first")]/div/table'))],
             [w => this.siap.getText([By.xpath('./thead/tr/th[2]')], w.getRes(0))],
             [w => Promise.resolve(this.dateDiffMonth(this.dateCreate(w.getRes(1)[0]), date))],
@@ -270,17 +270,15 @@ class SiapBridge {
     }
 
     fillAfektasiSpp(el, value, tgl) {
-        return Work.works([
+        return this.works([
             [w => el.click()],
             [w => this.siap.findElements(By.xpath('//md-dialog-content/div/div/div/table/tbody/tr[@ng-repeat]'))],
             [w => new Promise((resolve, reject) => {
                 const q = new Queue(w.getRes(1), tr => {
-                    Work.works([
+                    this.works([
                         [w => this.siap.getText([By.xpath('./td[3]'), By.xpath('./td[4]')], tr)],
                         [w => Promise.resolve(this.getDate(w.getRes(0)[0]))],
                         [w => this.siap.click({el: tr, data: By.xpath('./td[1]/input[@type="checkbox"]')}),
-                            w => w.getRes(1).valueOf() <= tgl.valueOf()],
-                        [w => Promise.resolve(this.SPD = w.getRes(0)[1]),
                             w => w.getRes(1).valueOf() <= tgl.valueOf()],
                     ])
                     .then(() => q.next())
@@ -295,16 +293,16 @@ class SiapBridge {
     }
 
     fillRekeningSpp(value) {
-        return Work.works([
+        return this.works([
             [w => this.siap.findElement(By.xpath('//form[@ng-submit="beforeSimpanSpp($event)"]/div/div/div/div/table'))],
             [w => this.expandNestedTable(w.getRes(0), (tbl1, row1) => {                 // spd
                 return this.expandNestedTable(tbl1, (tbl2, row2) => {                   // kegiatan
                     return this.expandNestedTable(tbl2, (tbl3, row3) => {               // sub kegiatan
-                        return Work.works([
+                        return this.works([
                             [w => tbl3.findElements(By.xpath('./tbody/tr[@ng-repeat]'))],
                             [w => new Promise((resolve, reject) => {
                                 const q = new Queue(w.getRes(0), tr => {
-                                    Work.works([
+                                    this.works([
                                         [w => this.siap.getText([By.xpath('./td[2]')], tr)],
                                         [w => Promise.resolve(this.pickNumber(w.getRes(0)[0]))],
                                         [w => this.siap.getText([By.xpath('./td[4]')], tr),
@@ -327,32 +325,28 @@ class SiapBridge {
                             })],
                         ]);
                     }, (row) => {
-                        return Work.works([
+                        return this.works([
                             [w => this.siap.getText([By.xpath('./td[3]')], row)],
                             [w => Promise.resolve(this.pickNumber(w.getRes(0)[0]))],
                             [w => Promise.resolve(w.getRes(1) == this.spp.keg)],
                         ]);
                     }); // sub kegiatan
                 }); // kegiatan
-            }, (row) => {
-                return Work.works([
-                    [w => this.siap.getText([By.xpath('./td[2]')], row)],
-                    [w => Promise.resolve(w.getRes(0)[0].trim() == this.SPD)],
-                ]);
-            })], // spd
+            }, null, true)], // spd
         ]);
     }
 
-    expandNestedTable(table, callback, check = null) {
-        return Work.works([
+    expandNestedTable(table, callback, check = null, reversed = null) {
+        return this.works([
             [w => table.findElements(By.xpath('./tbody/tr[@ng-repeat-start]'))],
             [w => new Promise((resolve, reject) => {
-                const q = new Queue(w.getRes(0), tr => {
+                const rows = reversed ? w.getRes(0).reverse() : w.getRes(0);
+                const q = new Queue(rows, tr => {
                     const f = () => {
-                        Work.works([
+                        this.works([
                             // expand
                             [w => tr.findElement(By.xpath('./td[1]/span'))],
-                            [w => w.getRes(0).click()],
+                            [w => this.siap.focusTo(w.getRes(0))],
                             // find table to be expanded
                             [w => tr.findElement(By.xpath('./following-sibling::tr[@ng-repeat-end]/td/table'))],
                             // wait for finish
@@ -383,7 +377,7 @@ class SiapBridge {
     }
 
     waitExpandedRows(table) {
-        return Work.works([
+        return this.works([
             [w => table.findElement(By.xpath('./tbody/tr[contains(@ng-show,"length") or contains(@ng-show,"status")]'))],
             [w => this.siap.waitForVisibility(w.getRes(0), false)],
         ]);
@@ -499,7 +493,7 @@ class SiapBridge {
                 switch (key) {
                     case 'REKENING':
                         data.target = By.xpath(value);
-                        data.onfill = (el, value) => Work.works([
+                        data.onfill = (el, value) => this.works([
                             [w => el.click()],
                             [w => this.siap.waitLoader()],
                             [w => this.siap.dismissSwal2('Tutup')],
@@ -511,7 +505,7 @@ class SiapBridge {
             if (data) {
                 // handle read operation
                 if (f.prefix == '?') {
-                    data.onfill = (el, value) => Work.works([
+                    data.onfill = (el, value) => this.works([
                         [w => el.getAttribute('type')],
                         [w => el.getAttribute(w.getRes(0) == 'checkbox' ? 'checked' : 'value')],
                         [w => Promise.resolve(queue[value] = w.getRes(1))],
@@ -570,7 +564,7 @@ class SiapBridge {
     }
 
     fillForm(queue, name, form, submit, dismiss = true) {
-        return Work.works([
+        return this.works([
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.scrollTo(0)],
             [w => this.siap.fillInForm(
@@ -584,7 +578,7 @@ class SiapBridge {
     }
 
     checkRole(queue) {
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(queue.getMappedData('info.role'))],
             [w => Promise.reject('Invalid queue, no role specified!'), w => !w.getRes(0)],
             [w => Promise.resolve(this.switchRole(w.getRes(0)))],
@@ -592,7 +586,7 @@ class SiapBridge {
     }
 
     isRekananNeeded(queue) {
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_0_wrapper'),
@@ -605,7 +599,7 @@ class SiapBridge {
     }
 
     checkRekanan(queue) {
-        return Work.works([
+        return this.works([
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Rekanan')],
             [w => this.isRekananNeeded(queue)],
             [w => this.siap.waitAndClick(By.xpath('//button[@ng-click="OpenForm()"]')), w => w.getRes(1)],
@@ -621,7 +615,7 @@ class SiapBridge {
         const tgl = this.getDate(queue.getMappedData('spp.spp:TGL'));
         const nominal = queue.getMappedData('spp.spp:NOMINAL');
         const untuk = queue.getMappedData('spp.keteranganSpp');
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_0_wrapper'),
@@ -651,7 +645,7 @@ class SiapBridge {
     }
 
     checkSpp(queue) {
-        return Work.works([
+        return this.works([
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Pembuatan SPP')],
             [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getActiveSubTabLs()"]'))],
             [w => this.siap.sleep(this.siap.opdelay)],
@@ -667,7 +661,7 @@ class SiapBridge {
 
     isSptjmSppNeeded(queue) {
         let result = true;
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_1_wrapper'),
@@ -692,7 +686,7 @@ class SiapBridge {
     }
 
     createSptjmSpp(queue) {
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_0_wrapper'),
@@ -705,8 +699,8 @@ class SiapBridge {
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
                     if (queue.SPP == values[0]) {
-                        Work.works([
-                            [y => el.findElement(By.xpath('./td[5]/button'))],
+                        this.works([
+                            [y => el.findElement(By.xpath('./td[5]/button/i'))],
                             [y => y.getRes(0).click()],
                             [y => this.fillForm(queue, 'sptjm-spp',
                                 By.xpath('//form[@ng-submit="TambahSptjmSpp($event)"]'),
@@ -724,7 +718,7 @@ class SiapBridge {
     }
 
     checkSptjmSpp(queue) {
-        return Work.works([
+        return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Pembuatan Surat Pernyataan Tanggung Jawab Mutlak (SPTJM) SPP')],
             [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getDataBatal()"]'))],
@@ -738,7 +732,7 @@ class SiapBridge {
 
     isVerifikasiSppNeeded(queue) {
         let result = true;
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_3_wrapper'),
@@ -763,7 +757,7 @@ class SiapBridge {
     }
 
     createVerifikasiSpp(queue) {
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_4_wrapper'),
@@ -776,7 +770,7 @@ class SiapBridge {
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
                     if (queue.SPP == values[0]) {
-                        Work.works([
+                        this.works([
                             [y => el.findElement(By.xpath('./td[6]/a'))],
                             [y => y.getRes(0).click()],
                             [y => this.fillForm(queue, 'verifikasi-spp',
@@ -794,7 +788,7 @@ class SiapBridge {
     }
 
     checkVerifikasiSpp(queue) {
-        return Work.works([
+        return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Verifikasi SPP')],
             [w => this.siap.sleep(this.siap.opdelay)],
@@ -807,7 +801,7 @@ class SiapBridge {
 
     isSpmNeeded(queue) {
         let result = true;
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_0_wrapper'),
@@ -833,7 +827,7 @@ class SiapBridge {
     }
 
     createSpm(queue) {
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_6_wrapper'),
@@ -846,7 +840,7 @@ class SiapBridge {
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
                     if (queue.SPP == values[0]) {
-                        Work.works([
+                        this.works([
                             [y => el.findElement(By.xpath('./td[6]/input'))],
                             [y => y.getRes(0).click()],
                             [y => this.fillForm(queue, 'spm',
@@ -864,7 +858,7 @@ class SiapBridge {
     }
 
     checkSpm(queue) {
-        return Work.works([
+        return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Pembuatan SPM')],
             [w => this.siap.sleep(this.siap.opdelay)],
@@ -878,7 +872,7 @@ class SiapBridge {
 
     isSptjmSpmNeeded(queue) {
         let result = true;
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_1_wrapper'),
@@ -903,7 +897,7 @@ class SiapBridge {
     }
 
     createSptjmSpm(queue) {
-        return Work.works([
+        return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_0_wrapper'),
@@ -916,7 +910,7 @@ class SiapBridge {
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
                     if (queue.SPM == values[0]) {
-                        Work.works([
+                        this.works([
                             [y => el.findElement(By.xpath('./td[5]/button/i'))],
                             [y => y.getRes(0).click()],
                             [y => this.fillForm(queue, 'sptjm-spm',
@@ -935,7 +929,7 @@ class SiapBridge {
     }
 
     checkSptjmSpm(queue) {
-        return Work.works([
+        return this.works([
             [w => Promise.reject('SPM belum dibuat!'), w => !queue.SPM],
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Pembuatan Surat Pernyataan Tanggung Jawab Mutlak (SPTJM) SPM')],
             [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getDataBatal()"]'))],
