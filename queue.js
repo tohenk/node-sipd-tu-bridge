@@ -44,28 +44,34 @@ class SiapDequeue extends EventEmitter {
 
     doQueue(queue) {
         if (this.consumer) {
-            queue.start();
-            this.emit('queue', queue);
-            this.consumer.processQueue(queue)
-                .then(res => {
-                    queue.done(res);
-                    this.setLastQueue(queue);
-                    if (typeof queue.resolve == 'function') {
-                        queue.resolve(res);
-                    }
-                    this.emit('queue-done', queue);
-                    this.queue.next();
-                })
-                .catch(err => {
-                    queue.error(err);
-                    this.setLastQueue(queue);
-                    if (typeof queue.reject == 'function') {
-                        queue.reject(err);
-                    }
-                    this.emit('queue-error', queue);
-                    this.queue.next();
-                })
-            ;
+            try {
+                queue.start();
+                this.emit('queue', queue);
+                this.consumer.processQueue(queue)
+                    .then(res => {
+                        queue.done(res);
+                        this.setLastQueue(queue);
+                        if (typeof queue.resolve == 'function') {
+                            queue.resolve(res);
+                        }
+                        this.emit('queue-done', queue);
+                        this.queue.next();
+                    })
+                    .catch(err => {
+                        queue.error(err);
+                        this.setLastQueue(queue);
+                        if (typeof queue.reject == 'function') {
+                            queue.reject(err);
+                        }
+                        this.emit('queue-error', queue);
+                        this.queue.next();
+                    })
+                ;
+            }
+            catch (err) {
+                console.error('Got an error while processing queue: %s!', err);
+                this.queue.next();
+            }
         }
     }
 
