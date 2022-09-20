@@ -229,7 +229,7 @@ class SiapQueue
     setResult(result) {
         if (this.result != result) {
             this.result = result;
-            console.log('Queue %s result: %s', this.getInfo(), this.result);
+            console.log('Queue %s result: %s', this.getInfo(), this.result instanceof Error ? this.result.toString() : this.result);
         }
     }
 

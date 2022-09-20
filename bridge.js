@@ -222,8 +222,8 @@ class SiapBridge {
         return this.works([
             [w => el.click()],
             [w => el.sendKeys(Key.ALT, Key.DOWN)],
-            [w => el.sendKeys(Key.DOWN, Key.DOWN, Key.ENTER), w => value == 'pns'],
-            [w => el.sendKeys(Key.DOWN, Key.DOWN, Key.DOWN, Key.ENTER), w => value == 'non_pns'],
+            [w => el.sendKeys(Key.DOWN, Key.DOWN, Key.RETURN), w => value == 'pns'],
+            [w => el.sendKeys(Key.DOWN, Key.DOWN, Key.DOWN, Key.RETURN), w => value == 'non_pns'],
         ]);
     }
 
@@ -609,7 +609,7 @@ class SiapBridge {
         ]);
     }
 
-    isSppLsNeeded(queue) {
+    isSppNeeded(queue) {
         let result = true;
         const no = queue.getMappedData('spp.spp:NO');
         const tgl = this.getDate(queue.getMappedData('spp.spp:TGL'));
@@ -649,7 +649,7 @@ class SiapBridge {
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Pembuatan SPP')],
             [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getActiveSubTabLs()"]'))],
             [w => this.siap.sleep(this.siap.opdelay)],
-            [w => this.isSppLsNeeded(queue)],
+            [w => this.isSppNeeded(queue)],
             [w => this.siap.waitAndFocus(By.xpath('//button/i[contains(@class,"fa-chevron-down")]/..')), w => w.getRes(3)],
             [w => this.siap.waitAndClick(By.xpath('//ul/li/a/b[text()="SPP LS"]/..')), w => w.getRes(3)],
             [w => Promise.resolve(this.spp = {}), w => w.getRes(3)],
@@ -700,8 +700,9 @@ class SiapBridge {
                     const values = x.getRes(0); 
                     if (queue.SPP == values[0]) {
                         this.works([
-                            [y => el.findElement(By.xpath('./td[5]/button/i'))],
-                            [y => y.getRes(0).click()],
+                            [y => el.findElement(By.xpath('./td/button[contains(@class,"buat-sptjm")]'))],
+                            [y => this.siap.addPadding(y.getRes(0))],
+                            [y => this.siap.focusTo(y.getRes(0))],
                             [y => this.fillForm(queue, 'sptjm-spp',
                                 By.xpath('//form[@ng-submit="TambahSptjmSpp($event)"]'),
                                 By.xpath('//button[@id="btnSubmit"]'),
@@ -771,8 +772,8 @@ class SiapBridge {
                     const values = x.getRes(0); 
                     if (queue.SPP == values[0]) {
                         this.works([
-                            [y => el.findElement(By.xpath('./td[6]/a'))],
-                            [y => y.getRes(0).click()],
+                            [y => el.findElement(By.xpath('./td/a[contains(@class,"btn-verifikasi-green")]'))],
+                            [y => this.siap.focusTo(y.getRes(0))],
                             [y => this.fillForm(queue, 'verifikasi-spp',
                                 By.xpath('//form[@ng-submit="TambahVERSPP($event)"]'),
                                 By.xpath('//button[@id="btnSubmitVerif"]'))],
@@ -841,8 +842,9 @@ class SiapBridge {
                     const values = x.getRes(0); 
                     if (queue.SPP == values[0]) {
                         this.works([
-                            [y => el.findElement(By.xpath('./td[6]/input'))],
-                            [y => y.getRes(0).click()],
+                            [y => el.findElement(By.xpath('./td/input[@ng-click="beforeOpenFormSpmLs(dataSpp)"]'))],
+                            [y => this.siap.addPadding(y.getRes(0))],
+                            [y => this.siap.focusTo(y.getRes(0))],
                             [y => this.fillForm(queue, 'spm',
                                 By.xpath('//form[@name="form-input-ls"]'),
                                 By.xpath('//button[@id="btnSubmitSpmLsNonGaji"]'))],
@@ -911,8 +913,9 @@ class SiapBridge {
                     const values = x.getRes(0); 
                     if (queue.SPM == values[0]) {
                         this.works([
-                            [y => el.findElement(By.xpath('./td[5]/button/i'))],
-                            [y => y.getRes(0).click()],
+                            [y => el.findElement(By.xpath('./td/button[contains(@class,"buat-sptjm")]'))],
+                            [y => this.siap.addPadding(y.getRes(0))],
+                            [y => this.siap.focusTo(y.getRes(0))],
                             [y => this.fillForm(queue, 'sptjm-spm',
                                 By.xpath('//form[@ng-submit="TambahSptjmSpm($event)"]'),
                                 By.xpath('//button[@id="btnSubmit"]'),

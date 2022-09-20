@@ -99,8 +99,9 @@ class Siap extends WebRobot {
 
     focusTo(el, click = true) {
         return this.works([
+            [w => this.waitForVisibility(el, true)],
             [w => el.getRect()],
-            [w => this.scrollTo(w.getRes(0).y)],
+            [w => this.scrollTo(w.getRes(1).y)],
             [w => el.click(), w => click],
         ]);
     }
@@ -108,13 +109,19 @@ class Siap extends WebRobot {
     scrollTo(top) {
         return this.getDriver().executeScript(`
 let top = ${top};
-let header = document.getElementById('header');
-if (header) {
-    top -= header.clientHeight;
+if (top > window.scrollY + window.innerHeight) {
+    let header = document.getElementById('header');
+    if (header) {
+        top -= header.clientHeight;
+    }
+    window.scrollTo(0, top);
 }
-window.scrollTo(0, top);
 `
         );
+    }
+
+    addPadding(el, padding = 'p-5') {
+        return this.getDriver().executeScript(`$(arguments[0]).removeClass('pull-right').addClass('${padding}')`, el);
     }
 
     waitLoader() {
@@ -148,6 +155,7 @@ window.scrollTo(0, top);
         return this.works([
             [w => this.waitSwal2()],
             [w => this.waitAndClick(By.xpath('//button[@type="button"][contains(@class,"swal2-confirm")][contains(text(),"' + caption + '")]'))],
+            [w => this.waitForVisibility(w.getRes(0), false)],
         ]);
     }
 }
