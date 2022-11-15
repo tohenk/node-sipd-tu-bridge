@@ -23,7 +23,7 @@
  */
 
 const WebRobot = require('@ntlab/webrobot');
-const { By } = require('selenium-webdriver');
+const { By, error } = require('selenium-webdriver');
 
 class Siap extends WebRobot {
 
@@ -35,7 +35,10 @@ class Siap extends WebRobot {
     }
 
     stop() {
-        return this.close();
+        return this.works([
+            [w => this.close()],
+            [w => new Promise((resolve, reject) => setTimeout(() => resolve(), this.opdelay))],
+        ]);
     }
 
     isLoggedIn() {
@@ -49,17 +52,16 @@ class Siap extends WebRobot {
         return this.works([
             [w => this.isLoggedIn()],
             [w => this.logout(), w => w.getRes(0)],
-            [w => this.sleep(), w => w.getRes(0)],
             [w => this.waitFor(By.id('loginForm'))],
             [w => this.fillInForm([
-                    {parent: w.getRes(3), target: By.name('userName'), value: username},
-                    {parent: w.getRes(3), target: By.name('password'), value: password},
-                    {parent: w.getRes(3), target: By.name('tahunanggaran'), value: this.year},
-                    {parent: w.getRes(3), target: By.name('namaDaerah'), value: this.daerah, onfill: (el, value) => {
+                    {parent: w.res, target: By.name('userName'), value: username},
+                    {parent: w.res, target: By.name('password'), value: password},
+                    {parent: w.res, target: By.name('tahunanggaran'), value: this.year},
+                    {parent: w.res, target: By.name('namaDaerah'), value: this.daerah, onfill: (el, value) => {
                         return this.works([
                             [w => el.click()],
-                            [w => el.findElement(By.xpath('./../ul/li[contains(text(),"_X_")]'.replace(/_X_/, value)))],
-                            [w => w.getRes(1).click()],
+                            [w => el.findElement(By.xpath('./../ul/li[contains(text(),_X_)]'.replace(/_X_/, this.escapeStr(value))))],
+                            [w => w.res.click()],
                         ]);
                     }},
                 ],
@@ -68,7 +70,7 @@ class Siap extends WebRobot {
             [w => this.waitLoader()],
         ]);
     }
-    
+
     logout() {
         return this.works([
             [w => this.findElement(By.xpath('//ul[contains(@class,"nav")]/li[2]/a'))],
@@ -81,10 +83,10 @@ class Siap extends WebRobot {
 
     navigateTo($category, $title) {
         return this.works([
-            [w => this.findElement(By.xpath('//nav/ul/li/a/span[text()="_X_"]/..'.replace(/_X_/, $category)))],
+            [w => this.findElement(By.xpath('//nav/ul/li/a/span[text()=_X_]/..'.replace(/_X_/, this.escapeStr($category))))],
             [w => this.focusTo(w.getRes(0))],
             [w => this.sleep(this.opdelay)],
-            [w => w.getRes(0).findElement(By.xpath('./../ul/li/a/span[text()="_X_"]/..'.replace(/_X_/, $title)))],
+            [w => w.getRes(0).findElement(By.xpath('./../ul/li/a/span[text()=_X_]/..'.replace(/_X_/, this.escapeStr($title))))],
             [w => this.focusTo(w.getRes(3))],
             [w => this.waitLoader()],
         ]);
@@ -109,11 +111,14 @@ class Siap extends WebRobot {
     scrollTo(top) {
         return this.getDriver().executeScript(`
 let top = ${top};
-if (top > window.scrollY + window.innerHeight) {
-    let header = document.getElementById('header');
-    if (header) {
-        top -= header.clientHeight;
-    }
+let wtop = window.scrollY;
+let wbottom = wtop + window.innerHeight;
+let header = document.getElementById('header');
+if (header) {
+    top -= header.clientHeight;
+    wtop += header.clientHeight;
+}
+if (top < wtop || top > wbottom) {
     window.scrollTo(0, top);
 }
 `
@@ -135,13 +140,22 @@ if (top > window.scrollY + window.innerHeight) {
     waitForVisibility(el, visible = true) {
         return new Promise((resolve, reject) => {
             const f = () => {
-                el.isDisplayed().then(result => {
-                    if (result != visible) {
-                        setTimeout(f, 500);
-                    } else {
-                        resolve();
-                    }
-                });
+                el.isDisplayed()
+                    .then(result => {
+                        if (result != visible) {
+                            setTimeout(f, 500);
+                        } else {
+                            resolve();
+                        }
+                    })
+                    .catch(err => {
+                        if (err instanceof error.StaleElementReferenceError) {
+                            if (!visible) {
+                                return resolve();
+                            }
+                        }
+                        reject(err);
+                    });
             }
             f();
         });
@@ -154,9 +168,22 @@ if (top > window.scrollY + window.innerHeight) {
     dismissSwal2(caption = 'OK') {
         return this.works([
             [w => this.waitSwal2()],
-            [w => this.waitAndClick(By.xpath('//button[@type="button"][contains(@class,"swal2-confirm")][contains(text(),"' + caption + '")]'))],
-            [w => this.waitForVisibility(w.getRes(0), false)],
+            [w => this.waitAndClick(By.xpath('//button[@type="button"][contains(@class,"swal2-confirm")][contains(text(),' + this.escapeStr(caption) + ')]'))],
         ]);
+    }
+
+    // https://stackoverflow.com/questions/642125/encoding-xpath-expressions-with-both-single-and-double-quotes
+    escapeStr(s) {
+        // does not contain double quote
+        if (s.indexOf('"') < 0) {
+            return '"' + s + '"';
+        }
+        // does not contain single quote
+        if (s.indexOf('\'') < 0) {
+            return '\'' + s + '\'';
+        }
+        // contains both, escape single quote
+        return 'concat(\'' + s.replace(/'/g, '\', "\'", \'') + '\')';
     }
 }
 

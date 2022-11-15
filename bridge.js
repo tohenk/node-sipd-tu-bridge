@@ -165,36 +165,8 @@ class SiapBridge {
             works.push(theworks);
         }
         return this.works(works, {
-            done: () => this.works([
-                [w => this.siap.stop()],
-                [w => new Promise((resolve, reject) => setTimeout(() => resolve(), this.siap.opdelay))],
-            ])
+            done: () => this.siap.stop()
         });
-    }
-
-    notifyItems(items, callback) {
-        if (Array.isArray(items)) {
-            this.processItemsWithLimit(items, part => {
-                const callbackQueue = SiapQueue.createCallbackQueue({items: part}, callback);
-                SiapQueue.addQueue(callbackQueue);
-            }, this.maxNotifiedItems || 500);
-        } else {
-            const callbackQueue = SiapQueue.createCallbackQueue(items, callback);
-            SiapQueue.addQueue(callbackQueue);
-        }
-    }
-
-    processItemsWithLimit(items, callback, limit) {
-        let maxItems = limit || 100;
-        let count = items.length;
-        let pos = 0;
-        while (count) {
-            let n = maxItems > 0 && count > maxItems ? maxItems : count;
-            let part = items.slice(pos, n);
-            callback(part);
-            count -= n;
-            pos += n;
-        }
     }
 
     doAs(role) {
@@ -213,7 +185,7 @@ class SiapBridge {
         return this.works([
             [w => el.findElement(By.xpath('.//input[@type="text"]'))],
             [w => w.getRes(0).click()],
-            [w => el.findElement(By.xpath('.//li[contains(text(),"_X_")]'.replace(/_X_/, value)))],
+            [w => el.findElement(By.xpath('.//li[contains(text(),_X_)]'.replace(/_X_/, this.siap.escapeStr(value))))],
             [w => w.getRes(2).click()],
         ]);
     }
@@ -701,7 +673,6 @@ class SiapBridge {
                     if (queue.SPP == values[0]) {
                         this.works([
                             [y => el.findElement(By.xpath('./td/button[contains(@class,"buat-sptjm")]'))],
-                            [y => this.siap.addPadding(y.getRes(0))],
                             [y => this.siap.focusTo(y.getRes(0))],
                             [y => this.fillForm(queue, 'sptjm-spp',
                                 By.xpath('//form[@ng-submit="TambahSptjmSpp($event)"]'),
@@ -843,7 +814,6 @@ class SiapBridge {
                     if (queue.SPP == values[0]) {
                         this.works([
                             [y => el.findElement(By.xpath('./td/input[@ng-click="beforeOpenFormSpmLs(dataSpp)"]'))],
-                            [y => this.siap.addPadding(y.getRes(0))],
                             [y => this.siap.focusTo(y.getRes(0))],
                             [y => this.fillForm(queue, 'spm',
                                 By.xpath('//form[@name="form-input-ls"]'),
@@ -914,7 +884,6 @@ class SiapBridge {
                     if (queue.SPM == values[0]) {
                         this.works([
                             [y => el.findElement(By.xpath('./td/button[contains(@class,"buat-sptjm")]'))],
-                            [y => this.siap.addPadding(y.getRes(0))],
                             [y => this.siap.focusTo(y.getRes(0))],
                             [y => this.fillForm(queue, 'sptjm-spm',
                                 By.xpath('//form[@ng-submit="TambahSptjmSpm($event)"]'),

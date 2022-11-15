@@ -66,6 +66,7 @@ class DataTable {
                                 resolve();
                             }
                         })
+                        .catch(err => reject(err))
                     ;
                 }, 500);
             }
