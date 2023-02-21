@@ -5,7 +5,7 @@
 		"title": "LEMBAGA"
 	},
 	"rekanan": {
-		"kode": "KODE",
+		"kode": "CONCAT:-|year|KODE",
 		"jenis_rekanan": "CHOICE:perperusahaan",
 		"kategori": "non_pns",
 		"nik": "NIK",
@@ -23,7 +23,7 @@
 	"spp": {
 		"tanggalSpp": "TGL_SPP",
 		"pegawaiPptk": "ROLE:pptk",
-		"keteranganSpp": "UNTUK",
+		"keteranganSpp": "FORMAT:%1% (%2%)|UNTUK|KODE",
 		"spp:NO": "NO_SPP",
 		"spp:TGL": "TGL_SPP",
 		"spp:KEG": "KEG",
@@ -32,7 +32,7 @@
 		"?nomorSpp": "SPP"
 	},
 	"sptjm-spp": {
-		"nomor_sptjm": "NO_SPP",
+		"*nomor_sptjm": "NO_SPP",
 		"tanggalLengkap": "TGL_SPP"
 	},
 	"verifikasi-spp": {
@@ -46,12 +46,12 @@
 	"spm": {
 		"tanggalSpm": "TGL_SPM",
 		"+statusRekanan": "CHOICE:ya",
-		"+model:dataRekanan": "CONCAT:KETUA,LEMBAGA",
+		"+model:dataRekanan": "CONCAT: - |KETUA|LEMBAGA",
 		"spm:REKENING": ".//button[@ng-click='validateBank(formTambah.nomor_rekening, formTambah.bank)']",
 		"?nomorSpm": "SPM"
 	},
 	"sptjm-spm": {
-		"nomor_sptjm": "NO_SPM",
+		"*nomor_sptjm": "NO_SPM",
 		"tanggalLengkap": "TGL_SPM"
 	}
 }

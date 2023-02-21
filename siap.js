@@ -57,10 +57,11 @@ class Siap extends WebRobot {
                     {parent: w.res, target: By.name('userName'), value: username},
                     {parent: w.res, target: By.name('password'), value: password},
                     {parent: w.res, target: By.name('tahunanggaran'), value: this.year},
-                    {parent: w.res, target: By.name('namaDaerah'), value: this.daerah, onfill: (el, value) => {
+                    {parent: w.res, target: By.name('idDaerah'), value: this.daerah, onfill: (el, value) => {
                         return this.works([
-                            [w => el.click()],
-                            [w => el.findElement(By.xpath('./../ul/li[contains(text(),_X_)]'.replace(/_X_/, this.escapeStr(value))))],
+                            [w => el.findElement(By.xpath('./../span[contains(@class,"select2")]'))],
+                            [w => w.res.click()],
+                            [w => this.findElement(By.xpath('//span[@class="select2-results"]/ul/li[contains(text(),_X_)]'.replace(/_X_/, this.escapeStr(value))))],
                             [w => w.res.click()],
                         ]);
                     }},
@@ -73,7 +74,7 @@ class Siap extends WebRobot {
 
     logout() {
         return this.works([
-            [w => this.findElement(By.xpath('//ul[contains(@class,"nav")]/li[2]/a'))],
+            [w => this.findElement(By.xpath('//ul/li/a[contains(@class,"profile-header")]'))],
             [w => w.getRes(0).click()],
             [w => w.getRes(0).findElement(By.xpath('./../ul/li/a/span[text()="Logout"]'))],
             [w => this.waitForVisibility(w.getRes(2), true)],

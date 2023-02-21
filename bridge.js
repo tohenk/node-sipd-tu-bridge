@@ -381,6 +381,9 @@ class SiapBridge {
             let value = queue.getMappedData(name + '.' + k);
             // fall back to non mapped value if undefined
             if (value == undefined) {
+                if (f.prefix == '*') {
+                    throw new Error(`Form ${name}: ${key} value is mandatory`);
+                }
                 value = maps[k];
             }
             // handle special key
@@ -407,13 +410,6 @@ class SiapBridge {
                         attr = 'name';
                         key = f.selector;
                         value = true;
-                        break;
-                    case 'CONCAT':
-                        const list = [];
-                        vvalue.split(',').forEach(n => {
-                            list.push(queue.getDataValue(n.trim()));
-                        });
-                        value = list.join(' - ');
                         break;
                     case 'ROLE':
                         const user = this.getUser(vvalue);
@@ -527,7 +523,7 @@ class SiapBridge {
             key = part[1];
         }
         // check prefixes
-        if (['#', '+', '?', '='].indexOf(key.substring(0, 1)) >= 0) {
+        if (['#', '+', '?', '=', '*'].indexOf(key.substring(0, 1)) >= 0) {
             result.prefix = key.substring(0, 1);
             key = key.substring(1);
         }
@@ -622,7 +618,7 @@ class SiapBridge {
             [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getActiveSubTabLs()"]'))],
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.isSppNeeded(queue)],
-            [w => this.siap.waitAndFocus(By.xpath('//button/i[contains(@class,"fa-chevron-down")]/..')), w => w.getRes(3)],
+            [w => this.siap.waitAndFocus(By.xpath('//button[contains(text(),"Buat SPP LS")]')), w => w.getRes(3)],
             [w => this.siap.waitAndClick(By.xpath('//ul/li/a/b[text()="SPP LS"]/..')), w => w.getRes(3)],
             [w => Promise.resolve(this.spp = {}), w => w.getRes(3)],
             [w => this.fillForm(queue, 'spp',
@@ -702,7 +698,7 @@ class SiapBridge {
         ]);
     }
 
-    isVerifikasiSppNeeded(queue) {
+    isVerifikasiSppNeeded(queue, search = false) {
         let result = true;
         return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
@@ -711,7 +707,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_3_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP)],
+            [w => w.getRes(0).search(queue.SPP), w => search],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -728,7 +724,7 @@ class SiapBridge {
         ]);
     }
 
-    createVerifikasiSpp(queue) {
+    createVerifikasiSpp(queue, search = false) {
         return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
@@ -736,7 +732,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_4_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP)],
+            [w => w.getRes(0).search(queue.SPP), w => search],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -759,15 +755,15 @@ class SiapBridge {
         ]);
     }
 
-    checkVerifikasiSpp(queue) {
+    checkVerifikasiSpp(queue, search = false) {
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Verifikasi SPP')],
-            [w => this.siap.sleep(this.siap.opdelay)],
-            [w => this.isVerifikasiSppNeeded(queue)],
+            [w => this.siap.waitLoader()],
+            [w => this.isVerifikasiSppNeeded(queue, search)],
             [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getDataBelumTerverifikasi()"]')), w => w.getRes(3)],
-            [w => this.siap.sleep(this.siap.opdelay), w => w.getRes(3)],
-            [w => this.createVerifikasiSpp(queue), w => w.getRes(3)],
+            [w => this.siap.waitLoader(), w => w.getRes(3)],
+            [w => this.createVerifikasiSpp(queue, search), w => w.getRes(3)],
         ]);
     }
 
@@ -829,14 +825,14 @@ class SiapBridge {
         ]);
     }
 
-    checkSpm(queue) {
+    checkSpm(queue, creator = 'bp') {
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Pembuatan SPM')],
-            [w => this.siap.sleep(this.siap.opdelay)],
+            [w => this.siap.waitLoader()],
             [w => this.isSpmNeeded(queue)],
             [w => this.siap.waitAndClick(By.xpath('//a[@id="tab-list-spm-ls"]')), w => w.getRes(3)],
-            [w => this.siap.fillFormValue({target: By.id('btn-select-creator'), value: 'bpp'}), w => w.getRes(3)],
+            [w => this.siap.fillFormValue({target: By.id('btn-select-creator'), value: creator}), w => w.getRes(3)],
             [w => this.siap.sleep(this.siap.opdelay), w => w.getRes(3)],
             [w => this.createSpm(queue), w => w.getRes(3)],
         ]);

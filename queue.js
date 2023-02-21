@@ -270,9 +270,42 @@ class SiapQueue
     }
 
     getDataValue(key) {
-        if (typeof key == 'string' && this.data[key] != undefined) {
-            return this.data[key];
+        if (typeof key == 'string') {
+            if (this.data[key] != undefined) {
+                return this.data[key];
+            }
+            // handle special value TYPE:value
+            if (key.indexOf(':') > 0) {
+                return this.getTranslatedValue(key);
+            }
         }
+    }
+
+    getTranslatedValue(value)
+    {
+        const x = value.split(':');
+        const vtype = x[0];
+        const vvalue = x[1];
+        const v = [];
+        let values;
+        switch (vtype) {
+            case 'CONCAT':
+                values = vvalue.split('|');
+                let separator = values.shift();
+                values.forEach(n => {
+                    v.push(this.getDataValue(n.trim()));
+                });
+                value = v.join(separator);
+                break;
+            case 'FORMAT':
+                values = vvalue.split('|');
+                value = values.shift();
+                values.forEach((n, i) => {
+                    value = value.replace(new RegExp('%' + (i + 1) + '%', 'g'), this.getDataValue(n.trim()));
+                });
+                break;
+        }
+        return value;
     }
 
     getInfo() {

@@ -5,9 +5,9 @@
         "readinessTimeout":60000
     },
     "bridges": {
-        "siap-2022": {
+        "siap-2023": {
             "daerah":"Provinsi Jawa Timur",
-            "year":2022
+            "year":2023
         }
     }
 }
