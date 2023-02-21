@@ -19,3 +19,4 @@ The field map is using the following convention:
 |          | `=`   Field selector is using xpath                      |
 |          | `?`   Perform read operation instead of fill form field  |
 |          | `+`   Wait for loader after operation                    |
+|          | `*`   Indicate required field                            |
