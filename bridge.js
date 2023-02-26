@@ -45,6 +45,7 @@ class SiapBridge {
         this.state = this.STATE_NONE;
         this.siap = new Siap(options);
         this.works = this.siap.works;
+        this.prefilter = options.usePreFilter || false;
     }
 
     selfTest() {
@@ -245,6 +246,7 @@ class SiapBridge {
         return this.works([
             [w => el.click()],
             [w => this.siap.findElements(By.xpath('//md-dialog-content/div/div/div/table/tbody/tr[@ng-repeat]'))],
+            [w => Promise.reject('Tidak ada SPD tersedia!'), w => w.getRes(1).length == 0],
             [w => new Promise((resolve, reject) => {
                 const q = new Queue(w.getRes(1), tr => {
                     this.works([
@@ -636,7 +638,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_1_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP)],
+            [w => w.getRes(0).search(queue.SPP), w => this.prefilter],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -661,7 +663,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_0_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP)],
+            [w => w.getRes(0).search(queue.SPP), w => this.prefilter],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -698,7 +700,7 @@ class SiapBridge {
         ]);
     }
 
-    isVerifikasiSppNeeded(queue, search = false) {
+    isVerifikasiSppNeeded(queue) {
         let result = true;
         return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
@@ -707,7 +709,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_3_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP), w => search],
+            [w => w.getRes(0).search(queue.SPP), w => this.prefilter],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -724,7 +726,7 @@ class SiapBridge {
         ]);
     }
 
-    createVerifikasiSpp(queue, search = false) {
+    createVerifikasiSpp(queue) {
         return this.works([
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
@@ -732,7 +734,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_4_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP), w => search],
+            [w => w.getRes(0).search(queue.SPP), w => this.prefilter],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -755,15 +757,15 @@ class SiapBridge {
         ]);
     }
 
-    checkVerifikasiSpp(queue, search = false) {
+    checkVerifikasiSpp(queue) {
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Verifikasi SPP')],
             [w => this.siap.waitLoader()],
-            [w => this.isVerifikasiSppNeeded(queue, search)],
+            [w => this.isVerifikasiSppNeeded(queue)],
             [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getDataBelumTerverifikasi()"]')), w => w.getRes(3)],
             [w => this.siap.waitLoader(), w => w.getRes(3)],
-            [w => this.createVerifikasiSpp(queue, search), w => w.getRes(3)],
+            [w => this.createVerifikasiSpp(queue), w => w.getRes(3)],
         ]);
     }
 
@@ -776,7 +778,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchSpm"]'),
                 pager: By.id('DataTables_Table_0_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP)],
+            [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[1]'), By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -847,7 +849,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpmHasil"]'),
                 pager: By.id('DataTables_Table_1_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPM)],
+            [w => w.getRes(0).search(queue.SPM), w => this.prefilter],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -872,7 +874,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpm"]'),
                 pager: By.id('DataTables_Table_0_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPM)],
+            [w => w.getRes(0).search(queue.SPM), w => this.prefilter],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
