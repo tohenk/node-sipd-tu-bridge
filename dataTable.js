@@ -96,7 +96,7 @@ class DataTable {
     gotoPage(page) {
         return this.works([
             [w => Promise.reject('Pager element not specified!'), w => !this._pager],
-            [w => this._pager.findElement(By.xpath('.//*[contains(@class,"paginate_button") and text()="_X_"]'.replace(/_X_/, page)))],
+            [w => this._pager.findElement(By.xpath('.//*[contains(@class,"paginate_button")]/a[text()="_X_"]'.replace(/_X_/, page)))],
             [w => w.getRes(1).click()],
             [w => this.waitProcessing()],
         ]);
