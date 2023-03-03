@@ -617,7 +617,7 @@ class SiapBridge {
     checkSpp(queue) {
         return this.works([
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Pembuatan SPP')],
-            [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getActiveSubTabLs()"]'))],
+            [w => this.siap.waitAndFocus(By.xpath('//a[@ng-click="getActiveSubTabLs()"]'))],
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.isSppNeeded(queue)],
             [w => this.siap.waitAndFocus(By.xpath('//button[contains(text(),"Buat SPP LS")]')), w => w.getRes(3)],
@@ -691,10 +691,10 @@ class SiapBridge {
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Pembuatan Surat Pernyataan Tanggung Jawab Mutlak (SPTJM) SPP')],
-            [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getDataBatal()"]'))],
+            [w => this.siap.waitAndFocus(By.xpath('//a[@ng-click="getDataBatal()"]'))],
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.isSptjmSppNeeded(queue)],
-            [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getDataSudahTerverifikasi()"]')), w => w.getRes(4)],
+            [w => this.siap.waitAndFocus(By.xpath('//a[@ng-click="getDataSudahTerverifikasi()"]')), w => w.getRes(4)],
             [w => this.siap.sleep(this.siap.opdelay), w => w.getRes(4)],
             [w => this.createSptjmSpp(queue), w => w.getRes(4)],
         ]);
@@ -763,7 +763,7 @@ class SiapBridge {
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Verifikasi SPP')],
             [w => this.siap.waitLoader()],
             [w => this.isVerifikasiSppNeeded(queue)],
-            [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getDataBelumTerverifikasi()"]')), w => w.getRes(3)],
+            [w => this.siap.waitAndFocus(By.xpath('//a[@ng-click="getDataBelumTerverifikasi()"]')), w => w.getRes(3)],
             [w => this.siap.waitLoader(), w => w.getRes(3)],
             [w => this.createVerifikasiSpp(queue), w => w.getRes(3)],
         ]);
@@ -902,10 +902,10 @@ class SiapBridge {
         return this.works([
             [w => Promise.reject('SPM belum dibuat!'), w => !queue.SPM],
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Pembuatan Surat Pernyataan Tanggung Jawab Mutlak (SPTJM) SPM')],
-            [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getDataBatal()"]'))],
+            [w => this.siap.waitAndFocus(By.xpath('//a[@ng-click="getDataBatal()"]'))],
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.isSptjmSpmNeeded(queue)],
-            [w => this.siap.waitAndClick(By.xpath('//a[@ng-click="getDataSudahTerverifikasi()"]')), w => w.getRes(4)],
+            [w => this.siap.waitAndFocus(By.xpath('//a[@ng-click="getDataSudahTerverifikasi()"]')), w => w.getRes(4)],
             [w => this.siap.sleep(this.siap.opdelay), w => w.getRes(4)],
             [w => this.createSptjmSpm(queue), w => w.getRes(4)],
         ]);
