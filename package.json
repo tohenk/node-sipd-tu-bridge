@@ -6,9 +6,9 @@
   "license": "MIT",
   "main": "app.js",
   "dependencies": {
-    "@ntlab/ntlib": "^2.0.0",
+    "@ntlab/ntlib": "^2.0.5",
     "@ntlab/webrobot": "^1.4.13",
     "@ntlab/work": "^1.1.2",
-    "socket.io": "^4.5.4"
+    "socket.io": "^4.7.1"
   }
 }
