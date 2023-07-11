@@ -32,7 +32,7 @@
 		"?nomorSpp": "SPP"
 	},
 	"sptjm-spp": {
-		"*nomor_sptjm": "NO_SPP",
+		"*nomor_sptjm": "NO_SPTJM_SPP",
 		"tanggalLengkap": "TGL_SPP"
 	},
 	"verifikasi-spp": {
@@ -51,7 +51,7 @@
 		"?nomorSpm": "SPM"
 	},
 	"sptjm-spm": {
-		"*nomor_sptjm": "NO_SPM",
+		"*nomor_sptjm": "NO_SPTJM_SPM",
 		"tanggalLengkap": "TGL_SPM"
 	}
 }
