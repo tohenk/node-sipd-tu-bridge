@@ -160,13 +160,18 @@ class SiapBridge {
             w => this.siap.open(),
         ];
         if (Array.isArray(theworks)) {
-            Array.prototype.push.apply(works, theworks);
+            works.push(...theworks);
         }
         if (typeof theworks == 'function') {
             works.push(theworks);
         }
         return this.works(works, {
-            done: () => this.siap.stop()
+            done: (w, err) => {
+                return this.works([
+                    [e => this.siap.sleep(this.siap.timeout), e => err],
+                    [e => this.siap.stop()],
+                ]);
+            }
         });
     }
 
@@ -804,7 +809,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchSpm"]'),
                 pager: By.id('DataTables_Table_6_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP)],
+            [w => w.getRes(0).search(queue.SPP), w => this.prefilter],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
