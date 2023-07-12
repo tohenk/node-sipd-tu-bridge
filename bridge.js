@@ -586,7 +586,6 @@ class SiapBridge {
 
     isSppNeeded(queue) {
         let result = true;
-        const no = queue.getMappedData('spp.spp:NO');
         const tgl = this.getDate(queue.getMappedData('spp.spp:TGL'));
         const nominal = queue.getMappedData('spp.spp:NOMINAL');
         const untuk = queue.getMappedData('spp.keteranganSpp');
@@ -606,7 +605,7 @@ class SiapBridge {
                     const tglSpp = this.getDate(values[1]);
                     const untukSpp = values[2];
                     const nomSpp = parseFloat(this.pickNumber(values[3]));
-                    if (no == noSpp || (this.dateSerial(tgl) == this.dateSerial(tglSpp) && nominal == nomSpp && untuk == untukSpp)) {
+                    if (this.dateSerial(tgl) == this.dateSerial(tglSpp) && nominal == nomSpp && untuk == untukSpp) {
                         result = false;
                         queue.SPP = noSpp;
                         reject(DataTable.stop());
