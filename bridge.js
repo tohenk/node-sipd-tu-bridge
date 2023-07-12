@@ -838,7 +838,7 @@ class SiapBridge {
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Pembuatan SPM')],
             [w => this.siap.waitLoader()],
             [w => this.isSpmNeeded(queue)],
-            [w => this.siap.waitAndClick(By.xpath('//a[@id="tab-list-spm-ls"]')), w => w.getRes(3)],
+            [w => this.siap.waitAndFocus(By.xpath('//a[@id="tab-list-spm-ls"]')), w => w.getRes(3)],
             [w => this.siap.fillFormValue({target: By.id('btn-select-creator'), value: creator}), w => w.getRes(3)],
             [w => this.siap.sleep(this.siap.opdelay), w => w.getRes(3)],
             [w => this.createSpm(queue), w => w.getRes(3)],
