@@ -133,13 +133,13 @@ class SiapBridge {
     }
 
     dateCreate(s) {
-        let x = s.split(' ');
+        const x = s.split(' ');
         return new Date(parseInt(x[1]), this.getMonth(x[0]), 1);
     }
 
     dateDiffMonth(dt1, dt2) {
-        let d1 = (dt1.getFullYear() * 12) + dt1.getMonth() + 1;
-        let d2 = (dt2.getFullYear() * 12) + dt2.getMonth() + 1;
+        const d1 = (dt1.getFullYear() * 12) + dt1.getMonth() + 1;
+        const d2 = (dt2.getFullYear() * 12) + dt2.getMonth() + 1;
         return d1 - d2;
     }
 
@@ -255,10 +255,10 @@ class SiapBridge {
             [w => new Promise((resolve, reject) => {
                 const q = new Queue(w.getRes(1), tr => {
                     this.works([
-                        [w => this.siap.getText([By.xpath('./td[3]'), By.xpath('./td[4]')], tr)],
-                        [w => Promise.resolve(this.getDate(w.getRes(0)[0]))],
-                        [w => this.siap.click({el: tr, data: By.xpath('./td[1]/input[@type="checkbox"]')}),
-                            w => w.getRes(1).valueOf() <= tgl.valueOf()],
+                        [x => this.siap.getText([By.xpath('./td[3]'), By.xpath('./td[4]')], tr)],
+                        [x => Promise.resolve(this.getDate(x.getRes(0)[0]))],
+                        [x => this.siap.click({el: tr, data: By.xpath('./td[1]/input[@type="checkbox"]')}),
+                            x => this.dateSerial(x.getRes(1)) <= this.dateSerial(tgl)],
                     ])
                     .then(() => q.next())
                     .catch(err => reject(err));
@@ -278,24 +278,24 @@ class SiapBridge {
                 return this.expandNestedTable(tbl1, (tbl2, row2) => {                   // kegiatan
                     return this.expandNestedTable(tbl2, (tbl3, row3) => {               // sub kegiatan
                         return this.works([
-                            [w => tbl3.findElements(By.xpath('./tbody/tr[@ng-repeat]'))],
-                            [w => new Promise((resolve, reject) => {
-                                const q = new Queue(w.getRes(0), tr => {
+                            [x => tbl3.findElements(By.xpath('./tbody/tr[@ng-repeat]'))],
+                            [x => new Promise((resolve, reject) => {
+                                const q = new Queue(x.getRes(0), tr => {
                                     this.works([
-                                        [w => this.siap.getText([By.xpath('./td[2]')], tr)],
-                                        [w => Promise.resolve(this.pickNumber(w.getRes(0)[0]))],
-                                        [w => this.siap.getText([By.xpath('./td[4]')], tr),
-                                            w => w.getRes(1) == this.spp.rek],
-                                        [w => Promise.resolve(this.pickNumber(w.getRes(2)[0])),
-                                            w => w.getRes(1) == this.spp.rek],
-                                        [w => Promise.resolve(parseFloat(w.getRes(3))),
-                                            w => w.getRes(1) == this.spp.rek],
-                                        [w => this.siap.click({el: tr, data: By.xpath('./td[1]/input[@type="checkbox"]')}),
-                                            w => w.getRes(1) == this.spp.rek && value > 0 && w.getRes(4) > value],
-                                        [w => this.siap.fillFormValue({parent: tr, target: By.xpath('./td[5]/input[@type="text"]'), value: value}),
-                                            w => w.getRes(1) == this.spp.rek && value > 0 && w.getRes(4) > value],
-                                        [w => Promise.resolve(value = 0),
-                                            w => w.getRes(1) == this.spp.rek && value > 0 && w.getRes(4) > value],
+                                        [y => this.siap.getText([By.xpath('./td[2]')], tr)],
+                                        [y => Promise.resolve(this.pickNumber(y.getRes(0)[0]))],
+                                        [y => this.siap.getText([By.xpath('./td[4]')], tr),
+                                            y => y.getRes(1) == this.spp.rek],
+                                        [y => Promise.resolve(this.pickNumber(y.getRes(2)[0])),
+                                            y => y.getRes(1) == this.spp.rek],
+                                        [y => Promise.resolve(parseFloat(y.getRes(3))),
+                                            y => y.getRes(1) == this.spp.rek],
+                                        [y => this.siap.click({el: tr, data: By.xpath('./td[1]/input[@type="checkbox"]')}),
+                                            y => y.getRes(1) == this.spp.rek && value > 0 && y.getRes(4) > value],
+                                        [y => this.siap.fillFormValue({parent: tr, target: By.xpath('./td[5]/input[@type="text"]'), value: value}),
+                                            y => y.getRes(1) == this.spp.rek && value > 0 && y.getRes(4) > value],
+                                        [y => Promise.resolve(value = 0),
+                                            y => y.getRes(1) == this.spp.rek && value > 0 && y.getRes(4) > value],
                                     ])
                                     .then(() => q.next())
                                     .catch(err => reject(err));
@@ -303,7 +303,7 @@ class SiapBridge {
                                 q.once('done', () => resolve());
                             })],
                         ]);
-                    }, (row) => {
+                    }, row => {
                         return this.works([
                             [w => this.siap.getText([By.xpath('./td[3]')], row)],
                             [w => Promise.resolve(this.pickNumber(w.getRes(0)[0]))],
@@ -324,14 +324,14 @@ class SiapBridge {
                     const f = () => {
                         this.works([
                             // expand
-                            [w => tr.findElement(By.xpath('./td[1]/span'))],
-                            [w => this.siap.focusTo(w.getRes(0))],
+                            [x => tr.findElement(By.xpath('./td[1]/span'))],
+                            [x => this.siap.focusTo(x.getRes(0))],
                             // find table to be expanded
-                            [w => tr.findElement(By.xpath('./following-sibling::tr[@ng-repeat-end]/td/table'))],
+                            [x => tr.findElement(By.xpath('./following-sibling::tr[@ng-repeat-end]/td/table'))],
                             // wait for finish
-                            [w => this.waitExpandedRows(w.getRes(2))],
+                            [x => this.waitExpandedRows(x.getRes(2))],
                             // call the callback
-                            [w => callback(w.getRes(2), tr)],
+                            [x => callback(x.getRes(2), tr)],
                         ])
                         .then(() => q.next())
                         .catch(err => reject(err));
