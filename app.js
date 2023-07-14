@@ -229,6 +229,11 @@ class App {
                 }
                 socket.emit('spp', result);
             })
+            .on('logs', data => {
+                if (data.id) {
+                    socket.emit('logs', {ref: data.id, logs: this.dequeue.getLogs()});
+                }
+            })
         ;
     }
 
