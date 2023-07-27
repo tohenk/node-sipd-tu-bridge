@@ -102,7 +102,19 @@ class SiapBridge {
     }
 
     getDate(date) {
-        if (date && (!isNaN(date) || typeof date == 'string')) {
+        if (date && (!isNaN(date) || typeof date === 'string')) {
+            if (typeof date === 'string' && date.indexOf(' ') > 0) {
+                const dt = date.split(' ');
+                if (dt[1] === '00:00:00') {
+                    date = dt[0];
+                }
+            }
+            if (typeof date === 'string' && date.indexOf('/') > 0) {
+                const dtpart = date.split('/');
+                if (dtpart.length === 3) {
+                    date = Date.UTC(parseInt(dtpart[2]), parseInt(dtpart[1]) - 1, parseInt(dtpart[0]));
+                }
+            }
             date = new Date(date);
         }
         return date;
@@ -134,7 +146,7 @@ class SiapBridge {
 
     dateCreate(s) {
         const x = s.split(' ');
-        return new Date(parseInt(x[1]), this.getMonth(x[0]), 1);
+        return new Date(Date.UTC(parseInt(x[1]), this.getMonth(x[0]), 1));
     }
 
     dateDiffMonth(dt1, dt2) {
@@ -223,6 +235,9 @@ class SiapBridge {
                 }
                 f();
             })],
+            [w => el.getAttribute('value')],
+            [w => Promise.resolve(this.getDate(w.getRes(3)))],
+            [w => Promise.reject(`Date ${w.getRes(4)} is not expected of ${value}!`), w => this.dateSerial(value) != this.dateSerial(w.getRes(4))],
         ]);
     }
 
@@ -239,7 +254,7 @@ class SiapBridge {
                 w => w.getRes(2) < 0],
             [w => w.getRes(5).click(),
                 w => w.getRes(2) < 0],
-            [w => w.getRes(0).findElement(By.xpath('./tbody/tr/td[text()="_X_"]'.replace(/_X_/, date.getDate()))),
+            [w => w.getRes(0).findElement(By.xpath('./tbody/tr/td[not(contains(@class,"off")) and text()="_X_"]'.replace(/_X_/, date.getDate()))),
                 w => w.getRes(2) == 0],
             [w => w.getRes(7).click(),
                 w => w.getRes(2) == 0],
