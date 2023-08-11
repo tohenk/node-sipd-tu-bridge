@@ -82,12 +82,12 @@ class Siap extends WebRobot {
         ]);
     }
 
-    navigateTo($category, $title) {
+    navigateTo(category, title) {
         return this.works([
-            [w => this.findElement(By.xpath('//nav/ul/li/a/span[text()=_X_]/..'.replace(/_X_/, this.escapeStr($category))))],
+            [w => this.findElement(By.xpath('//nav/ul/li/a/span[text()=_X_]/..'.replace(/_X_/, this.escapeStr(category))))],
             [w => this.focusTo(w.getRes(0))],
             [w => this.sleep(this.opdelay)],
-            [w => w.getRes(0).findElement(By.xpath('./../ul/li/a/span[text()=_X_]/..'.replace(/_X_/, this.escapeStr($title))))],
+            [w => w.getRes(0).findElement(By.xpath('./../ul/li/a/span[text()=_X_]/..'.replace(/_X_/, this.escapeStr(title))))],
             [w => this.focusTo(w.getRes(3))],
             [w => this.waitLoader()],
         ]);

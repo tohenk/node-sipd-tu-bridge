@@ -163,6 +163,10 @@ class SiapBridge {
         return result;
     }
 
+    getSafeStr(s) {
+        return s.replace(/\s{2,}/g, ' ');
+    }
+
     sleep(ms) {
         return this.siap.sleep(ms);
     }
@@ -620,7 +624,7 @@ class SiapBridge {
                     const tglSpp = this.getDate(values[1]);
                     const untukSpp = values[2];
                     const nomSpp = parseFloat(this.pickNumber(values[3]));
-                    if (this.dateSerial(tgl) == this.dateSerial(tglSpp) && nominal == nomSpp && untuk == untukSpp) {
+                    if (this.dateSerial(tgl) == this.dateSerial(tglSpp) && nominal == nomSpp && this.getSafeStr(untuk) == this.getSafeStr(untukSpp)) {
                         result = false;
                         queue.SPP = noSpp;
                         reject(DataTable.stop());
@@ -628,7 +632,7 @@ class SiapBridge {
                         resolve();
                     }
                 })],
-            ])],
+            ]), w => w.getRes(2)],
             [ w => Promise.resolve(result)],
         ]);
     }
@@ -657,7 +661,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_1_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP), w => this.prefilter],
+            [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -669,7 +673,7 @@ class SiapBridge {
                         resolve();
                     }
                 })],
-            ])],
+            ]), w => w.getRes(2)],
             [ w => Promise.resolve(result)],
         ]);
     }
@@ -682,7 +686,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_0_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP), w => this.prefilter],
+            [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -702,7 +706,7 @@ class SiapBridge {
                         resolve();
                     }
                 })],
-            ])],
+            ]), w => w.getRes(2)],
         ]);
     }
 
@@ -728,7 +732,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_3_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP), w => this.prefilter],
+            [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -740,7 +744,7 @@ class SiapBridge {
                         resolve();
                     }
                 })],
-            ])],
+            ]), w => w.getRes(2)],
             [ w => Promise.resolve(result)],
         ]);
     }
@@ -753,7 +757,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_4_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP), w => this.prefilter],
+            [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -772,7 +776,7 @@ class SiapBridge {
                         resolve();
                     }
                 })],
-            ])],
+            ]), w => w.getRes(2)],
         ]);
     }
 
@@ -810,7 +814,7 @@ class SiapBridge {
                         resolve();
                     }
                 })],
-            ])],
+            ]), w => w.getRes(2)],
             [ w => Promise.resolve(result)],
         ]);
     }
@@ -823,7 +827,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchSpm"]'),
                 pager: By.id('DataTables_Table_6_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPP), w => this.prefilter],
+            [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -842,7 +846,7 @@ class SiapBridge {
                         resolve();
                     }
                 })],
-            ])],
+            ]), w => w.getRes(2)],
         ]);
     }
 
@@ -868,7 +872,7 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpmHasil"]'),
                 pager: By.id('DataTables_Table_1_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPM), w => this.prefilter],
+            [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -880,7 +884,7 @@ class SiapBridge {
                         resolve();
                     }
                 })],
-            ])],
+            ]), w => w.getRes(2)],
             [ w => Promise.resolve(result)],
         ]);
     }
@@ -893,7 +897,8 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpm"]'),
                 pager: By.id('DataTables_Table_0_paginate'),
             })],
-            [w => w.getRes(0).search(queue.SPM), w => this.prefilter],
+            // check if prefilter enabled, it's cause unclickable button if filtered
+            [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp')), w => this.prefilter],
             [w => w.getRes(0).each(el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
@@ -913,7 +918,7 @@ class SiapBridge {
                         resolve();
                     }
                 })],
-            ])],
+            ]), w => !this.prefilter || w.getRes(2)],
         ]);
     }
 
