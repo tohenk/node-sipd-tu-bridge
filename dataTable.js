@@ -27,6 +27,8 @@ const Queue = require('@ntlab/work/queue');
 
 class DataTable {
 
+    PAGE_SIZE = 10
+
     constructor(owner) {
         this.owner = owner;
         this.owner.constructor.expectErr(DataTableStopError);
@@ -154,12 +156,17 @@ class DataTable {
         ]);
     }
 
-    each(callback) {
+    each(options, callback) {
+        if (typeof options === 'function') {
+            callback = options;
+            options = {};
+        }
         return this.works([
             [w => this.getRows()],
             [w => this.getPages(), w => w.getRes(0).length],
             [w => new Promise((resolve, reject) => {
-                const pages = Array.from({length: w.getRes(1)}, (x, i) => i + 1);
+                const p = options.filtered && w.getRes(0).length < this.PAGE_SIZE ? 1 : w.getRes(1);
+                const pages = Array.from({length: p}, (x, i) => i + 1);
                 const q = new Queue(pages, page => {
                     this.eachPage(page, callback)
                         .then(() => q.next())

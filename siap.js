@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+const Queue = require('@ntlab/work/queue');
 const WebRobot = require('@ntlab/webrobot');
 const { By, error } = require('selenium-webdriver');
 
@@ -169,7 +170,40 @@ if (top < wtop || top > wbottom) {
     dismissSwal2(caption = 'OK') {
         return this.works([
             [w => this.waitSwal2()],
+            [w => this.getSwal2Message()],
+            [w => this.getSwal2Icon()],
             [w => this.waitAndClick(By.xpath('//button[@type="button"][contains(@class,"swal2-confirm")][contains(text(),' + this.escapeStr(caption) + ')]'))],
+            [w => Promise.resolve([w.getRes(1), w.getRes(2)])],
+        ]);
+    }
+
+    getSwal2Icon() {
+        return this.works([
+            [w => this.findElements(By.xpath('//div[contains(@class,"swal2-icon")]'))],
+            [w => new Promise((resolve, reject) => {
+                let icon;
+                const q = new Queue(w.getRes(0), el => {
+                    this.works([
+                        [x => el.getAttribute('class')],
+                        [x => el.isDisplayed()],
+                        [x => Promise.resolve(icon = 'error'), x => x.getRes(1) && x.getRes(0).indexOf('swal2-error') > 0],
+                        [x => Promise.resolve(icon = 'question'), x => x.getRes(1) && x.getRes(0).indexOf('swal2-question') > 0],
+                        [x => Promise.resolve(icon = 'warning'), x => x.getRes(1) && x.getRes(0).indexOf('swal2-warning') > 0],
+                        [x => Promise.resolve(icon = 'info'), x => x.getRes(1) && x.getRes(0).indexOf('swal2-info') > 0],
+                        [x => Promise.resolve(icon = 'success'), x => x.getRes(1) && x.getRes(0).indexOf('swal2-success') > 0],
+                    ])
+                    .then(() => q.next())
+                    .catch(err => reject(err));
+                });
+                q.once('done', () => resolve(icon));
+            })]
+        ]);
+    }
+
+    getSwal2Message() {
+        return this.works([
+            [w => this.findElement(By.xpath('//div[@class="swal2-content"]'))],
+            [w => w.getRes(0).getAttribute('innerText')],
         ]);
     }
 

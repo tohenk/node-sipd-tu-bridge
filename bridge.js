@@ -1,3 +1,4 @@
+
 /**
  * The MIT License (MIT)
  *
@@ -491,6 +492,7 @@ class SiapBridge {
                             [w => el.click()],
                             [w => this.siap.waitLoader()],
                             [w => this.siap.dismissSwal2('Tutup')],
+                            [w => Promise.reject(w.getRes(2)[0]), w => w.getRes(2)[1] === 'error'],
                         ]);
                         break;
                 }
@@ -616,7 +618,7 @@ class SiapBridge {
                 pager: By.id('DataTables_Table_0_paginate'),
             })],
             [w => w.getRes(0).search(untuk)],
-            [w => w.getRes(0).each(el => [
+            [w => w.getRes(0).each({filtered: true}, el => [
                 [x => this.siap.getText([By.xpath('./td[2]'), By.xpath('./td[3]'), By.xpath('./td[4]'), By.xpath('./td[5]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
@@ -662,7 +664,7 @@ class SiapBridge {
                 pager: By.id('DataTables_Table_1_paginate'),
             })],
             [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
-            [w => w.getRes(0).each(el => [
+            [w => w.getRes(0).each({filtered: true}, el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
@@ -687,7 +689,7 @@ class SiapBridge {
                 pager: By.id('DataTables_Table_0_paginate'),
             })],
             [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
-            [w => w.getRes(0).each(el => [
+            [w => w.getRes(0).each({filtered: true}, el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
@@ -733,7 +735,7 @@ class SiapBridge {
                 pager: By.id('DataTables_Table_3_paginate'),
             })],
             [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
-            [w => w.getRes(0).each(el => [
+            [w => w.getRes(0).each({filtered: true}, el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
@@ -758,7 +760,7 @@ class SiapBridge {
                 pager: By.id('DataTables_Table_4_paginate'),
             })],
             [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
-            [w => w.getRes(0).each(el => [
+            [w => w.getRes(0).each({filtered: true}, el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
@@ -802,7 +804,7 @@ class SiapBridge {
                 pager: By.id('DataTables_Table_0_paginate'),
             })],
             [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
-            [w => w.getRes(0).each(el => [
+            [w => w.getRes(0).each({filtered: true}, el => [
                 [x => this.siap.getText([By.xpath('./td[1]'), By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
@@ -828,7 +830,7 @@ class SiapBridge {
                 pager: By.id('DataTables_Table_6_paginate'),
             })],
             [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
-            [w => w.getRes(0).each(el => [
+            [w => w.getRes(0).each({filtered: true}, el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
@@ -873,7 +875,7 @@ class SiapBridge {
                 pager: By.id('DataTables_Table_1_paginate'),
             })],
             [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
-            [w => w.getRes(0).each(el => [
+            [w => w.getRes(0).each({filtered: true}, el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
@@ -899,7 +901,7 @@ class SiapBridge {
             })],
             // check if prefilter enabled, it's cause unclickable button if filtered
             [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp')), w => this.prefilter],
-            [w => w.getRes(0).each(el => [
+            [w => w.getRes(0).each({filtered: this.prefilter}, el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
