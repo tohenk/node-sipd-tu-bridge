@@ -599,9 +599,10 @@ class SiapBridge {
             [w => this.siap.navigateTo('Penatausahaan Pengeluaran', 'Rekanan')],
             [w => this.isRekananNeeded(queue)],
             [w => this.siap.waitAndClick(By.xpath('//button[@ng-click="OpenForm()"]')), w => w.getRes(1)],
+            [w => this.siap.waitAndClick(By.xpath('//button[@ng-click="OpenFormEdit(data[0])"]')), w => !w.getRes(1)],
             [w => this.fillForm(queue, 'rekanan',
                 By.xpath('//form[@ng-submit="TambahRekanan($event)"]'),
-                By.xpath('//button[contains(@class,"btnSubmit")]')), w => w.getRes(1)],
+                By.xpath('//button[contains(@class,"btnSubmit")]'))],
         ]);
     }
 
