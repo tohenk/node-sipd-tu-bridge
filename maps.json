@@ -40,7 +40,7 @@
 		"#syarat_ls!=.//text()[contains(.,'Salinan DPA')]/../input": true,
 		"#syarat_ls!=.//text()[contains(.,'Dokumen SPP-LS')]/../input": true,
 		"#syarat_ls!=.//text()[contains(.,'Surat Pernyataan Tanggung Jawab Mutlak PA')]/../input": true,
-		"#syarat_ls!statusVerifikasi": "CHOICE:ya",
+		"#syarat_ls!+statusVerifikasi": "CHOICE:ya",
 		"#syarat_ls!tanggalDisetujuiSPP": "TGL_SPP"
 	},
 	"spm": {
