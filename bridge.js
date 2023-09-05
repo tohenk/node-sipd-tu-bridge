@@ -225,7 +225,7 @@ class SiapBridge {
     fillDatePicker(el, value) {
         return this.works([
             [w => Promise.reject('Not a valid date!'), w => value instanceof Date && isNaN(value)],
-            [w => el.click()],
+            [w => this.siap.focusTo(el)],
             [w => new Promise((resolve, reject) => {
                 const f = () => {
                     this.datePickerNavigate(value)
@@ -559,15 +559,19 @@ class SiapBridge {
         return result;
     }
 
-    fillForm(queue, name, form, submit, dismiss = true) {
+    fillForm(queue, name, form, submit, options = null) {
+        options = options || {};
+        if (options.wait === undefined) options.wait = 0;
+        if (options.dismiss === undefined) options.dismiss = true;
         return this.works([
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.scrollTo(0)],
             [w => this.siap.fillInForm(
                 this.handleFormFill(name, 'formTambah', queue),
                 form,
-                submit)],
-            [w => this.siap.dismissSwal2(), w => dismiss],
+                submit,
+                options.wait)],
+            [w => this.siap.dismissSwal2(), w => options.dismiss],
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.waitLoader()],
         ]);
@@ -701,7 +705,7 @@ class SiapBridge {
                             [y => this.fillForm(queue, 'sptjm-spp',
                                 By.xpath('//form[@ng-submit="TambahSptjmSpp($event)"]'),
                                 By.xpath('//button[@id="btnSubmit"]'),
-                                false)],
+                                {dismiss: false})],
                         ])
                         .then(() => reject(DataTable.stop()))
                         .catch(err => reject(err));
@@ -841,7 +845,8 @@ class SiapBridge {
                             [y => this.siap.focusTo(y.getRes(0))],
                             [y => this.fillForm(queue, 'spm',
                                 By.xpath('//form[@name="form-input-ls"]'),
-                                By.xpath('//button[@id="btnSubmitSpmLsNonGaji"]'))],
+                                By.xpath('//button[@id="btnSubmitSpmLsNonGaji"]'),
+                                {wait: this.siap.delay})],
                         ])
                         .then(() => reject(DataTable.stop()))
                         .catch(err => reject(err));
@@ -913,7 +918,7 @@ class SiapBridge {
                             [y => this.fillForm(queue, 'sptjm-spm',
                                 By.xpath('//form[@ng-submit="TambahSptjmSpm($event)"]'),
                                 By.xpath('//button[@id="btnSubmit"]'),
-                                false)],
+                                {dismiss: false})],
                         ])
                         .then(() => reject(DataTable.stop()))
                         .catch(err => reject(err));
