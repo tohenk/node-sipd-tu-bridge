@@ -26,6 +26,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const util = require('util');
 const EventEmitter = require('events');
 const Queue = require('@ntlab/work/queue');
 
@@ -177,12 +178,12 @@ class SiapDequeue extends EventEmitter {
         return status;
     }
 
-    getLogs() {
-        return this.queues.map(queue => queue.getLog());
+    getLogs(raw = false) {
+        return this.queues.map(queue => queue.getLog(raw));
     }
 
     saveLogs() {
-        const logs = this.getLogs().filter(log => log.type === SiapQueue.QUEUE_SPP && [SiapQueue.STATUS_NEW, SiapQueue.STATUS_PROCESSING].indexOf(log.status) < 0);
+        const logs = this.getLogs(true).filter(log => log.type !== SiapQueue.QUEUE_CALLBACK && [SiapQueue.STATUS_NEW, SiapQueue.STATUS_PROCESSING].indexOf(log.status) < 0);
         if (logs.length) {
             const queueDir = path.join(process.cwd(), 'queue');
             if (!fs.existsSync(queueDir)) {
@@ -211,7 +212,7 @@ class SiapDequeue extends EventEmitter {
     }
 
     saveQueue() {
-        const queues = this.queues.filter(queue => queue.type === SiapQueue.QUEUE_SPP && queue.status === SiapQueue.STATUS_NEW);
+        const queues = this.queues.filter(queue => queue.type !== SiapQueue.QUEUE_CALLBACK && queue.status === SiapQueue.STATUS_NEW);
         if (queues.length) {
             const savedQueues = queues.map(queue => {
                 return {
@@ -373,7 +374,7 @@ class SiapQueue
         return [SiapQueue.STATUS_DONE, SiapQueue.STATUS_ERROR, SiapQueue.STATUS_TIMED_OUT].indexOf(this.status) >= 0;
     }
 
-    getLog() {
+    getLog(raw = false) {
         const res = {id: this.id, type: this.type};
         const info = this.getInfo();
         if (info) {
@@ -384,7 +385,7 @@ class SiapQueue
         }
         res.status = this.status;
         if (this.result) {
-            res.result = this.result;
+            res.result = !raw && (Array.isArray(this.result) || typeof this.result === 'object') ? util.inspect(this.result) : this.result;
         }
         return res;
     }
