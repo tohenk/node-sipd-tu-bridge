@@ -22,14 +22,8 @@
  * SOFTWARE.
  */
 
-const fs = require('fs');
 const path = require('path');
-const util = require('util');
 const Cmd = require('@ntlab/ntlib/cmd');
-const Work = require('@ntlab/work/work');
-const SiapBridge = require('./bridge');
-const SiapQueue = require('./queue');
-const SiapNotifier = require('./notifier');
 
 Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
 Cmd.addVar('config', 'c', 'Set configuration file', 'filename');
@@ -40,6 +34,13 @@ Cmd.addVar('profile', '', 'Use profile for operation', 'profile');
 if (!Cmd.parse() || (Cmd.get('help') && usage())) {
     process.exit();
 }
+
+const fs = require('fs');
+const util = require('util');
+const Work = require('@ntlab/work/work');
+const SiapBridge = require('./bridge');
+const SiapQueue = require('./queue');
+const SiapNotifier = require('./notifier');
 
 class App {
 
@@ -243,26 +244,37 @@ class App {
         });
     }
 
+    isBridgeReady(bridge) {
+        // bridge currently has no queue
+        // or the last queue has been finished
+        if (bridge && (bridge.queue === undefined || bridge.queue.finished())) {
+            return true;
+        }
+        return false;
+    }
+
     getQueueHandler(queue) {
-        let bridge;
+        const bridges = [];
         const year = queue.data && queue.data.year ? queue.data.year : null;
         // get prioritized bridge based on accepts type
         this.bridges.forEach(b => {
             if (b.isOperational() && b.year == year && Array.isArray(b.accepts) && b.accepts.indexOf(queue.type) >= 0) {
-                bridge = b;
-                return true;
+                if (this.isBridgeReady(b)) {
+                    bridges.push(b);
+                }
             }
         });
         // fallback to default bridge
-        if (!bridge) {
+        if (!bridges.length) {
             this.bridges.forEach(b => {
-                if (b.isOperational() && b.year == year && b.accepts == undefined) {
-                    bridge = b;
-                    return true;
+                if (b.isOperational() && b.year == year && b.accepts === undefined) {
+                    if (this.isBridgeReady(b)) {
+                        bridges.push(b);
+                    }
                 }
             });
         }
-        return bridge;
+        return bridges;
     }
 
     readyCount() {
@@ -274,15 +286,8 @@ class App {
     }
 
     isBridgeIdle(queue) {
-        const bridge = this.getQueueHandler(queue);
-        if (bridge) {
-            // bridge currently has no queue
-            // or the last queue has been finished
-            if (bridge.queue == undefined || bridge.queue.finished()) {
-                return true;
-            }
-        }
-        return false;
+        const bridges = this.getQueueHandler(queue);
+        return bridges.length ? true : false;
     }
 
     canProcessQueue() {
@@ -301,8 +306,9 @@ class App {
         if (queue.type == SiapQueue.QUEUE_CALLBACK) {
             return SiapNotifier.notify(queue);
         }
-        const bridge = this.getQueueHandler(queue);
-        if (bridge) {
+        const bridges = this.getQueueHandler(queue);
+        if (bridges.length) {
+            const bridge = bridges[Math.floor(Math.random() * bridges.length)];
             bridge.queue = queue;
             queue.bridge = bridge;
             queue.ontimeout = () => bridge.siap.stop();
