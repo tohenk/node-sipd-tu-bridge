@@ -24,7 +24,8 @@
  */
 
 const crypto = require('crypto');
-const util = require('util');
+const fs = require('fs');
+const path = require('path');
 const EventEmitter = require('events');
 const Queue = require('@ntlab/work/queue');
 
@@ -178,6 +179,55 @@ class SiapDequeue extends EventEmitter {
 
     getLogs() {
         return this.queues.map(queue => queue.getLog());
+    }
+
+    saveLogs() {
+        const logs = this.getLogs().filter(log => log.type === SiapQueue.QUEUE_SPP && [SiapQueue.STATUS_NEW, SiapQueue.STATUS_PROCESSING].indexOf(log.status) < 0);
+        if (logs.length) {
+            const queueDir = path.join(process.cwd(), 'queue');
+            if (!fs.existsSync(queueDir)) {
+                fs.mkdirSync(queueDir, {recursive: true});
+            }
+            let filename, seq = 0;
+            while (true) {
+                filename = path.join(queueDir, `queue${++seq}.log`);
+                if (!fs.existsSync(filename)) {
+                    break;
+                }
+            }
+            fs.writeFileSync(filename, JSON.stringify(logs, null, 2));
+        }
+    }
+
+    loadQueue() {
+        const filename = path.join(process.cwd(), 'queue', 'saved.queue');
+        if (fs.existsSync(filename) && typeof this.createQueue === 'function') {
+            const savedQueues = JSON.parse(fs.readFileSync(filename));
+            if (savedQueues) {
+                savedQueues.forEach(queue => this.createQueue(queue));
+            }
+            fs.unlinkSync(filename);
+        }
+    }
+
+    saveQueue() {
+        const queues = this.queues.filter(queue => queue.type === SiapQueue.QUEUE_SPP && queue.status === SiapQueue.STATUS_NEW);
+        if (queues.length) {
+            const savedQueues = queues.map(queue => {
+                return {
+                    type: queue.type,
+                    id: queue.id,
+                    data: queue.data,
+                    callback: queue.callback,
+                }
+            });
+            const queueDir = path.join(process.cwd(), 'queue');
+            if (!fs.existsSync(queueDir)) {
+                fs.mkdirSync(queueDir, {recursive: true});
+            }
+            const filename = path.join(queueDir, 'saved.queue');
+            fs.writeFileSync(filename, JSON.stringify(savedQueues, null, 2));
+        }
     }
 
     buildInfo(info) {
@@ -334,7 +384,7 @@ class SiapQueue
         }
         res.status = this.status;
         if (this.result) {
-            res.result = util.inspect(this.result);
+            res.result = this.result;
         }
         return res;
     }

@@ -30,6 +30,7 @@ Cmd.addVar('config', 'c', 'Set configuration file', 'filename');
 Cmd.addVar('port', 'p', 'Set server port to listen', 'port');
 Cmd.addVar('url', '', 'Set Siap url', 'url');
 Cmd.addVar('profile', '', 'Use profile for operation', 'profile');
+Cmd.addBool('queue', 'q', 'Enable queue saving and loading');
 
 if (!Cmd.parse() || (Cmd.get('help') && usage())) {
     process.exit();
@@ -107,24 +108,48 @@ class App {
     createDequeuer() {
         this.dequeue = SiapQueue.createDequeuer();
         this.dequeue.setInfo({version: this.VERSION, ready: () => this.ready ? 'Yes' : 'No'});
+        this.dequeue.createQueue = data => {
+            switch (data.type) {
+                case SiapQueue.QUEUE_SPP:
+                    const queue = SiapQueue.createSppQueue(data.data, data.callback);
+                    if (data.id) {
+                        queue.id = data.id;
+                    }
+                    queue.maps = this.config.maps;
+                    queue.info = queue.getMappedData('info.title');
+                    console.log('SPP: %s', queue.info ? queue.info : '');
+                    return SiapQueue.addQueue(queue);
+            }
+        }
         this.dequeue
             .on('queue', queue => this.handleNotify(queue))
             .on('queue-done', queue => this.handleNotify(queue))
             .on('queue-error', queue => this.handleNotify(queue))
         ;
+        if (Cmd.get('queue')) {
+            process.on(process.platform === 'win32' ? 'SIGINT' : 'SIGTERM', () => {
+                console.log('Please wait, saving queues...');
+                this.dequeue.saveQueue();
+                this.dequeue.saveLogs();
+                process.exit();
+            });
+        }
     }
 
     createBridges() {
         Object.keys(this.configs).forEach(name => {
-            let options = this.configs[name];
-            let config = Object.assign({}, this.config, options);
-            let browser = config.browser ? config.browser : 'default';
+            const options = this.configs[name];
+            const config = Object.assign({}, this.config, options);
+            if (config.enabled !== undefined && !config.enabled) {
+                return true;
+            }
+            const browser = config.browser ? config.browser : 'default';
             if (browser) {
                 if (!this.sessions[browser]) this.sessions[browser] = 0;
                 this.sessions[browser]++;
                 if (this.sessions[browser] > 1) config.session = 's' + this.sessions[browser];
             }
-            let bridge = new SiapBridge(config);
+            const bridge = new SiapBridge(config);
             bridge.name = name;
             bridge.year = config.year;
             this.bridges.push(bridge);
@@ -134,15 +159,15 @@ class App {
 
     createServer() {
         const { createServer } = require('http');
+        const { Server } = require('socket.io');
         const http = createServer();
-        const port = Cmd.get('port') | 4000;
+        const port = Cmd.get('port') || 4000;
         const opts = {};
         if (this.config.cors) {
             opts.cors = this.config.cors;
         } else {
             opts.cors = {origin: '*'};
         }
-        const { Server } = require('socket.io');
         const io = new Server(http, opts);
         io.of('/siap')
             .on('connection', socket => {
@@ -158,9 +183,12 @@ class App {
             Work.works(selfTests)
                 .then(() => {
                     this.dequeue.setConsumer(this);
+                    if (Cmd.get('queue')) {
+                        this.dequeue.loadQueue();
+                    }
                     console.log('Queue processing is ready...');
                 })
-                .catch(err => console.log(err))
+                .catch(err => console.error(err))
             ;
             this.checkReadiness();
         });
@@ -215,11 +243,11 @@ class App {
                 let result;
                 let cnt = 0;
                 items.forEach(spp => {
-                    const queue = SiapQueue.createSppQueue(spp, socket.callback);
-                    queue.maps = this.config.maps;
-                    queue.info = queue.getMappedData('info.title');
-                    console.log('SPP: %s', queue.info ? queue.info : '');
-                    const res = SiapQueue.addQueue(queue);
+                    const res = this.dequeue.createQueue({
+                        type: SiapQueue.QUEUE_SPP,
+                        data: spp,
+                        callback: socket.callback,
+                    });
                     cnt++;
                     if (!batch) {
                         result = res;
