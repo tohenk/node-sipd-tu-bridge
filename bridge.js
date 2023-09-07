@@ -47,6 +47,7 @@ class SiapBridge {
         this.siap = new Siap(options);
         this.works = this.siap.works;
         this.prefilter = options.usePreFilter || false;
+        this.siap.constructor.expectErr(SiapAnnouncedError);
     }
 
     selfTest() {
@@ -184,6 +185,11 @@ class SiapBridge {
         }
         return this.works(works, {
             done: (w, err) => {
+                if (err instanceof SiapAnnouncedError && err._queue) {
+                    const queue = err._queue;
+                    const callbackQueue = SiapQueue.createCallbackQueue({id: queue.getMappedData('info.id'), error: err.message}, queue.callback);
+                    SiapQueue.addQueue(callbackQueue);
+                }
                 return this.works([
                     [e => this.siap.sleep(this.siap.timeout), e => err],
                     [e => this.siap.stop()],
@@ -492,7 +498,7 @@ class SiapBridge {
                             [w => el.click()],
                             [w => this.siap.waitLoader()],
                             [w => this.siap.dismissSwal2('Tutup')],
-                            [w => Promise.reject(w.getRes(2)[0]), w => w.getRes(2)[1] === 'error'],
+                            [w => Promise.reject(SiapAnnouncedError.create(w.getRes(2)[0], queue)), w => w.getRes(2)[1] === 'error'],
                         ]);
                         break;
                 }
@@ -970,6 +976,23 @@ class SiapBridge {
                 resolve(queue.SPP ? queue.SPP : false);
             })],
         ]);
+    }
+}
+
+class SiapAnnouncedError extends Error {
+
+    toString() {
+        return this.message;
+    }
+
+    [util.inspect.custom](depth, options, inspect) {
+        return this.toString();
+    }
+
+    static create(message, queue) {
+        const err = new SiapAnnouncedError(message);
+        err._queue = queue;
+        return err;
     }
 }
 
