@@ -109,16 +109,23 @@ class App {
         this.dequeue = SiapQueue.createDequeuer();
         this.dequeue.setInfo({version: this.VERSION, ready: () => this.ready ? 'Yes' : 'No'});
         this.dequeue.createQueue = data => {
+            let queue;
             switch (data.type) {
                 case SiapQueue.QUEUE_SPP:
-                    const queue = SiapQueue.createSppQueue(data.data, data.callback);
-                    if (data.id) {
-                        queue.id = data.id;
-                    }
+                    queue = SiapQueue.createSppQueue(data.data, data.callback);
                     queue.maps = this.config.maps;
                     queue.info = queue.getMappedData('info.title');
-                    console.log('SPP: %s', queue.info ? queue.info : '');
-                    return SiapQueue.addQueue(queue);
+                    break;
+            }
+            if (queue) {
+                if (data.id) {
+                    queue.id = data.id;
+                }
+                if (queue.type === SiapQueue.QUEUE_SPP && SiapQueue.hasNewQueue(queue)) {
+                    return {message: `SPP ${queue.info} sudah dalam antrian!`};
+                }
+                console.log('%s: %s', queue.type.toUpperCase(), queue.info);
+                return SiapQueue.addQueue(queue);
             }
         }
         this.dequeue
@@ -182,10 +189,10 @@ class App {
             });
             Work.works(selfTests)
                 .then(() => {
-                    this.dequeue.setConsumer(this);
                     if (Cmd.get('queue')) {
                         this.dequeue.loadQueue();
                     }
+                    this.dequeue.setConsumer(this);
                     console.log('Queue processing is ready...');
                 })
                 .catch(err => console.error(err))

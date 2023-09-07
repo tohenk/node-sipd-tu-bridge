@@ -88,9 +88,11 @@ class SiapDequeue extends EventEmitter {
                 this.queue.next();
             }
             const f = () => {
+                let queue;
                 // check for timeout
-                let queue = this.getCurrent();
-                if (queue && queue.status == SiapQueue.STATUS_PROCESSING) {
+                const processing = this.queues.filter(queue => queue.status === SiapQueue.STATUS_PROCESSING);
+                if (processing.length) {
+                    queue = processing[0];
                     const t = new Date().getTime();
                     const d = t - queue.time.getTime();
                     const timeout = queue.data && queue.data.timeout != undefined ?
@@ -433,6 +435,14 @@ class SiapQueue
             throw new Error('No dequeue instance has been created!');
         }
         return dequeue.add(queue);
+    }
+
+    static hasNewQueue(queue) {
+        if (dequeue) {
+            const queues = dequeue.queues.filter(q => q.type === queue.type && q.info === queue.info && q.status === SiapQueue.STATUS_NEW);
+            return queues.length ? true : false;
+        }
+        return false;
     }
 
     static get QUEUE_SPP() { return 'spp' }
