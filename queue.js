@@ -48,7 +48,7 @@ class SiapDequeue extends EventEmitter {
         if (this.consumer) {
             try {
                 queue.start();
-                this.emit('queue', queue);
+                this.emit('queue-start', queue);
                 this.consumer.processQueue(queue)
                     .then(res => {
                         queue.done(res);
@@ -69,6 +69,13 @@ class SiapDequeue extends EventEmitter {
                         this.queue.next();
                     })
                 ;
+                // check for next queue
+                const nextqueue = this.getNext();
+                if (nextqueue && nextqueue.type != SiapQueue.QUEUE_CALLBACK) {
+                    if (this.consumer.canHandleNextQueue(nextqueue)) {
+                        this.queue.next();
+                    }
+                }
             }
             catch (err) {
                 console.error('Got an error while processing queue: %s!', err);
@@ -88,11 +95,10 @@ class SiapDequeue extends EventEmitter {
                 this.queue.next();
             }
             const f = () => {
-                let queue;
                 // check for timeout
                 const processing = this.queues.filter(queue => queue.status === SiapQueue.STATUS_PROCESSING);
                 if (processing.length) {
-                    queue = processing[0];
+                    const queue = processing[0];
                     const t = new Date().getTime();
                     const d = t - queue.time.getTime();
                     const timeout = queue.data && queue.data.timeout != undefined ?
@@ -107,13 +113,6 @@ class SiapDequeue extends EventEmitter {
                         } else {
                             this.queue.next();
                         }
-                    }
-                }
-                // check for next queue
-                queue = this.getNext();
-                if (queue && queue.type != SiapQueue.QUEUE_CALLBACK) {
-                    if (this.consumer.canHandleNextQueue(queue)) {
-                        this.queue.next();
                     }
                 }
                 // run on next

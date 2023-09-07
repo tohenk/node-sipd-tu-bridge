@@ -31,6 +31,7 @@ Cmd.addVar('port', 'p', 'Set server port to listen', 'port');
 Cmd.addVar('url', '', 'Set Siap url', 'url');
 Cmd.addVar('profile', '', 'Use profile for operation', 'profile');
 Cmd.addBool('queue', 'q', 'Enable queue saving and loading');
+Cmd.addBool('noop', '', 'Do not process queue');
 
 if (!Cmd.parse() || (Cmd.get('help') && usage())) {
     process.exit();
@@ -347,9 +348,15 @@ class App {
             bridge.queue = queue;
             queue.bridge = bridge;
             queue.ontimeout = () => bridge.siap.stop();
-            switch (queue.type) {
-                case SiapQueue.QUEUE_SPP:
-                    return bridge.createSpp(queue);
+            if (Cmd.get('noop')) {
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => resolve(`Queue ${queue.type}:${queue.id} handled by ${bridge.name}`), 60000);
+                });
+            } else {
+                switch (queue.type) {
+                    case SiapQueue.QUEUE_SPP:
+                        return bridge.createSpp(queue);
+                }
             }
         }
         return Promise.reject(util.format('No bridge can handle %s!', queue.getInfo()));
