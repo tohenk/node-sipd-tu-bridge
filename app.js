@@ -122,7 +122,7 @@ class App {
                 if (data.id) {
                     queue.id = data.id;
                 }
-                if (queue.type === SiapQueue.QUEUE_SPP && SiapQueue.hasNewQueue(queue)) {
+                if (queue.type === SiapQueue.QUEUE_SPP && SiapQueue.hasPendingQueue(queue)) {
                     return {message: `SPP ${queue.info} sudah dalam antrian!`};
                 }
                 console.log('%s: %s', queue.type.toUpperCase(), queue.info);
