@@ -578,6 +578,7 @@ class SiapBridge {
                 submit,
                 options.wait)],
             [w => this.siap.dismissSwal2(), w => options.dismiss],
+            [w => Promise.reject(SiapAnnouncedError.create(w.getRes(3)[0], queue)), w => options.dismiss && w.getRes(3)[1] === 'error'],
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.waitLoader()],
         ]);
