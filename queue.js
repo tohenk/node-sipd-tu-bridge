@@ -387,7 +387,8 @@ class SiapQueue
         }
         res.status = this.status;
         if (this.result) {
-            res.result = !raw && (Array.isArray(this.result) || typeof this.result === 'object') ? util.inspect(this.result) : this.result;
+            res.result = this.result instanceof Error ? this.result.toString() :
+                (!raw && (Array.isArray(this.result) || typeof this.result === 'object') ? util.inspect(this.result) : this.result);
         }
         return res;
     }
