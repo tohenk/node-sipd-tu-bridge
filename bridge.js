@@ -284,7 +284,8 @@ class SiapBridge {
                         [x => this.siap.getText([By.xpath('./td[3]'), By.xpath('./td[4]')], tr)],
                         [x => Promise.resolve(this.getDate(x.getRes(0)[0]))],
                         [x => this.siap.click({el: tr, data: By.xpath('./td[1]/input[@type="checkbox"]')}),
-                            x => this.dateSerial(x.getRes(1)) <= this.dateSerial(tgl)],
+                            x => this.dateSerial(x.getRes(1)) <= this.dateSerial(tgl) &&
+                                (this.options.spd === undefined || (Array.isArray(this.options.spd) && this.options.spd.indexOf(x.getRes(0)[1]) >= 0))],
                     ])
                     .then(() => q.next())
                     .catch(err => reject(err));
@@ -335,9 +336,10 @@ class SiapBridge {
                             [w => Promise.resolve(this.pickNumber(w.getRes(0)[0]))],
                             [w => Promise.resolve(w.getRes(1) == this.spp.keg)],
                         ]);
-                    }); // sub kegiatan
-                }); // kegiatan
+                    });      // sub kegiatan
+                });          // kegiatan
             }, null, true)], // spd
+            [w => Promise.reject(`Tidak dapat mengalokasikan sejumlah ${value} pada ${this.spp.keg}-${this.spp.rek}!`), w => value > 0],
         ]);
     }
 
@@ -812,7 +814,7 @@ class SiapBridge {
             [w => Promise.resolve(new DataTable(this.siap))],
             [w => w.getRes(0).setup({
                 wrapper: By.id('DataTables_Table_0_wrapper'),
-                search: By.xpath('.//input[@ng-model="searchSpm"]'),
+                search: By.xpath('.//input[@ng-model="searchDataSpm"]'),
                 pager: By.id('DataTables_Table_0_paginate'),
             })],
             [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
