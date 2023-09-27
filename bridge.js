@@ -277,10 +277,11 @@ class SiapBridge {
     fillAfektasiSpp(el, value, tgl) {
         return this.works([
             [w => el.click()],
+            [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.findElements(By.xpath('//md-dialog-content/div/div/div/table/tbody/tr[@ng-repeat]'))],
-            [w => Promise.reject('Tidak ada SPD tersedia!'), w => w.getRes(1).length == 0],
+            [w => Promise.reject('Tidak ada SPD tersedia!'), w => w.getRes(2).length == 0],
             [w => new Promise((resolve, reject) => {
-                const q = new Queue(w.getRes(1), tr => {
+                const q = new Queue(w.getRes(2), tr => {
                     this.works([
                         [x => this.siap.getText([By.xpath('./td[3]'), By.xpath('./td[4]')], tr)],
                         [x => Promise.resolve(this.dateSerial(this.getDate(x.getRes(0)[0])) <= this.dateSerial(tgl) &&

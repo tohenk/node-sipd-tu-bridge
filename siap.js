@@ -34,7 +34,6 @@ class Siap extends WebRobot {
         this.opdelay = this.options.opdelay || 400;
         this.daerah = this.options.daerah;
         this.year = this.options.year || new Date().getFullYear();
-        this.safeTextArea = true;
         WebRobot.expectErr(SiapAnnouncedError);
     }
 
