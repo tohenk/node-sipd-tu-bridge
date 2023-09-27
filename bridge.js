@@ -26,7 +26,7 @@
 const util = require('util');
 const Queue = require('@ntlab/work/queue');
 const SiapQueue = require('./queue');
-const Siap = require('./siap');
+const { Siap, SiapAnnouncedError } = require('./siap');
 const DataTable = require('./dataTable');
 const { By, Key } = require('selenium-webdriver');
 
@@ -47,7 +47,6 @@ class SiapBridge {
         this.siap = new Siap(options);
         this.works = this.siap.works;
         this.prefilter = options.usePreFilter || false;
-        this.siap.constructor.expectErr(SiapAnnouncedError);
     }
 
     selfTest() {
@@ -980,23 +979,6 @@ class SiapBridge {
                 resolve(queue.SPP ? queue.SPP : false);
             })],
         ]);
-    }
-}
-
-class SiapAnnouncedError extends Error {
-
-    toString() {
-        return this.message;
-    }
-
-    [util.inspect.custom](depth, options, inspect) {
-        return this.toString();
-    }
-
-    static create(message, queue) {
-        const err = new SiapAnnouncedError(message);
-        err._queue = queue;
-        return err;
     }
 }
 
