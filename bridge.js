@@ -300,6 +300,7 @@ class SiapBridge {
     }
 
     fillRekeningSpp(value) {
+        const reverseSpd = this.options.reverseSpd !== undefined ? this.options.reverseSpd : true;
         return this.works([
             [w => this.siap.findElement(By.xpath('//form[@ng-submit="beforeSimpanSpp($event)"]/div/div/div/div/table'))],
             [w => this.expandNestedTable(w.getRes(0), (tbl1, row1) => {                 // spd
@@ -333,13 +334,19 @@ class SiapBridge {
                         ]);
                     }, row => {
                         return this.works([
-                            [w => this.siap.getText([By.xpath('./td[3]')], row)],
-                            [w => Promise.resolve(this.pickNumber(w.getRes(0)[0]))],
-                            [w => Promise.resolve(w.getRes(1) == this.spp.keg)],
+                            [y => this.siap.getText([By.xpath('./td[3]')], row)],
+                            [y => Promise.resolve(this.pickNumber(y.getRes(0)[0]))],
+                            [y => Promise.resolve(y.getRes(1) == this.spp.keg)],
                         ]);
-                    });      // sub kegiatan
-                });          // kegiatan
-            }, null, true)], // spd
+                    });            // sub kegiatan
+                }, row => {
+                    return this.works([
+                        [x => this.siap.getText([By.xpath('./td[3]')], row)],
+                        [x => Promise.resolve(this.pickNumber(x.getRes(0)[0]))],
+                        [x => Promise.resolve(x.getRes(1) == this.spp.keg.substr(0, this.spp.keg.length - 2))],
+                    ]);
+                });                // kegiatan
+            }, null, reverseSpd)], // spd
             [w => Promise.reject(`Tidak dapat mengalokasikan sejumlah ${value} pada ${this.spp.keg}-${this.spp.rek}!`), w => value > 0],
         ]);
     }
