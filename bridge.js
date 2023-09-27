@@ -265,10 +265,12 @@ class SiapBridge {
                 w => w.getRes(2) < 0],
             [w => w.getRes(5).click(),
                 w => w.getRes(2) < 0],
-            [w => w.getRes(0).findElement(By.xpath('./tbody/tr/td[not(contains(@class,"off")) and text()="_X_"]'.replace(/_X_/, date.getDate()))),
+            [w => w.getRes(0).findElements(By.xpath('./tbody/tr/td[not(contains(@class,"off")) and text()="_X_"]'.replace(/_X_/, date.getDate()))),
                 w => w.getRes(2) == 0],
-            [w => w.getRes(7).click(),
-                w => w.getRes(2) == 0],
+            [w => w.getRes(7)[0].click(),
+                w => w.getRes(2) == 0 && w.getRes(7).length],
+            [w => Promise.reject(new SiapAnnouncedError(`Tanggal ${date.toString()} tidak tersedia, kemungkinan kedaluwarsa!`)),
+                w => w.getRes(2) == 0 && w.getRes(7).length == 0],
             [w => Promise.resolve(Math.abs(w.getRes(2)) == 0)],
         ]);
     }
@@ -282,10 +284,9 @@ class SiapBridge {
                 const q = new Queue(w.getRes(1), tr => {
                     this.works([
                         [x => this.siap.getText([By.xpath('./td[3]'), By.xpath('./td[4]')], tr)],
-                        [x => Promise.resolve(this.getDate(x.getRes(0)[0]))],
-                        [x => this.siap.click({el: tr, data: By.xpath('./td[1]/input[@type="checkbox"]')}),
-                            x => this.dateSerial(x.getRes(1)) <= this.dateSerial(tgl) &&
-                                (this.options.spd === undefined || (Array.isArray(this.options.spd) && this.options.spd.indexOf(x.getRes(0)[1]) >= 0))],
+                        [x => Promise.resolve(this.dateSerial(this.getDate(x.getRes(0)[0])) <= this.dateSerial(tgl) &&
+                            (this.options.spd === undefined || (Array.isArray(this.options.spd) && this.options.spd.indexOf(x.getRes(0)[1]) >= 0)))],
+                        [x => this.siap.click({el: tr, data: By.xpath('./td[1]/input[@type="checkbox"]')}), x => x.getRes(1)],
                     ])
                     .then(() => q.next())
                     .catch(err => reject(err));
