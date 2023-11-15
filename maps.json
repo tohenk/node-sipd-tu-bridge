@@ -48,7 +48,13 @@
 		"+statusRekanan": "CHOICE:ya",
 		"+model:dataRekanan": "CONCAT: - |KETUA|LEMBAGA",
 		"spm:REKENING": ".//button[@ng-click='validateBank(formTambah.nomor_rekening, formTambah.bank)']",
+		"spm:SUMBERDANA": ".//td[@ng-click='openFormSumberDana(detailSpp)']",
 		"?nomorSpm": "SPM"
+	},
+	"sumberdana": {
+		"spm:BUTTON": ".//button[@ng-click='tambahListSumberDana(formSumberDana.list_sumber_dana)']",
+		"model:list.sumber_dana": "SELECT:1.1 PENDAPATAN ASLI DAERAH (PAD)",
+		"model:list.nilai": "V:AFEKTASI"
 	},
 	"sptjm-spm": {
 		"*nomor_sptjm": "NO_SPTJM_SPM",

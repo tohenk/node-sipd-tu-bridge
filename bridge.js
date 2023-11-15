@@ -460,6 +460,12 @@ class SiapBridge {
                             value = user;
                         }
                         break;
+                    case 'SELECT':
+                        value = vvalue;
+                        break;
+                    case 'V':
+                        value = queue.getDataValue(vvalue);
+                        break;
                 }
             }
             if (f.prefix != '=') {
@@ -501,14 +507,28 @@ class SiapBridge {
             }
             // handle form spm
             if (skey == 'spm') {
+                data.target = By.xpath(value);
                 switch (key) {
                     case 'REKENING':
-                        data.target = By.xpath(value);
                         data.onfill = (el, value) => this.works([
                             [w => el.click()],
                             [w => this.siap.waitLoader()],
                             [w => this.siap.dismissSwal2('Tutup')],
                             [w => Promise.reject(SiapAnnouncedError.create(w.getRes(2)[0], queue)), w => w.getRes(2)[1] === 'error'],
+                        ]);
+                        break;
+                    case 'SUMBERDANA':
+                        data.onfill = (el, value) => this.works([
+                            [w => el.click()],
+                            [w => this.fillForm(queue, 'sumberdana',
+                                By.xpath('//form[@ng-submit="submitSumberDana($event)"]'),
+                                By.xpath('//button[contains(@class,"btn-tambah-sumber-dana")]'),
+                                {dismiss: false})],
+                        ]);
+                        break;
+                    case 'BUTTON':
+                        data.onfill = (el, value) => this.works([
+                            [w => el.click()],
                         ]);
                         break;
                 }
@@ -522,6 +542,14 @@ class SiapBridge {
                         [w => el.getAttribute(w.getRes(0) == 'checkbox' ? 'checked' : 'value')],
                         [w => Promise.resolve(queue[value] = w.getRes(1))],
                     ]);
+                }
+                // fill value using javascript handler
+                if (f.prefix == '$') {
+                    data.onfill = (el, value) => this.siap.getDriver().executeScript(`$(arguments[0]).val(arguments[1])`, el, value);
+                }
+                // select2 handler
+                if (vtype == 'SELECT') {
+                    data.onfill = (el, value) => this.siap.select2(el, value);
                 }
                 // generic date time picker handler
                 if (key.indexOf('tanggal') >= 0) {
@@ -567,7 +595,7 @@ class SiapBridge {
             key = part[1];
         }
         // check prefixes
-        if (['#', '+', '?', '=', '*'].indexOf(key.substring(0, 1)) >= 0) {
+        if (['#', '+', '?', '=', '*', '$'].indexOf(key.substring(0, 1)) >= 0) {
             result.prefix = key.substring(0, 1);
             key = key.substring(1);
         }
@@ -579,11 +607,12 @@ class SiapBridge {
         options = options || {};
         if (options.wait === undefined) options.wait = 0;
         if (options.dismiss === undefined) options.dismiss = true;
+        if (options.form === undefined) options.form = 'formTambah';
         return this.works([
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.scrollTo(0)],
             [w => this.siap.fillInForm(
-                this.handleFormFill(name, 'formTambah', queue),
+                this.handleFormFill(name, options.form, queue),
                 form,
                 submit,
                 options.wait)],
@@ -710,8 +739,8 @@ class SiapBridge {
                 search: By.xpath('.//input[@ng-model="searchNoSpp"]'),
                 pager: By.id('DataTables_Table_0_paginate'),
             })],
-            [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp'))],
-            [w => w.getRes(0).each({filtered: true}, el => [
+            [w => w.getRes(0).search(queue.getMappedData('spp.keteranganSpp')), w => this.prefilter],
+            [w => w.getRes(0).each({filtered: this.prefilter}, el => [
                 [x => this.siap.getText([By.xpath('./td[2]')], el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0); 
@@ -730,7 +759,7 @@ class SiapBridge {
                         resolve();
                     }
                 })],
-            ]), w => w.getRes(2)],
+            ]), w => !this.prefilter || w.getRes(2)],
         ]);
     }
 

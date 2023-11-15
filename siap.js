@@ -60,15 +60,7 @@ class Siap extends WebRobot {
                     {parent: w.res, target: By.name('userName'), value: username},
                     {parent: w.res, target: By.name('password'), value: password},
                     {parent: w.res, target: By.name('tahunanggaran'), value: this.year},
-                    {parent: w.res, target: By.name('idDaerah'), value: this.daerah, onfill: (el, value) => {
-                        return this.works([
-                            [x => el.findElement(By.xpath('./../span[contains(@class,"select2")]'))],
-                            [x => x.res.click()],
-                            [x => this.findElements(By.xpath('//span[@class="select2-results"]/ul/li[contains(text(),_X_)]'.replace(/_X_/, this.escapeStr(value))))],
-                            [x => Promise.reject(SiapAnnouncedError.create(`Tidak dapat login, instansi ${value} tidak tersedia!`)), x => !x.getRes(2).length],
-                            [x => x.getRes(2)[0].click(), x => x.getRes(2).length],
-                        ]);
-                    }},
+                    {parent: w.res, target: By.name('idDaerah'), value: this.daerah, onfill: (el, value) => this.select2(el, value, 'Tidak dapat login, instansi %s tidak tersedia!')},
                 ],
                 By.id('loginForm'),
                 By.xpath('//button[@type="submit"]'))],
@@ -83,6 +75,16 @@ class Siap extends WebRobot {
             [w => w.getRes(0).findElement(By.xpath('./../ul/li/a/span[text()="Logout"]'))],
             [w => this.waitForVisibility(w.getRes(2), true)],
             [w => w.getRes(2).click()],
+        ]);
+    }
+
+    select2(el, value, message = null) {
+        return this.works([
+            [w => el.findElement(By.xpath('./../span[contains(@class,"select2")]'))],
+            [w => w.res.click()],
+            [w => this.findElements(By.xpath('//span[@class="select2-results"]/ul/li[contains(text(),_X_)]'.replace(/_X_/, this.escapeStr(value))))],
+            [w => Promise.reject(SiapAnnouncedError.create(util.format(message ? message : 'Pilihan %s tidak tersedia!', value))), w => !w.getRes(2).length],
+            [w => w.getRes(2)[0].click(), w => w.getRes(2).length],
         ]);
     }
 
