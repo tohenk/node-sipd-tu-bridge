@@ -82,7 +82,7 @@ class Siap extends WebRobot {
         return this.works([
             [w => el.findElement(By.xpath('./../span[contains(@class,"select2")]'))],
             [w => w.res.click()],
-            [w => this.findElements(By.xpath('//span[@class="select2-results"]/ul/li[contains(text(),_X_)]'.replace(/_X_/, this.escapeStr(value))))],
+            [w => this.findElements(By.xpath(`//span[@class="select2-results"]/ul/li[contains(text(),${this.escapeStr(value)})]`))],
             [w => Promise.reject(SiapAnnouncedError.create(util.format(message ? message : 'Pilihan %s tidak tersedia!', value))), w => !w.getRes(2).length],
             [w => w.getRes(2)[0].click(), w => w.getRes(2).length],
         ]);
@@ -90,10 +90,10 @@ class Siap extends WebRobot {
 
     navigateTo(category, title) {
         return this.works([
-            [w => this.findElement(By.xpath('//nav/ul/li/a/span[text()=_X_]/..'.replace(/_X_/, this.escapeStr(category))))],
+            [w => this.findElement(By.xpath(`//nav/ul/li/a/span[text()=${this.escapeStr(category)}]/..`))],
             [w => this.focusTo(w.getRes(0))],
             [w => this.sleep(this.opdelay)],
-            [w => w.getRes(0).findElement(By.xpath('./../ul/li/a/span[text()=_X_]/..'.replace(/_X_/, this.escapeStr(title))))],
+            [w => w.getRes(0).findElement(By.xpath(`./../ul/li/a/span[text()=${this.escapeStr(title)}]/..`))],
             [w => this.focusTo(w.getRes(3))],
             [w => this.waitLoader()],
         ]);
@@ -172,12 +172,31 @@ if (top < wtop || top > wbottom) {
         return this.waitFor(By.xpath('//div[contains(@class,"swal2-container")]'));
     }
 
-    dismissSwal2(caption = 'OK') {
+    dismissSwal2(options = {}) {
+        if (options.dismiss === undefined) {
+            options.dismiss = true;
+        }
+        if (options.caption === undefined) {
+            options.caption = 'OK';
+        }
         return this.works([
-            [w => this.waitSwal2()],
-            [w => this.getSwal2Message()],
-            [w => this.getSwal2Icon()],
-            [w => this.waitAndClick(By.xpath('//button[@type="button"][contains(@class,"swal2-confirm")][contains(text(),' + this.escapeStr(caption) + ')]'))],
+            [w => new Promise((resolve, reject) => {
+                this.waitSwal2()
+                    .then(res => resolve(res))
+                    .catch(err => {
+                        if (options.dismiss === 'optional') {
+                            resolve(false)
+                        } else {
+                            reject(err);
+                        }
+                    });
+            })],
+            [w => this.getSwal2Message(),
+                w => w.getRes(0)],
+            [w => this.getSwal2Icon(),
+                w => w.getRes(0)],
+            [w => this.waitAndClick(By.xpath(`//button[@type="button"][contains(@class,"swal2-confirm")][contains(text(),${this.escapeStr(options.caption)})]`)),
+                w => w.getRes(0)],
             [w => Promise.resolve([w.getRes(1), w.getRes(2)])],
         ]);
     }
@@ -212,18 +231,22 @@ if (top < wtop || top > wbottom) {
         ]);
     }
 
+    isSwallError(type) {
+        return ['error', 'warning'].indexOf(type) >= 0;
+    }
+
     // https://stackoverflow.com/questions/642125/encoding-xpath-expressions-with-both-single-and-double-quotes
     escapeStr(s) {
         // does not contain double quote
         if (s.indexOf('"') < 0) {
-            return '"' + s + '"';
+            return `"${s}"`;
         }
         // does not contain single quote
         if (s.indexOf('\'') < 0) {
-            return '\'' + s + '\'';
+            return `'${s}'`;
         }
         // contains both, escape single quote
-        return 'concat(\'' + s.replace(/'/g, '\', "\'", \'') + '\')';
+        return `concat('${s.replace(/'/g, '\', "\'", \'')}')`;
     }
 }
 

@@ -213,7 +213,7 @@ class SiapBridge {
         return this.works([
             [w => el.findElement(By.xpath('.//input[@type="text"]'))],
             [w => w.getRes(0).click()],
-            [w => el.findElement(By.xpath('.//li[contains(text(),_X_)]'.replace(/_X_/, this.siap.escapeStr(value))))],
+            [w => el.findElement(By.xpath(`.//li[contains(text(),${this.siap.escapeStr(value)})]`))],
             [w => w.getRes(2).click()],
         ]);
     }
@@ -264,7 +264,7 @@ class SiapBridge {
                 w => w.getRes(2) < 0],
             [w => w.getRes(5).click(),
                 w => w.getRes(2) < 0],
-            [w => w.getRes(0).findElements(By.xpath('./tbody/tr/td[not(contains(@class,"off")) and text()="_X_"]'.replace(/_X_/, date.getDate()))),
+            [w => w.getRes(0).findElements(By.xpath(`./tbody/tr/td[not(contains(@class,"off")) and text()="${date.getDate()}"]`)),
                 w => w.getRes(2) == 0],
             [w => w.getRes(7)[0].click(),
                 w => w.getRes(2) == 0 && w.getRes(7).length],
@@ -469,20 +469,20 @@ class SiapBridge {
                 }
             }
             if (f.prefix != '=') {
-                selector.push('[@_X_="_Y_"]'.replace(/_X_/, attr).replace(/_Y_/, key));
+                selector.push(`[@${attr}="${key}"]`);
             }
             // update selector on special case
             if (vtype == 'CHOICE') {
-                selector.push('[@data-status="_X_"]'.replace(/_X_/, vvalue));
+                selector.push(`[@data-status="${vvalue}"]`);
             }
             // form data
             let data = {
-                target: By.xpath(f.prefix == '=' ? key : './/*_X_'.replace(/_X_/, selector.join(''))),
+                target: By.xpath(f.prefix === '=' ? key : `.//*${selector.join('')}`),
                 value: value
             }
             // check form parent
             if (f.parent) {
-                if (f.parent.substring(0, 1) == '#') {
+                if (f.parent.substring(0, 1) === '#') {
                     data.parent = By.id(f.parent.substring(1));
                 } else {
                     data.parent = By.xpath(f.parent);
@@ -513,16 +513,25 @@ class SiapBridge {
                         data.onfill = (el, value) => this.works([
                             [w => el.click()],
                             [w => this.siap.waitLoader()],
-                            [w => this.siap.dismissSwal2('Tutup')],
-                            [w => Promise.reject(SiapAnnouncedError.create(w.getRes(2)[0], queue)), w => w.getRes(2)[1] === 'error'],
+                            [w => this.siap.dismissSwal2({caption: 'Tutup'})],
+                            [w => Promise.reject(SiapAnnouncedError.create(w.getRes(2)[0], queue)), w => this.siap.isSwallError(w.getRes(2)[1])],
+                        ]);
+                        break;
+                    case 'CEKSUMBERDANA':
+                        data.onfill = (el, value) => this.works([
+                            [w => el.getText()],
+                            [w => Promise.resolve(this.dana = parseFloat(w.getRes(0).trim()))],
                         ]);
                         break;
                     case 'SUMBERDANA':
                         data.onfill = (el, value) => this.works([
-                            [w => el.click()],
+                            [w => el.click(),
+                                w => this.dana === 0],
                             [w => this.fillForm(queue, 'sumberdana',
                                 By.xpath('//form[@ng-submit="submitSumberDana($event)"]'),
-                                By.xpath('//button[contains(@class,"btn-tambah-sumber-dana")]'))],
+                                By.xpath('//button[contains(@class,"btn-tambah-sumber-dana")]'),
+                                {dismiss: 'optional'}),
+                                w => this.dana === 0],
                         ]);
                         break;
                     case 'BUTTON':
@@ -604,9 +613,15 @@ class SiapBridge {
 
     fillForm(queue, name, form, submit, options = null) {
         options = options || {};
-        if (options.wait === undefined) options.wait = 0;
-        if (options.dismiss === undefined) options.dismiss = true;
-        if (options.form === undefined) options.form = 'formTambah';
+        if (options.wait === undefined) {
+            options.wait = 0;
+        }
+        if (options.dismiss === undefined) {
+            options.dismiss = true;
+        }
+        if (options.form === undefined) {
+            options.form = 'formTambah';
+        }
         return this.works([
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.scrollTo(0)],
@@ -615,8 +630,8 @@ class SiapBridge {
                 form,
                 submit,
                 options.wait)],
-            [w => this.siap.dismissSwal2(), w => options.dismiss],
-            [w => Promise.reject(SiapAnnouncedError.create(w.getRes(3)[0], queue)), w => options.dismiss && ['error', 'warning'].indexOf(w.getRes(3)[1]) >= 0],
+            [w => this.siap.dismissSwal2({dismiss: options.dismiss}), w => options.dismiss],
+            [w => Promise.reject(SiapAnnouncedError.create(w.getRes(3)[0], queue)), w => options.dismiss && this.siap.isSwallError(w.getRes(3)[1])],
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.waitLoader()],
         ]);

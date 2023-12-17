@@ -48,6 +48,7 @@
 		"+statusRekanan": "CHOICE:ya",
 		"+model:dataRekanan": "CONCAT: - |KETUA|LEMBAGA",
 		"spm:REKENING": ".//button[@ng-click='validateBank(formTambah.nomor_rekening, formTambah.bank)']",
+		"spm:CEKSUMBERDANA": ".//table/tbody[contains(@ng-repeat,'detailSpp')]/tr/td[5]",
 		"spm:SUMBERDANA": ".//td[@ng-click='openFormSumberDana(detailSpp)']",
 		"?nomorSpm": "SPM"
 	},
