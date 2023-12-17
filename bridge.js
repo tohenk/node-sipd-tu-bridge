@@ -522,8 +522,7 @@ class SiapBridge {
                             [w => el.click()],
                             [w => this.fillForm(queue, 'sumberdana',
                                 By.xpath('//form[@ng-submit="submitSumberDana($event)"]'),
-                                By.xpath('//button[contains(@class,"btn-tambah-sumber-dana")]'),
-                                {dismiss: false})],
+                                By.xpath('//button[contains(@class,"btn-tambah-sumber-dana")]'))],
                         ]);
                         break;
                     case 'BUTTON':
@@ -617,7 +616,7 @@ class SiapBridge {
                 submit,
                 options.wait)],
             [w => this.siap.dismissSwal2(), w => options.dismiss],
-            [w => Promise.reject(SiapAnnouncedError.create(w.getRes(3)[0], queue)), w => options.dismiss && w.getRes(3)[1] === 'error'],
+            [w => Promise.reject(SiapAnnouncedError.create(w.getRes(3)[0], queue)), w => options.dismiss && ['error', 'warning'].indexOf(w.getRes(3)[1]) >= 0],
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.waitLoader()],
         ]);
