@@ -1,13 +1,12 @@
 {
     "global": {
-        "url":"https://sipd.kemendagri.go.id/siap/",
+        "url":"https://sipd.kemendagri.go.id/penatausahaan/dashboard",
         "browser":"chrome",
         "readinessTimeout":60000
     },
     "bridges": {
-        "siap-2023": {
-            "daerah":"Provinsi Jawa Timur",
-            "year":2023
+        "siap-2024": {
+            "year":2024
         }
     }
 }

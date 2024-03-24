@@ -5,60 +5,35 @@
 		"title": "LEMBAGA"
 	},
 	"rekanan": {
-		"kode": "CONCAT:-|year|KODE",
-		"jenis_rekanan": "CHOICE:perperusahaan",
-		"kategori": "non_pns",
+		"-jenis_rekanan": "RADIO:0",
+		"kategori_rekanan": "RADIO:1",
+		"jenis_rekanan": "RADIO:1",
+		"nama_tujuan": "KETUA",
+		"nama_perusahaan": "LEMBAGA",
+		"alamat": "ALAMAT",
+		"nomor_telepon": "TELEPON",
 		"nik": "NIK",
 		"npwp": "000000000000000",
-		"nama": "KETUA",
-		"instansi": "LEMBAGA",
-		"jenisUsaha": "-",
-		"dataBank": "BANK",
-		"cabang": "BANK_CAB",
-		"noRek": "BANK_REK",
+		"#react-select-2-input": "BANK",
+		"nomor_rekening": "BANK_REK",
 		"nama_rekening": "LEMBAGA",
-		"telp": "TELEPON",
-		"alamat": "ALAMAT"
+		"cabang_bank": "BANK_CAB"
 	},
 	"spp": {
-		"tanggalSpp": "TGL_SPP",
-		"pegawaiPptk": "ROLE:pptk",
-		"keteranganSpp": "FORMAT:%1% (%2%)|UNTUK|KODE",
+		"=.//label[text()='Tanggal']/../input": "TGL_SPP",
+		"=.//label[text()='Penandatangan (PPTK)']/../div/p": "ROLE:pptk",
+		"=.//label[text()='Keterangan']/../textarea": "FORMAT:%1% (%2%)|UNTUK|KODE",
+		"=.//label[text()='Rekanan']/../div/p": "REKANAN:LEMBAGA",
+		"=.//label[text()='Kegiatan']/../div/p": "KEG:KEG",
+		"=.//label[text()='Sub Kegiatan']/../div/p": "KEG:KEG",
+		"spp:UNTUK": "FORMAT:%1% (%2%)|UNTUK|KODE",
 		"spp:NO": "NO_SPP",
 		"spp:TGL": "TGL_SPP",
 		"spp:KEG": "KEG",
 		"spp:REK": "REK",
-		"spp:NOMINAL": "AFEKTASI",
-		"?nomorSpp": "SPP"
-	},
-	"sptjm-spp": {
-		"*nomor_sptjm": "NO_SPTJM_SPP",
-		"tanggalLengkap": "TGL_SPP"
+		"spp:NOMINAL": "AFEKTASI"
 	},
 	"verifikasi-spp": {
-		"#syarat_ls!=.//text()[contains(.,'Salinan SPD 1')]/../input": true,
-		"#syarat_ls!=.//text()[contains(.,'Salinan DPA')]/../input": true,
-		"#syarat_ls!=.//text()[contains(.,'Dokumen SPP-LS')]/../input": true,
-		"#syarat_ls!=.//text()[contains(.,'Surat Pernyataan Tanggung Jawab Mutlak PA')]/../input": true,
-		"#syarat_ls!+statusVerifikasi": "CHOICE:ya",
-		"#syarat_ls!tanggalDisetujuiSPP": "TGL_SPP"
-	},
-	"spm": {
-		"tanggalSpm": "TGL_SPM",
-		"+statusRekanan": "CHOICE:ya",
-		"+model:dataRekanan": "CONCAT: - |KETUA|LEMBAGA",
-		"spm:REKENING": ".//button[@ng-click='validateBank(formTambah.nomor_rekening, formTambah.bank)']",
-		"spm:CEKSUMBERDANA": ".//table/tbody[contains(@ng-repeat,'detailSpp')]/tr/td[5]",
-		"spm:SUMBERDANA": ".//td[@ng-click='openFormSumberDana(detailSpp)']",
-		"?nomorSpm": "SPM"
-	},
-	"sumberdana": {
-		"spm:BUTTON": ".//button[@ng-click='tambahListSumberDana(formSumberDana.list_sumber_dana)']",
-		"model:list.sumber_dana": "SELECT:1.1 PENDAPATAN ASLI DAERAH (PAD)",
-		"model:list.nilai": "V:AFEKTASI"
-	},
-	"sptjm-spm": {
-		"*nomor_sptjm": "NO_SPTJM_SPM",
-		"tanggalLengkap": "TGL_SPM"
+		"=.//label[text()='Tanggal']/../input": "TGL_SPP"
 	}
 }

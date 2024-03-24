@@ -20,3 +20,4 @@ The field map is using the following convention:
 |          | `?`   Perform read operation instead of fill form field  |
 |          | `+`   Wait for loader after operation                    |
 |          | `*`   Indicate required field                            |
+|          | `-`   Noop, used to duplicate field                      |

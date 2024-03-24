@@ -1,8 +1,7 @@
-
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2022-2023 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2022-2024 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -53,7 +52,7 @@ class SiapDequeue extends EventEmitter {
                     .then(res => {
                         queue.done(res);
                         this.setLastQueue(queue);
-                        if (typeof queue.resolve == 'function') {
+                        if (typeof queue.resolve === 'function') {
                             queue.resolve(res);
                         }
                         this.emit('queue-done', queue);
@@ -62,7 +61,7 @@ class SiapDequeue extends EventEmitter {
                     .catch(err => {
                         queue.error(err);
                         this.setLastQueue(queue);
-                        if (typeof queue.reject == 'function') {
+                        if (typeof queue.reject === 'function') {
                             queue.reject(err);
                         }
                         this.emit('queue-error', queue);
@@ -71,7 +70,7 @@ class SiapDequeue extends EventEmitter {
                 ;
                 // check for next queue
                 const nextqueue = this.getNext();
-                if (nextqueue && nextqueue.type != SiapQueue.QUEUE_CALLBACK) {
+                if (nextqueue && nextqueue.type !== SiapQueue.QUEUE_CALLBACK) {
                     if (this.consumer.canHandleNextQueue(nextqueue)) {
                         this.queue.next();
                     }
@@ -105,7 +104,7 @@ class SiapDequeue extends EventEmitter {
                         queue.data.timeout : this.timeout;
                     if (timeout > 0 && d > timeout) {
                         queue.setStatus(SiapQueue.STATUS_TIMED_OUT);
-                        if (typeof queue.ontimeout == 'function') {
+                        if (typeof queue.ontimeout === 'function') {
                             queue.ontimeout()
                                 .then(() => this.queue.next())
                                 .catch(() => this.queue.next())
@@ -151,7 +150,7 @@ class SiapDequeue extends EventEmitter {
     }
 
     setLastQueue(queue) {
-        if (queue.type != SiapQueue.QUEUE_CALLBACK) {
+        if (queue.type !== SiapQueue.QUEUE_CALLBACK) {
             this.last = queue;
         }
         return this;
@@ -237,7 +236,7 @@ class SiapDequeue extends EventEmitter {
         const result = {};
         Object.keys(info).forEach(k => {
             let v = info[k];
-            if (typeof v == 'function') {
+            if (typeof v === 'function') {
                 v = v();
             }
             result[k] = v;
@@ -269,7 +268,7 @@ class SiapQueue
     }
 
     setStatus(status) {
-        if (this.status != status) {
+        if (this.status !== status) {
             this.status = status;
             console.log('Queue %s %s', this.toString(), this.getStatusText());
         }
@@ -283,7 +282,7 @@ class SiapQueue
     }
 
     setTime(time) {
-        if (time == null || time == undefined) {
+        if (time === null || time === undefined) {
             time = new Date();
         }
         this.time = time;
@@ -298,19 +297,26 @@ class SiapQueue
     }
 
     getMap(name) {
-        if (this.maps && typeof name == 'string') {
-            let o = this.maps;
-            let parts = name.split('.');
-            while (parts.length) {
-                let n = parts.shift();
-                if (o[n]) {
-                    o = o[n];
-                } else {
-                    o = null;
-                    break;
-                }
+        if (this.maps) {
+            let parts;
+            if (typeof name === 'string') {
+                parts = name.split('.');
+            } else if (Array.isArray(name)) {
+                parts = [...name];
             }
-            return o;
+            if (Array.isArray(parts)) {
+                let o = this.maps;
+                while (parts.length) {
+                    let n = parts.shift();
+                    if (o[n]) {
+                        o = o[n];
+                    } else {
+                        o = null;
+                        break;
+                    }
+                }
+                return o;
+            }
         }
     }
 
@@ -319,8 +325,8 @@ class SiapQueue
     }
 
     getDataValue(key) {
-        if (typeof key == 'string') {
-            if (this.data[key] != undefined) {
+        if (typeof key === 'string') {
+            if (this.data[key] !== undefined) {
                 return this.data[key];
             }
             // handle special value TYPE:value

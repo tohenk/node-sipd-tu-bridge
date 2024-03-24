@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2022-2023 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2022-2024 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,6 +30,7 @@ Cmd.addVar('config', 'c', 'Set configuration file', 'filename');
 Cmd.addVar('port', 'p', 'Set server port to listen', 'port');
 Cmd.addVar('url', '', 'Set Siap url', 'url');
 Cmd.addVar('profile', '', 'Use profile for operation', 'profile');
+Cmd.addBool('clean', '', 'Clean profile directory');
 Cmd.addBool('queue', 'q', 'Enable queue saving and loading');
 Cmd.addBool('noop', '', 'Do not process queue');
 
@@ -40,13 +41,13 @@ if (!Cmd.parse() || (Cmd.get('help') && usage())) {
 const fs = require('fs');
 const util = require('util');
 const Work = require('@ntlab/work/work');
-const SiapBridge = require('./bridge');
+const SiapSppBridge = require('./bridge/spp');
 const SiapQueue = require('./queue');
 const SiapNotifier = require('./notifier');
 
 class App {
 
-    VERSION = 'SIAP-BRIDGE-1.0'
+    VERSION = 'SIAP-BRIDGE-2.0'
 
     config = {}
     bridges = []
@@ -55,9 +56,8 @@ class App {
     sessions = {}
 
     initialize() {
-        let filename, profile;
         // read configuration from command line values
-        filename = Cmd.get('config') ? Cmd.get('config') : path.join(__dirname, 'config.json');
+        let profile, filename = Cmd.get('config') ? Cmd.get('config') : path.join(__dirname, 'config.json');
         if (fs.existsSync(filename)) {
             console.log('Reading configuration %s', filename);
             const config = JSON.parse(fs.readFileSync(filename));
@@ -68,8 +68,12 @@ class App {
                 this.config = config;
             }
         }
-        if (Cmd.get('url')) this.config.url = Cmd.get('url');
-        if (!this.config.workdir) this.config.workdir = __dirname;
+        if (Cmd.get('url')) {
+            this.config.url = Cmd.get('url');
+        }
+        if (!this.config.workdir) {
+            this.config.workdir = __dirname;
+        }
         // load form maps
         filename = path.join(__dirname, 'maps.json');
         if (fs.existsSync(filename)) {
@@ -87,21 +91,36 @@ class App {
         filename = path.join(__dirname, 'profiles.json');
         if (fs.existsSync(filename)) {
             const profiles = JSON.parse(fs.readFileSync(filename));
-            if (profiles.profiles) this.config.profiles = profiles.profiles;
-            if (profiles.active) profile = profiles.active;
+            if (profiles.profiles) {
+                this.config.profiles = profiles.profiles;
+            }
+            if (profiles.active) {
+                profile = profiles.active;
+            }
         }
-        if (Cmd.get('profile')) profile = Cmd.get('profile');
+        if (Cmd.get('profile')) {
+            profile = Cmd.get('profile');
+        }
         if (profile && this.config.profiles[profile]) {
             console.log('Using profile %s', profile);
             const keys = ['timeout', 'wait', 'delay', 'opdelay'];
-            for (let key in this.config.profiles[profile]) {
-                if (keys.indexOf(key) < 0) continue;
+            for (const key in this.config.profiles[profile]) {
+                if (keys.indexOf(key) < 0) {
+                    continue;
+                }
                 this.config[key] = this.config.profiles[profile][key];
             }
         }
         // add default bridges
         if (!this.configs) {
             this.configs = {yr: {year: new Date().getFullYear()}};
+        }
+        // clean profile
+        if (Cmd.get('clean')) {
+            const profiledir = path.join(this.config.workdir, 'profile');
+            if (fs.existsSync(profiledir)) {
+                fs.rmSync(profiledir, {recursive: true, force: true});
+            }
         }
         return true;
     }
@@ -153,11 +172,15 @@ class App {
             }
             const browser = config.browser ? config.browser : 'default';
             if (browser) {
-                if (!this.sessions[browser]) this.sessions[browser] = 0;
+                if (!this.sessions[browser]) {
+                    this.sessions[browser] = 0;
+                }
                 this.sessions[browser]++;
-                if (this.sessions[browser] > 1) config.session = 's' + this.sessions[browser];
+                if (this.sessions[browser] > 1) {
+                    config.session = 's' + this.sessions[browser];
+                }
             }
-            const bridge = new SiapBridge(config);
+            const bridge = new SiapSppBridge(config);
             bridge.name = name;
             bridge.year = config.year;
             this.bridges.push(bridge);

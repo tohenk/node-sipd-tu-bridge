@@ -7,8 +7,9 @@
   "main": "app.js",
   "dependencies": {
     "@ntlab/ntlib": "^2.0.5",
-    "@ntlab/webrobot": "^1.4.22",
+    "@ntlab/webrobot": "^1.4.25",
     "@ntlab/work": "^1.1.5",
-    "socket.io": "^4.7.2"
+    "debug": "^4.3.4",
+    "socket.io": "^4.7.5"
   }
 }
