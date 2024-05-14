@@ -63,17 +63,11 @@ class Siap extends WebRobot {
         ]);
     }
 
-    isLoggedIn() {
-        return this.works([
-            [w => this.findElements(By.xpath(this.LOGIN_FORM))],
-            [w => Promise.resolve(w.getRes(0).length > 0 ? false : true)],
-        ]);
-    }
-
     login(username, password, role) {
         return this.works([
+            [w => this.gotoPenatausahaan()],
             [w => this.isLoggedIn()],
-            [w => this.logout(), w => w.getRes(0)],
+            [w => this.logout(), w => w.getRes(1)],
             [w => this.waitFor(By.xpath(this.LOGIN_FORM))],
             [w => this.fillInForm([
                     {parent: w.res, target: By.name('tahun'), value: this.year, onfill: (el, value) => this.reactSelect(el, value, 'Tahun anggaran tidak tersedia!')},
@@ -83,7 +77,7 @@ class Siap extends WebRobot {
                 ],
                 By.xpath(this.LOGIN_FORM),
                 By.xpath('//button[@type="submit"]'))],
-            [w => this.waitForProcessing(w.getRes(3), By.xpath('.//svg'))],
+            [w => this.waitForProcessing(w.getRes(4), By.xpath('.//svg'))],
             [w => this.selectAccount(role)],
             [w => this.dismissUpdate()],
         ]);
@@ -94,6 +88,38 @@ class Siap extends WebRobot {
             [w => this.getDriver().getCurrentUrl()],
             [w => this.dismissUpdate(), w => w.getRes(0).indexOf('login') < 0],
             [w => this.navigate('Keluar'), w => w.getRes(0).indexOf('login') < 0],
+        ]);
+    }
+
+    gotoPenatausahaan() {
+        return this.works([
+            [w => this.getDriver().getCurrentUrl()],
+            [w => Promise.resolve(w.getRes(0).indexOf('landing') > 0)],
+            [w => this.waitAndClick(By.xpath('//h1[text()="INFORMASI KEUANGAN DAERAH"]/../button[text()="Selengkapnya"]')), w => w.getRes(1)],
+            [w => this.waitAndClick(By.xpath('//div/p[text()="Penatausahaan Keuangan Daerah"]/../../button[text()="Pilih Modul Ini"]')), w => w.getRes(1)],
+            [w => this.waitAndClick(By.xpath('//div/p[text()="SIPD RI"]/../../button[text()="Masuk"]')), w => w.getRes(1)],
+            [w => this.getDriver().getWindowHandle(), w => w.getRes(1)],
+            [w => this.getDriver().getAllWindowHandles(), w => w.getRes(1)],
+            [w => new Promise((resolve, reject) => {
+                const handle = w.getRes(5);
+                const handles = w.getRes(6);
+                if (handles.indexOf(handle) >= 0) {
+                    handles.splice(handles.indexOf(handle), 1);
+                }
+                if (handles.length) {
+                    resolve(handles[0]);
+                } else {
+                    reject('No opened window');
+                }
+            }), w => w.getRes(1)],
+            [w => this.getDriver().switchTo().window(w.getRes(7)), w => w.getRes(1)],
+        ]);
+    }
+
+    isLoggedIn() {
+        return this.works([
+            [w => this.findElements(By.xpath(this.LOGIN_FORM))],
+            [w => Promise.resolve(w.getRes(0).length > 0 ? false : true)],
         ]);
     }
 

@@ -1,6 +1,6 @@
 {
     "global": {
-        "url":"https://sipd.kemendagri.go.id/penatausahaan/dashboard",
+        "url":"https://sipd.kemendagri.go.id/landing",
         "browser":"chrome",
         "readinessTimeout":60000
     },
