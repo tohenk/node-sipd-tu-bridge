@@ -22,8 +22,6 @@
  * SOFTWARE.
  */
 
-const util = require('util');
-
 class SiapNotifier {
 
     static notify(queue) {
@@ -33,9 +31,7 @@ class SiapNotifier {
     // https://nodejs.org/dist/latest-v14.x/docs/api/http.html#http_http_request_options_callback
     static notifyCallback(url, data) {
         return new Promise((resolve, reject) => {
-            let buff, result, err;
-            const parsedUrl = require('url').parse(url);
-            const http = require('https:' == parsedUrl.protocol ? 'https' : 'http');
+            let done = false;
             const payload = JSON.stringify(data);
             const options = {
                 method: 'POST',
@@ -44,31 +40,50 @@ class SiapNotifier {
                     'Content-Length': Buffer.byteLength(payload)
                 }
             }
-            const req = http.request(url, options, res => {
-                res.setEncoding('utf8');
-                res.on('data', chunk => {
-                    if (buff) {
-                        buff += chunk;
+            const f = () => {
+                /** @type {Buffer} buff */
+                let buff, err, code;
+                const parsedUrl = require('url').parse(url);
+                const http = require('https:' == parsedUrl.protocol ? 'https' : 'http');
+                const req = http.request(url, options, res => {
+                    code = res.statusCode;
+                    res.setEncoding('utf8');
+                    res.on('data', chunk => {
+                        if (buff) {
+                            buff = Buffer.concat([buff, chunk]);
+                        } else {
+                            buff = chunk;
+                        }
+                    });
+                    res.on('end', () => {
+                        if (code === 301 || code === 302) {
+                            if (res.headers.location) {
+                                url = res.headers.location;
+                            } else {
+                                reject('No redirection to follow!');
+                            }
+                        } else {
+                            done = true;
+                        }
+                    });
+                });
+                req.on('error', e => {
+                    err = e;
+                });
+                req.on('close', () => {
+                    if (err) {
+                        return reject(err);
+                    }
+                    if (done) {
+                        resolve(code === 200 ? buff.toString() : null);
                     } else {
-                        buff = chunk;
+                        f();
                     }
                 });
-                res.on('end', () => {
-                    result = buff;
-                });
-            });
-            req.on('error', e => {
-                err = e;
-            });
-            req.on('close', () => {
-                if (result) {
-                    resolve(util.format('%s', result));
-                } else {
-                    reject(err);
-                }
-            });
-            req.write(payload);
-            req.end();
+                req.write(payload);
+                req.end();
+            }
+            f();
         });
     }
 }
