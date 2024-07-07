@@ -49,6 +49,9 @@ class SiapNotifier {
                     code = res.statusCode;
                     res.setEncoding('utf8');
                     res.on('data', chunk => {
+                        if (typeof chunk === 'string') {
+                            chunk = Buffer.from(chunk, 'utf8');
+                        }
                         if (buff) {
                             buff = Buffer.concat([buff, chunk]);
                         } else {
