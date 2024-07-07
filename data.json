@@ -17,5 +17,8 @@
 	"BANK_REK": "Nomor rekening Bank",
 	"NPWP": "Nomor Pokok Wajib Pajak",
 	"NIK": "Nomor Induk Kependudukan Ketua Lembaga",
-	"KETUA": "Nama Ketua Lembaga"
+	"KETUA": "Nama Ketua Lembaga",
+	"NO_KONTRAK": "Nomor kontrak",
+	"TGL_KONTRAK": "Tanggal kontrak",
+	"BUKTI": "PDF bukti pembayaran"
 }

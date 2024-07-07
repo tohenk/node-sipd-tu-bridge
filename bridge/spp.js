@@ -33,27 +33,27 @@ class SiapSppBridge extends SiapBridge {
     COL_STATUS = 2
     COL_SINGLE = 3
 
-    checkRekanan(queue) {
+    alwaysEditRekanan = false
+
+    checkRekanan(queue, forceEdit = false) {
         let clicker;
-        const page = new SiapPage(this.siap, {
-            title: 'Daftar Rekanan',
-            search: {
-                input: By.id('search-access-control'),
-                submit: By.xpath('//button[text()="Cari Sekarang"]'),
-            },
-        });
+        const page = this.createPage(this.PAGE_REKANAN, 'Daftar Rekanan');
+        const lembaga = queue.getMappedData('info.nama');
+        const nik = queue.getMappedData('info.nik');
         return this.works([
             [w => this.siap.navigate('Pengeluaran', 'Daftar Rekanan')],
             [w => this.siap.waitLoader()],
             [w => page.setup()],
-            [w => page.search(queue.getMappedData('rekanan.nama_perusahaan'))],
+            [w => page.search(lembaga)],
             [w => page.each({filtered: true}, el => [
-                [x => this.siap.getText([By.xpath('./td[3]/div/span/div[2]/span')], el)],
-                [x => el.findElement(By.xpath('./td[6]/div/div/div'))],
+                [x => this.siap.getText([By.xpath('./td[2]/div/div/div[2]/span[1]'), By.xpath('./td[1]/div/div/div[2]/span[2]')], el)],
+                [x => el.findElement(By.xpath('./td[4]/a'))],
                 [x => new Promise((resolve, reject) => {
-                    const values = x.getRes(0); 
-                    const nik = values[0];
-                    if (nik === queue.getMappedData('rekanan.nik')) {
+                    const values = x.getRes(0);
+                    if (values.length > 1 && values[1]) {
+                        values[1] = this.pickNumber(values[1]);
+                    }
+                    if (values.join('|') === [lembaga, nik].join('|')) {
                         clicker = x.getRes(1);
                         reject(SiapPage.stop());
                     } else {
@@ -62,10 +62,12 @@ class SiapSppBridge extends SiapBridge {
                 })],
             ])],
             [w => this.siap.waitAndClick(By.xpath('//button[text()="Tambah Rekanan"]')), w => !clicker],
-            [w => clicker.click(), w => clicker],
+            [w => clicker.click(), w => clicker && forceEdit],
             [w => this.fillForm(queue, 'rekanan',
-                By.xpath('//h1[text()="Informasi Rekanan"]/../../..'),
-                By.xpath('//button/span/span[text()="Simpan"]'))],
+                By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
+                By.xpath('//button[text()="Konfirmasi"]')), w => !clicker || forceEdit],
+            [w => this.siap.waitAndClick(By.xpath('//section/footer/button[1]')), w => !clicker || forceEdit],
+            [w => this.siap.waitLoader(), w => !clicker || forceEdit],
         ]);
     }
 
@@ -76,14 +78,7 @@ class SiapSppBridge extends SiapBridge {
         const untuk = queue.getMappedData('spp.spp:UNTUK');
         const title = options.title;
         const jenis = options.jenis;
-        const page = new SiapPage(this.siap, {
-            title: title,
-            search: {
-                filter: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[1]/div/button'),
-                input: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[2]/div/input'),
-                submit: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[3]/div/div'),
-            },
-        });
+        const page = this.createPage(this.PAGE_SPP, title);
         let untukSppIdx, untukSppUseTippy;
         const tvalues = [];
         const tselectors = {
@@ -115,8 +110,10 @@ class SiapSppBridge extends SiapBridge {
             }
         }
         return this.works([
-            [w => this.siap.waitAndClick(By.xpath(`//button/p[text()="${jenis}"]/..`))],
+            [w => this.siap.waitLoader()],
             [w => page.setup()],
+            [w => this.siap.waitAndClick(By.xpath(`//button/p[text()="${jenis}"]/..`))],
+            [w => this.siap.waitSpinner(w.getRes(2))],
             [w => page.search(untuk, 'Keterangan')],
             [w => page.each({filtered: true}, el => [
                 [x => this.siap.getText(tvalues, el)],
@@ -155,13 +152,14 @@ class SiapSppBridge extends SiapBridge {
         return this.works([
             [w => this.siap.navigate('Pengeluaran', 'SPP', 'Pembuatan', 'LS')],
             [w => this.isSppNeeded(queue)],
-            [w => this.siap.waitAndClick(By.xpath('//button/span/p[text()="Tambah Surat Permintaan Pembayaran"]/../..')), w => !w.getRes(1)],
+            [w => this.siap.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w => !w.getRes(1)],
             [w => this.siap.waitAndClick(By.xpath('//a/span/p[text()="SPP LS (Barang & Jasa)"]/../..')), w => !w.getRes(1)],
             [w => Promise.resolve(this.spp = {}), w => !w.getRes(1)],
             [w => this.fillForm(queue, 'spp',
-                By.xpath('//h1[text()="Tambah Surat Permintaan Pembayaran | Langsung (Barang dan Jasa)"]/../../..'),
-                By.xpath('//button/span/span[text()="Konfirmasi"]')), w => !w.getRes(1)],
+                By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
+                By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => !w.getRes(1)],
             [w => this.siap.waitAndClick(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(1)],
+            [w => this.siap.waitLoader(), w => !w.getRes(1)],
         ]);
     }
 
@@ -184,7 +182,7 @@ class SiapSppBridge extends SiapBridge {
     }
 
     checkVerifikasiSpm(queue, status = 'Belum Disetujui') {
-        const title = 'Surat Perintah Membayar | Pembuatan';
+        const title = 'Pengeluaran';
         const columns = {
             noSpp: [1, this.COL_ICON, true],
             tglSpp: 3,
@@ -195,14 +193,16 @@ class SiapSppBridge extends SiapBridge {
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigate('Pengeluaran', 'SPM', 'Pembuatan')],
+            [w => this.siap.waitLoader()],
             [w => this.siap.waitAndClick(By.xpath('//button/p[text()="LS"]/..'))],
-            [w => this.isSppExist(queue, {title, columns, jenis: 'LS Sudah Diverifikasi'})],
-            [w => this.isSppExist(queue, {title, columns, jenis: 'LS Belum Diverifikasi'}), w => !w.getRes(3)],
-            [w => w.getRes(4).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(4) && queue.STATUS === status],
-            [w => w.getRes(5).click(), w => w.getRes(4) && queue.STATUS === status],
-            [w => w.getRes(5).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(4) && queue.STATUS === status],
-            [w => w.getRes(7).click(), w => w.getRes(4) && queue.STATUS === status],
-            [w => this.siap.waitAndClick(By.xpath('//header[text()="Persetujuan SPM"]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(4) && queue.STATUS === status],
+            [w => this.siap.waitSpinner(w.getRes(3))],
+            [w => this.isSppExist(queue, {title, columns, jenis: 'Sudah Diverifikasi'})],
+            [w => this.isSppExist(queue, {title, columns, jenis: 'Belum Diverifikasi'}), w => !w.getRes(5)],
+            [w => w.getRes(6).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(6) && queue.STATUS === status],
+            [w => w.getRes(7).click(), w => w.getRes(6) && queue.STATUS === status],
+            [w => w.getRes(7).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(6) && queue.STATUS === status],
+            [w => w.getRes(9).click(), w => w.getRes(6) && queue.STATUS === status],
+            [w => this.siap.waitAndClick(By.xpath('//header[text()="Persetujuan SPM"]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(6) && queue.STATUS === status],
         ]);
     }
 
@@ -212,7 +212,7 @@ class SiapSppBridge extends SiapBridge {
             [w => this.checkRole(queue)],
             // --- BP ---
             [w => this.doAs(this.ROLE_BP)],
-            [w => this.checkRekanan(queue)],
+            [w => this.checkRekanan(queue, this.alwaysEditRekanan)],
             [w => this.checkSpp(queue)],
             // --- PPK ---
             [w => this.doAs(this.ROLE_PPK)],
@@ -222,6 +222,8 @@ class SiapSppBridge extends SiapBridge {
             [w => this.checkVerifikasiSpm(queue)],
             // logout
             [w => this.siap.logout()],
+            // clean up
+            [w => this.cleanFiles()],
             // result
             [ w => new Promise((resolve, reject) => {
                 if (queue.SPP && queue.callback) {

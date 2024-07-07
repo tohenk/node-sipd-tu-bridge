@@ -95,6 +95,8 @@ class SiapPage {
             [w => Promise.reject('Wrapper is required!'), w => !this._wrapper],
             [w => this._wrapper.findElement(data.input), w => data.input],
             [w => Promise.resolve(this._search = w.res), w => data.input],
+            [w => this._wrapper.findElement(data.toggler), w => data.toggler],
+            [w => Promise.resolve(this._search_toggler = w.res), w => data.toggler],
             [w => this._wrapper.findElement(data.filter), w => data.filter],
             [w => Promise.resolve(this._search_filter = w.res), w => data.filter],
             [w => this._wrapper.findElement(data.submit), w => data.submit],
@@ -197,10 +199,11 @@ class SiapPage {
     search(term, key = null) {
         return this.works([
             [w => Promise.reject('Search not initialized!'), w => !this._search],
+            [w => this._search_toggler.click(), w => this._search_toggler],
             [w => this._search_filter.click(), w => this._search_filter && key],
             [w => this._search_filter.findElements(By.xpath(`./../*/*/button/span/p[text()="${key}"]/../..`)), w => this._search_filter && key],
-            [w => Promise.reject(`No filter key found for ${key}!`), w => this._search_filter && key && !w.getRes(2).length],
-            [w => w.getRes(2)[0].click(), w => this._search_filter && key && w.getRes(2).length],
+            [w => Promise.reject(`No filter key found for ${key}!`), w => this._search_filter && key && !w.getRes(3).length],
+            [w => w.getRes(3)[0].click(), w => this._search_filter && key && w.getRes(3).length],
             [w => this.parent.fillInput(this._search, term)],
             [w => this._search_submit.click(), w => this._search_submit],
             [w => this.parent.sleep(this.parent.opdelay)],

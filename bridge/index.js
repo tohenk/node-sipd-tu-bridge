@@ -22,6 +22,8 @@
  * SOFTWARE.
  */
 
+const fs = require('fs');
+const path = require('path');
 const util = require('util');
 const Queue = require('@ntlab/work/queue');
 const { Siap, SiapAnnouncedError } = require('../siap');
@@ -41,12 +43,16 @@ class SiapBridge {
     ROLE_PPTK = 'pptk'
     ROLE_PPK = 'ppk'
 
+    PAGE_REKANAN = 1
+    PAGE_SPP = 2
+
     constructor(options) {
         this.options = options;
         this.state = this.STATE_NONE;
         this.siap = new Siap(options);
         this.works = this.siap.works;
         this.closeBrowser = true;
+        this.clearUsingKey = true;
     }
 
     selfTest() {
@@ -179,21 +185,57 @@ class SiapBridge {
         return s.replace(/\s{2,}/g, ' ').trim();
     }
 
+    getFlags(flags, s, multiple = false) {
+        const res = [];
+        if (typeof flags === 'string') {
+            flags = flags.split('');
+        }
+        if (!Array.isArray(flags)) {
+            flags = [flags];
+        }
+        while (true) {
+            if (flags.indexOf(s.substr(0, 1)) >= 0) {
+                res.push(s.substr(0, 1));
+                s = s.substr(1);
+                if (multiple) {
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            break;
+        }
+        return res;
+    }
+
     getFormKey(key) {
-        const result = {};
+        const res = {};
+        // flags:
+        // + add wait
+        // ? perform read operatiron
+        // * required
+        // ~ optional
+        // $ set value using javascript
+        // - ignored, used to duplicate selector
+        res.flags = this.getFlags('+?*~$-', key, true);
+        if (res.flags.length) {
+            key = key.substr(res.flags.length);
+        }
         // check parent
-        const part = key.split('!');
-        if (part.length > 1) {
-            result.parent = part[0];
+        if (key.indexOf('!') > 1) {
+            const part = key.split('!');
+            res.parent = part[0];
             key = part[1];
         }
-        // check prefixes
-        if (['#', '+', '?', '=', '*', '$', '-'].indexOf(key.substring(0, 1)) >= 0) {
-            result.prefix = key.substring(0, 1);
-            key = key.substring(1);
+        // selector flags:
+        // # id selector
+        // = xpath selector
+        res.sflags = this.getFlags('#=', key);
+        if (res.sflags.length) {
+            key = key.substr(res.sflags.length);
         }
-        result.selector = key;
-        return result;
+        res.selector = key;
+        return res;
     }
 
     sleep(ms) {
@@ -254,23 +296,61 @@ class SiapBridge {
             }, el);
     }
 
-    doChoose(title, value, values, callback) {
+    getPageOptions(page, title) {
+        const res = {title};
+        switch (page) {
+            case this.PAGE_REKANAN:
+                res.selector = '//h1[contains(@class,"card-title")]/h1[text()="%TITLE%"]/../../../..';
+                res.search = {
+                    input: By.xpath('//input[contains(@placeholder,"Cari perusahaan")]'),
+                    submit: By.xpath('//button[text()="Cari Sekarang"]'),
+                    toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
+                }
+                break;
+            case this.PAGE_SPP:
+                res.search = {
+                    filter: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[1]/div/button'),
+                    input: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[2]/div/input'),
+                    submit: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[3]/div/div'),
+                }
+                break;
+        }
+        return res;
+    }
+
+    createPage(page, title) {
+        return new SiapPage(this.siap, this.getPageOptions(page, title));
+    }
+
+    doChoose(title, value, values, options, callback = null) {
         return new Promise((resolve, reject) => {
-            const page = new SiapPage(this.siap, {
+            if (typeof options === 'function') {
+                callback = options;
+                options = undefined;
+            }
+            options = options || {};
+            const pageOptions = Object.assign({
                 title: title,
                 selector: '//header[text()="%TITLE%"]/../div[contains(@class,"chakra-modal__body")]',
                 tableSelector: './/table/..',
                 pageSelector: 'li/a[text()="%PAGE%"]',
-            });
+            }, options.page ? this.getPageOptions(options.page, title) : {});
+            const page = new SiapPage(this.siap, pageOptions);
             let clicker;
             this.works([
                 [w => page.setup()],
+                [w => page.search(Array.isArray(value) ? value[0] : value), w => page._search],
                 [w => page.each(el => [
                     [x => this.siap.getText([...values], el)],
                     [x => el.findElement(By.xpath('.//button'))],
                     [x => new Promise((resolve, reject) => {
                         const v = x.getRes(0);
-                        if (callback(v) === value) {
+                        const expected = Array.isArray(value) ? value.join('|') : value;
+                        let checked = typeof callback === 'function' ? callback(v) : v;
+                        if (Array.isArray(checked)) {
+                            checked = checked.join('|');
+                        }
+                        if (expected === checked) {
                             clicker = x.getRes(1);
                             reject(SiapPage.stop());
                         } else {
@@ -302,7 +382,7 @@ class SiapBridge {
         return this.works([
             [w => el.click()],
             [w => el.getAttribute('aria-controls')],
-            [w => this.siap.findElements(By.xpath(`//*[@id="${w.getRes(1)}"]/div/div[contains(text(),"${value}")]`))],
+            [w => this.siap.findElements(By.xpath(`//*[@id="${w.getRes(1)}"]/div[contains(text(),"${value}")]`))],
             [w => Promise.reject(`Combobox value ${value} not available!`), w => w.getRes(2).length === 0],
             [w => w.getRes(2)[0].click(), w => w.getRes(2).length],
         ]);
@@ -370,14 +450,20 @@ class SiapBridge {
     fillRole(el, value) {
         return this.works([
             [w => el.click()],
-            [w => this.doChoose('Pilih Penandatangan', value, [By.xpath('./td[1]/div/span/div/span[1]')], values => values[0])],
+            [w => this.doChoose('Pilih Pegawai', value, [By.xpath('./td[1]/div/span/div/span[1]')])],
         ]);
     }
 
     fillRekanan(el, value) {
         return this.works([
             [w => el.click()],
-            [w => this.doChoose('Rekanan', value, [By.xpath('./td[1]/div/span/div/span[1]')], values => values[0])],
+            [w => this.doChoose('Daftar Rekanan', value, [By.xpath('./td[2]/div/div/div[2]/span[1]'), By.xpath('./td[1]/div/div/div[2]/span[2]')], {page: this.PAGE_REKANAN}, values => {
+                // clean nik
+                if (values.length > 1 && values[1]) {
+                    values[1] = this.pickNumber(values[1]);
+                }
+                return values;
+            })],
         ]);
     }
 
@@ -415,18 +501,32 @@ class SiapBridge {
     fillAfektasi(el, value, rekening) {
         let allocated = false;
         return this.works([
-            [w => el.findElements(By.xpath('.//tr/td[1]/div/span/div/span[2]'))],
+            [w => el.findElements(By.xpath('.//div/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
             [w => new Promise((resolve, reject) => {
                 const items = w.getRes(0);
                 const q = new Queue(items, item => {
                     this.works([
                         [x => item.getAttribute('innerText')],
                         [x => Promise.resolve(this.pickNumber(x.getRes(0)))],
-                        [x => item.findElement(By.xpath('../../../../../td[3]/div/span/div/input')), x => x.getRes(1) === rekening],
-                        [x => item.findElement(By.xpath('../../../../../td[4]/div/span/div[2]/span')), x => x.getRes(1) === rekening],
+                        [x => item.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/div/input')), x => x.getRes(1) === rekening],
+                        [x => item.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/p[2]')), x => x.getRes(1) === rekening],
                         [x => Promise.resolve(x.getRes(3).getAttribute('innerText')), x => x.getRes(1) === rekening],
                         [x => Promise.resolve(parseFloat(this.pickNumber(x.getRes(4)))), x => x.getRes(1) === rekening],
-                        [x => this.siap.fillInput(x.getRes(2), value), x => x.getRes(1) === rekening && x.getRes(5) >= value],
+                        [x => new Promise((resolve, reject) => {
+                            const input = x.getRes(2);
+                            const chars = value.toString().split('');
+                            const f = () => {
+                                if (chars.length) {
+                                    const x = chars.shift();
+                                    input.sendKeys(x)
+                                        .then(() => setTimeout(f, 10))
+                                        .catch(err => reject(err));
+                                } else {
+                                    resolve();
+                                }
+                            }
+                            f();
+                        }), x => x.getRes(1) === rekening && x.getRes(5) >= value],
                         [x => Promise.resolve(allocated = true), x => x.getRes(1) === rekening && x.getRes(5) >= value],
                     ])
                     .then(() => {
@@ -444,18 +544,18 @@ class SiapBridge {
         ]);
     }
 
-    handleFormFill(name, queue) {
+    handleFormFill(name, queue, files) {
         const result = [];
         const maps = queue.getMap(name);
         Object.keys(maps).forEach(k => {
             const selector = [];
             const f = this.getFormKey(k);
             let key = f.selector, attr, vtype, skey;
-            switch (f.prefix) {
-                case '#':
+            switch (true) {
+                case f.sflags.indexOf('#') >= 0:
                     attr = 'id';
                     break;
-                case '=':
+                case f.sflags.indexOf('=') >= 0:
                     break;
                 default:
                     attr = 'name';
@@ -465,7 +565,7 @@ class SiapBridge {
             debug(`Mapped value ${name + '->' + key} = ${value}`);
             // fall back to non mapped value if undefined
             if (value === undefined) {
-                if (f.prefix === '*') {
+                if (f.flags.indexOf('*') >= 0) {
                     throw new Error(`Form ${name}: ${key} value is mandatory`);
                 }
                 value = maps[k];
@@ -476,7 +576,19 @@ class SiapBridge {
                 vtype = x[0];
                 value = x[1];
                 const v = queue.getDataValue(value);
-                if (v !== undefined) {
+                if (v === undefined) {
+                    // try multiple values
+                    if (value.indexOf('|') > 0) {
+                        const values = [];
+                        value.split('|').forEach(val => {
+                            const vv = queue.getDataValue(val);
+                            values.push(vv !== undefined ? vv : val);
+                        });
+                        if (values.length) {
+                            value = values;
+                        }
+                    }
+                } else {
                     value = v;
                 }
                 debug(`Special TYPE:value ${name + '->' + key} = ${value}`);
@@ -492,12 +604,12 @@ class SiapBridge {
                         break;
                 }
             }
-            if (f.prefix !== '=') {
+            if (f.sflags.indexOf('=') < 0) {
                 selector.push(`[@${attr}="${key}"]`);
             }
             // form data
             let data = {
-                target: By.xpath(f.prefix === '=' ? key : `.//*${selector.join('')}`),
+                target: By.xpath(f.sflags.indexOf('=') >= 0 ? key : `.//*${selector.join('')}`),
                 value: value
             }
             // check form parent
@@ -512,10 +624,10 @@ class SiapBridge {
                 case 'spp':
                     if (this.spp.tgl && this.spp.keg && this.spp.rek && this.spp.nominal) {
                         data = {
-                            target: By.xpath('.//table/tbody'),
-                            onfill: (el, value) => this.fillAfektasi(el, value, this.spp.rek),
+                            target: By.xpath('.//p[contains(@class,"form-label") and text()="Belanja"]/../div[2]'),
                             value: this.spp.nominal,
-                        };
+                            onfill: (el, value) => this.fillAfektasi(el, value, this.spp.rek),
+                        }
                     } else {
                         data = null;
                     }
@@ -536,21 +648,56 @@ class SiapBridge {
                     case 'KEG':
                         data.onfill = (el, value) => this.fillKegiatan(el, value);
                         break;
+                    case 'FILE':
+                        const doctmp = path.join(this.options.workdir, 'doctmp');
+                        const docfile = path.join(doctmp, `${queue.id}.pdf`);
+                        files.push(docfile);
+                        data.onfill = (el, value) => new Promise((resolve, reject) => {
+                            if (value) {
+                                // is it saved buffer?
+                                if (typeof value === 'object' && value.type === 'Buffer' && value.data) {
+                                    value = Buffer.from(value.data);
+                                }
+                                if (!Buffer.isBuffer(value)) {
+                                    reject('To upload file, value must be Buffer!');
+                                } else {
+                                    if (!fs.existsSync(doctmp)) {
+                                        fs.mkdirSync(doctmp, {recursive: true})
+                                    }
+                                    fs.writeFileSync(docfile, value);
+                                    el.sendKeys(docfile)
+                                        .then(() => resolve(true))
+                                        .catch(err => reject(err));
+                                }
+                            } else {
+                                resolve();
+                            }
+                        });
+                        break;
+                    case 'DO':
+                        data.onfill = (el, value) => {
+                            switch (value.toLowerCase()) {
+                                case 'click':
+                                    return el.click();
+                            }
+                            throw new Error(`Invalid DO action: ${value}!`)
+                        }
+                        break;
                 }
-                switch (f.prefix) {
+                switch (true) {
                     // read operation
-                    case '?':
+                    case f.flags.indexOf('?') >= 0:
                         data.onfill = (el, value) => this.readValue(el, value, queue);
                         break;
                     // fill value using javascript
-                    case '$':
+                    case f.flags.indexOf('$') >= 0:
                         data.onfill = (el, value) => this.siap.getDriver().executeScript(
                             function(el, value) {
                                 $(el).val(value);
                             }, el, value);
                         break;
                     // add waiting
-                    case '+':
+                    case f.flags.indexOf('+') >= 0:
                         data.done = (d, next) => {
                             this.siap.waitLoader()
                                 .then(() => next())
@@ -558,6 +705,10 @@ class SiapBridge {
                                     throw err;
                                 });
                         }
+                        break;
+                    // optional
+                    case f.flags.indexOf('~') >= 0:
+                        data.optional = true;
                         break;
                 }
                 // generic handler of special tag
@@ -579,6 +730,9 @@ class SiapBridge {
                         });
                     }
                 }
+                if (this.clearUsingKey) {
+                    data.clearUsingKey = true;
+                }
                 result.push(data);
             }
         });
@@ -593,16 +747,31 @@ class SiapBridge {
         if (options.dismiss === undefined) {
             options.dismiss = true;
         }
+        if (!this.files) {
+            this.files = [];
+        }
         return this.works([
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.fillInForm(
-                this.handleFormFill(name, queue),
+                this.handleFormFill(name, queue, this.files),
                 form,
                 submit,
                 options.wait)],
             [w => this.siap.sleep(this.siap.opdelay)],
             [w => this.siap.waitLoader()],
         ]);
+    }
+
+    cleanFiles() {
+        return new Promise((resolve, reject) => {
+            const q = new Queue(this.files, file => {
+                if (fs.existsSync(file)) {
+                    fs.unlinkSync(file);
+                }
+                q.next();
+            });
+            q.once('done', () => resolve());
+        });
     }
 }
 

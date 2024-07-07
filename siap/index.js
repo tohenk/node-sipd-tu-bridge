@@ -128,7 +128,7 @@ class Siap extends WebRobot {
             [w => this.waitFor(By.xpath('//div[@class="container-account-select"]'))],
             [w => w.getRes(0).findElement(By.xpath(`.//div[@class="account-select-card"]/div/div/h1[text()="${role}"]/../../../button`))],
             [w => w.getRes(1).click()],
-            [w => this.waitForProcessing(w.getRes(0), By.xpath('.//div[contains(@class,"chakra-spinner")]'))],
+            [w => this.waitSpinner(w.getRes(0))],
         ]);
     }
 
@@ -163,6 +163,10 @@ class Siap extends WebRobot {
             [w => this.waitForPresence(By.xpath('//div[@class="container-rendering"]'))],
             [w => this.sleep(this.opdelay)],
         ]);
+    }
+
+    waitSpinner(el) {
+        return this.waitForProcessing(el, By.xpath('.//div[contains(@class,"chakra-spinner")]'));
     }
 
     waitForProcessing(el, data) {

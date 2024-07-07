@@ -154,12 +154,14 @@ class App {
             .on('queue-error', queue => this.handleNotify(queue))
         ;
         if (Cmd.get('queue')) {
-            process.on(process.platform === 'win32' ? 'SIGINT' : 'SIGTERM', () => {
+            const f = () => {
                 console.log('Please wait, saving queues...');
                 this.dequeue.saveQueue();
                 this.dequeue.saveLogs();
                 process.exit();
-            });
+            }
+            process.on('SIGINT', () => f());
+            process.on('SIGTERM', () => f());
         }
     }
 
@@ -216,8 +218,12 @@ class App {
                     if (Cmd.get('queue')) {
                         this.dequeue.loadQueue();
                     }
-                    this.dequeue.setConsumer(this);
-                    console.log('Queue processing is ready...');
+                    if (Cmd.get('noop')) {
+                        console.log('Bridge ready, queuing only...');
+                    } else {
+                        this.dequeue.setConsumer(this);
+                        console.log('Queue processing is ready...');
+                    }
                 })
                 .catch(err => console.error(err))
             ;
@@ -371,15 +377,9 @@ class App {
             bridge.queue = queue;
             queue.bridge = bridge;
             queue.ontimeout = () => bridge.siap.stop();
-            if (Cmd.get('noop')) {
-                return new Promise((resolve, reject) => {
-                    setTimeout(() => resolve(`Queue ${queue.type}:${queue.id} handled by ${bridge.name}`), 60000);
-                });
-            } else {
-                switch (queue.type) {
-                    case SiapQueue.QUEUE_SPP:
-                        return bridge.createSpp(queue);
-                }
+            switch (queue.type) {
+                case SiapQueue.QUEUE_SPP:
+                    return bridge.createSpp(queue);
             }
         }
         return Promise.reject(util.format('No bridge can handle %s!', queue.getInfo()));
