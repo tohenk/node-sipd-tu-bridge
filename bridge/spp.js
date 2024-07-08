@@ -26,6 +26,7 @@ const SiapBridge = require('.');
 const SiapQueue = require('../queue');
 const SiapPage = require('../siap/page');
 const { By } = require('selenium-webdriver');
+const debug = require('debug')('siap:spp');
 
 class SiapSppBridge extends SiapBridge {
 
@@ -124,8 +125,9 @@ class SiapSppBridge extends SiapBridge {
                     const noSpp = values[0];
                     const tglSpp = this.getDate(values[1]);
                     const untukSpp = untukSppUseTippy ? x.getRes(2) : values[2];
-                    const nomSpp = parseFloat(this.pickNumber(values[3]));
+                    const nomSpp = parseFloat(this.pickCurr(values[3]));
                     const statusSpp = values[4];
+                    debug(this.dateSerial(tgl), '=', this.dateSerial(tglSpp), nominal, '=', nomSpp, this.getSafeStr(untuk), '=', this.getSafeStr(untukSpp));
                     if (this.dateSerial(tgl) == this.dateSerial(tglSpp) && nominal == nomSpp && this.getSafeStr(untuk) == this.getSafeStr(untukSpp)) {
                         result = el;
                         queue.SPP = noSpp;
@@ -160,6 +162,7 @@ class SiapSppBridge extends SiapBridge {
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => !w.getRes(1)],
             [w => this.siap.waitAndClick(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(1)],
             [w => this.siap.waitLoader(), w => !w.getRes(1)],
+            [w => this.isSppNeeded(queue), w => !w.getRes(1)],
         ]);
     }
 

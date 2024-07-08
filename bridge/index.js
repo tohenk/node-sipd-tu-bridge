@@ -181,6 +181,13 @@ class SiapBridge {
         return result.trim();
     }
 
+    pickCurr(s) {
+        const matches = s.match(/([0-9\.]+)/);
+        if (matches) {
+            return this.pickNumber(matches[0]);
+        }
+    }
+
     getSafeStr(s) {
         return s.replace(/\s{2,}/g, ' ').trim();
     }
@@ -402,17 +409,17 @@ class SiapBridge {
             [w => el.click()],
             [w => this.siap.findElements(By.xpath('//div[contains(@class,"flatpickr-calendar")]'))],
             [w => new Promise((resolve, reject) => {
-                const q = new Queue(w.getRes(2), dtpicker => {
+                const q = new Queue([...w.getRes(2)], dtpicker => {
                     this.works([
-                        [w => dtpicker.getAttribute('class')],
-                        [w => Promise.resolve(w.getRes(0).indexOf('open') >= 0)],
-                        [w => dtpicker.findElement(By.xpath('.//input[@aria-label="Year"]')), w => w.getRes(1)],
-                        [w => w.getRes(2).getAttribute('value'), w => w.getRes(1)],
-                        [w => dtpicker.findElement(By.xpath('.//select[@aria-label="Month"]')), w => w.getRes(1)],
-                        [w => this.siap.fillInput(w.getRes(2), value.getFullYear()), w => w.getRes(1) && w.getRes(3) != value.getFullYear()],
-                        [w => this.siap.fillSelect(w.getRes(4), value.getMonth()), w => w.getRes(1)],
-                        [w => dtpicker.findElement(By.xpath(`.//span[@class="flatpickr-day" and text()="${value.getDate()}"]`)), w => w.getRes(1)],
-                        [w => w.getRes(7).click(), w => w.getRes(1)],
+                        [x => dtpicker.getAttribute('class')],
+                        [x => Promise.resolve(x.getRes(0).indexOf('open') >= 0)],
+                        [x => dtpicker.findElement(By.xpath('.//input[@aria-label="Year"]')), x => x.getRes(1)],
+                        [x => x.getRes(2).getAttribute('value'), x => x.getRes(1)],
+                        [x => dtpicker.findElement(By.xpath('.//select[@aria-label="Month"]')), x => x.getRes(1)],
+                        [x => this.siap.fillInput(x.getRes(2), value.getFullYear()), x => x.getRes(1) && x.getRes(3) != value.getFullYear()],
+                        [x => this.siap.fillSelect(x.getRes(4), value.getMonth()), x => x.getRes(1)],
+                        [x => dtpicker.findElement(By.xpath(`.//span[contains(@class,"flatpickr-day") and text()="${value.getDate()}"]`)), x => x.getRes(1)],
+                        [x => x.getRes(7).click(), x => x.getRes(1)],
                     ])
                     .then(() => q.next())
                     .catch(err => reject(err));
@@ -507,11 +514,12 @@ class SiapBridge {
                 const q = new Queue(items, item => {
                     this.works([
                         [x => item.getAttribute('innerText')],
-                        [x => Promise.resolve(this.pickNumber(x.getRes(0)))],
+                        [x => Promise.resolve(this.pickCurr(x.getRes(0)))],
                         [x => item.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/div/input')), x => x.getRes(1) === rekening],
                         [x => item.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/p[2]')), x => x.getRes(1) === rekening],
                         [x => Promise.resolve(x.getRes(3).getAttribute('innerText')), x => x.getRes(1) === rekening],
-                        [x => Promise.resolve(parseFloat(this.pickNumber(x.getRes(4)))), x => x.getRes(1) === rekening],
+                        [x => Promise.resolve(parseFloat(this.pickCurr(x.getRes(4)))), x => x.getRes(1) === rekening],
+                        [x => this.siap.fillInput(x.getRes(2), null, this.clearUsingKey), x => x.getRes(1) === rekening && x.getRes(5) >= value],
                         [x => new Promise((resolve, reject) => {
                             const input = x.getRes(2);
                             const chars = value.toString().split('');
