@@ -31,6 +31,7 @@ const debug = require('debug')('siap:core');
 class Siap extends WebRobot {
 
     LOGIN_FORM = '//div[contains(@class,"auth-box")]/form'
+    CAPTCHA_MODAL = '//div[contains(@class,"chakra-modal__body")]/h4[contains(text(),"CAPTCHA")]'
 
     initialize() {
         this.delay = this.options.delay || 500;
@@ -63,22 +64,23 @@ class Siap extends WebRobot {
         ]);
     }
 
-    login(username, password, role) {
+    login(username, password, role, force = false) {
         return this.works([
             [w => this.gotoPenatausahaan()],
             [w => this.isLoggedIn()],
-            [w => this.logout(), w => w.getRes(1)],
-            [w => this.waitFor(By.xpath(this.LOGIN_FORM))],
+            [w => this.logout(), w => force],
+            [w => this.waitFor(By.xpath(this.LOGIN_FORM)), w => force || !w.getRes(1)],
             [w => this.fillInForm([
-                    {parent: w.res, target: By.name('tahun'), value: this.year, onfill: (el, value) => this.reactSelect(el, value, 'Tahun anggaran tidak tersedia!')},
-                    {parent: w.res, target: By.name('username'), value: username},
-                    {parent: w.res, target: By.name('password'), value: password},
-                    {parent: w.res, target: By.xpath('.//input[@type="checkbox"]'), value: false, onfill: (el, value) => this.clickCheckbox(el, value)},
+                    {parent: w.res, target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'), value: this.year, onfill: (el, value) => this.reactSelect(el, value, 'Tahun anggaran tidak tersedia!')},
+                    {parent: w.res, target: By.id('ed_username'), value: username},
+                    {parent: w.res, target: By.id('ed_password'), value: password},
                 ],
                 By.xpath(this.LOGIN_FORM),
-                By.xpath('//button[@type="submit"]'))],
-            [w => this.waitForProcessing(w.getRes(4), By.xpath('.//svg'))],
-            [w => this.selectAccount(role)],
+                By.xpath('//button[@type="submit"]')), w => force || !w.getRes(1)],
+            [w => this.waitForProcessing(w.getRes(4), By.xpath('.//svg')), w => force || !w.getRes(1)],
+            [w => this.selectAccount(role), w => force || !w.getRes(1)],
+            [w => this.waitCaptcha(), w => force || !w.getRes(1)],
+            [w => this.waitLoader(), w => force || !w.getRes(1)],
             [w => this.dismissUpdate()],
         ]);
     }
@@ -88,6 +90,21 @@ class Siap extends WebRobot {
             [w => this.getDriver().getCurrentUrl()],
             [w => this.dismissUpdate(), w => w.getRes(0).indexOf('login') < 0],
             [w => this.navigate('Keluar'), w => w.getRes(0).indexOf('login') < 0],
+        ]);
+    }
+
+    waitCaptcha() {
+        return this.works([
+            [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
+            [w => this.waitSolvedCaptcha(), w => w.getRes(0).length],
+        ]);
+    }
+
+    waitSolvedCaptcha() {
+        return this.works([
+            [w => Promise.resolve(console.log('Awaiting captcha to be solved...'))],
+            [w => this.waitForPresence(By.xpath(this.CAPTCHA_MODAL), false, 0)],
+            [w => this.waitSpinner(w.getRes(1))],
         ]);
     }
 
@@ -118,8 +135,11 @@ class Siap extends WebRobot {
 
     isLoggedIn() {
         return this.works([
-            [w => this.findElements(By.xpath(this.LOGIN_FORM))],
-            [w => Promise.resolve(w.getRes(0).length > 0 ? false : true)],
+            [w => this.getDriver().getCurrentUrl()],
+            [w => Promise.resolve(w.getRes(0).indexOf('login') > 0)],
+            [w => this.waitLoader(), w => w.getRes(1)],
+            [w => this.findElements(By.xpath(this.LOGIN_FORM)), w => w.getRes(1)],
+            [w => Promise.resolve(w.getRes(1) && w.getRes(3).length > 0 ? false : true)],
         ]);
     }
 
@@ -142,10 +162,10 @@ class Siap extends WebRobot {
 
     reactSelect(el, value, message = null) {
         return this.works([
-            [w => el.findElement(By.xpath('./../div[contains(@class,"select__control")]'))],
-            [w => w.res.click()],
-            [w => el.findElements(By.xpath(`./..//div[contains(@class,"select__menu")]/div/div[contains(text(),${this.escapeStr(value)})]`))],
-            [w => Promise.reject(SiapAnnouncedError.create(util.format(message ? message : 'Pilihan %s tidak tersedia!', value))), w => !w.getRes(2).length],
+            [w => el.click()],
+            [w => el.getAttribute('aria-controls')],
+            [w => this.findElements(By.xpath(`//*[@id="${w.getRes(1)}"]/div[contains(text(),"${value}")]`))],
+            [w => Promise.reject(SiapAnnouncedError.create(util.format(message ? message : 'Pilihan %s tidak tersedia!', value))), w => w.getRes(2).length === 0],
             [w => w.getRes(2)[0].click(), w => w.getRes(2).length],
         ]);
     }
@@ -159,10 +179,7 @@ class Siap extends WebRobot {
     }
 
     waitLoader() {
-        return this.works([
-            [w => this.waitForPresence(By.xpath('//div[@class="container-rendering"]'))],
-            [w => this.sleep(this.opdelay)],
-        ]);
+        return this.waitForPresence(By.xpath('//div[@class="container-rendering"]'));
     }
 
     waitSpinner(el) {
@@ -170,27 +187,25 @@ class Siap extends WebRobot {
     }
 
     waitForProcessing(el, data) {
-        return this.works([
-            [w => this.sleep(this.opdelay)],
-            [w => this.waitForPresence({el: el, data: data})],
-        ]);
+        return this.waitForPresence({el: el, data: data});
     }
 
     /**
-     * Wait an element until its presence.
+     * Wait an element until its presence or gone.
      *
      * @param {object|By} data Element to wait for
      * @param {WebElement} data.el Parent element
      * @param {By} data.data Element selector
+     * @param {boolean} presence Presence state
      * @param {number} time Wait time
      * @returns {Promise<WebElement>}
      */
-    waitForPresence(data, time = null) {
+    waitForPresence(data, presence = true, time = null) {
         if (null === time) {
             time = this.wait;
         }
         return new Promise((resolve, reject) => {
-            let res, shown = false;
+            let res;
             const t = Date.now();
             const f = () => {
                 this.works([
@@ -198,9 +213,9 @@ class Siap extends WebRobot {
                     [w => Promise.resolve(false), w => data.el && w.getRes(0)],
                     [w => this.findElements(data), w => !w.getRes(0)],
                     [w => new Promise((resolve, reject) => {
-                        let wait = shown ? w.res.length === 0 : true;
-                        // is timed out
-                        if (wait && Date.now() - t > time) {
+                        let wait = presence ? w.res.length === 0 : w.res.length > 0;
+                        // is it timed out?
+                        if (wait && time > 0 && Date.now() - t > time) {
                             wait = false;
                         }
                         if (w.res.length) {
@@ -290,7 +305,7 @@ class Siap extends WebRobot {
                     if (restart) {
                         f();
                     } else {
-                        resolve(res)
+                        setTimeout(() => resolve(res), this.opdelay);
                     }
                 });
             }
