@@ -144,7 +144,13 @@ class SiapCmd {
                 if (cmd.validate({socket, data})) {
                     const result = cmd.consume({socket, data});
                     if (result) {
-                        socket.emit(cmd.name, result);
+                        if (result instanceof Promise) {
+                            result
+                                .then(res => socket.emit(cmd.name, res))
+                                .catch(err => socket.emit(cmd.name, err));
+                        } else {
+                            socket.emit(cmd.name, result);
+                        }
                     }
                 }
             });

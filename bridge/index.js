@@ -57,6 +57,7 @@ class SiapBridge {
     constructor(options) {
         this.options = options;
         this.state = this.STATE_NONE;
+        this.autoClose = true;
     }
 
     selfTest() {
@@ -83,6 +84,19 @@ class SiapBridge {
 
     isOperational() {
         return this.state === this.STATE_OPERATIONAL;
+    }
+
+    hasState(state) {
+        let res = false;
+        for (const session of this.getSessions()) {
+            if (typeof session.state()[state] !== undefined) {
+                if (session.state()[state]) {
+                    res = true;
+                    break;
+                }
+            }
+        }
+        return res;
     }
 
     switchRole(role) {
@@ -135,6 +149,15 @@ class SiapBridge {
     }
 
     /**
+     * Get sessions.
+     *
+     * @returns {SiapSession[]}
+     */
+    getSessions() {
+        return Object.values(this.sessions);
+    }
+
+    /**
      * Create a session.
      *
      * @param {object} options Session constructor options
@@ -164,7 +187,13 @@ class SiapBridge {
         }
         const sessId = options.session ? options.session : '_';
         if (this.sessions[sessId] === undefined) {
-            this.sessions[sessId] = this.createSession(options);
+            const session = this.createSession(options);
+            session.onStateChange(s => {
+                if (typeof this.onState === 'function') {
+                    this.onState(s);
+                }
+            });
+            this.sessions[sessId] = session;
         }
         return this.sessions[sessId];
     }
@@ -181,6 +210,33 @@ class SiapBridge {
             [m => Promise.reject('Invalid queue, no role specified!'), m => !m.getRes(0)],
             [m => Promise.resolve(this.switchRole(m.getRes(0)))],
         ]);
+    }
+
+    /**
+     * Get captcha image.
+     *
+     * @returns {Promise<string>|undefined}
+     */
+    getCaptcha() {
+        for (const session of this.getSessions()) {
+            if (session.state().captcha) {
+                return session.captchaImage();
+            }
+        }
+    }
+
+    /**
+     * Solve captcha using code.
+     *
+     * @param {string} code Captcha code
+     * @returns {Promise<any>|undefined}
+     */
+    solveCaptcha(code) {
+        for (const session of this.getSessions()) {
+            if (session.state().captcha) {
+                return session.solveCaptcha(code);
+            }
+        }
     }
 
     /**
@@ -236,6 +292,17 @@ class SiapBridge {
                 }
             }
         });
+    }
+
+    end(stop = true) {
+        const works = [];
+        for (const session of Object.values(this.sessions)) {
+            works.push(
+                [m => session.cleanFiles()],
+                [m => session.stop(), m => stop],
+            );
+        }
+        return Work.works(works);
     }
 }
 

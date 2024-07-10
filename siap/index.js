@@ -31,7 +31,9 @@ const debug = require('debug')('siap:core');
 class Siap extends WebRobot {
 
     LOGIN_FORM = '//div[contains(@class,"auth-box")]/form'
-    CAPTCHA_MODAL = '//div[contains(@class,"chakra-modal__body")]/h4[contains(text(),"CAPTCHA")]'
+    CAPTCHA_MODAL = '//div[contains(@class,"chakra-modal__body")]/h4[contains(text(),"CAPTCHA")]/..'
+
+    state = {}
 
     initialize() {
         this.delay = this.options.delay || 500;
@@ -40,26 +42,27 @@ class Siap extends WebRobot {
         super.constructor.expectErr(SiapAnnouncedError);
     }
 
-    // https://stackoverflow.com/questions/642125/encoding-xpath-expressions-with-both-single-and-double-quotes
-    escapeStr(s) {
-        if (typeof s !== 'string') {
-            s = '' + s;
+    setState(states) {
+        let updated = false;
+        Object.keys(states).forEach(s => {
+            const nval = states[s];
+            const oval = this.state[s];
+            if (nval !== oval) {
+                this.state[s] = nval;
+                if (!updated) {
+                    updated = true;
+                }
+            }
+        });
+        if (updated && typeof this.onState === 'function') {
+            this.onState(this);
         }
-        // does not contain double quote
-        if (s.indexOf('"') < 0) {
-            return `"${s}"`;
-        }
-        // does not contain single quote
-        if (s.indexOf('\'') < 0) {
-            return `'${s}'`;
-        }
-        // contains both, escape single quote
-        return `concat('${s.replace(/'/g, '\', "\'", \'')}')`;
     }
 
     stop() {
         return this.works([
             [w => this.close()],
+            [w => Promise.resolve(this.state = {})],
             [w => new Promise((resolve, reject) => setTimeout(() => resolve(), this.opdelay))],
         ]);
     }
@@ -103,8 +106,37 @@ class Siap extends WebRobot {
     waitSolvedCaptcha() {
         return this.works([
             [w => Promise.resolve(console.log('Awaiting captcha to be solved...'))],
+            [w => Promise.resolve(this.setState({captcha: true}))],
             [w => this.waitForPresence(By.xpath(this.CAPTCHA_MODAL), false, 0)],
-            [w => this.waitSpinner(w.getRes(1))],
+            [w => this.waitSpinner(w.getRes(2))],
+            [w => Promise.resolve(this.setState({captcha: false}))],
+        ]);
+    }
+
+    captchaImage() {
+        return this.works([
+            [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
+            [w => w.getRes(0)[0].findElement(By.xpath('.//img')), w => w.getRes(0).length],
+            [w => w.getRes(1).getAttribute('src'), w => w.getRes(0).length],
+        ]);
+    }
+
+    solveCaptcha(code) {
+        return this.works([
+            [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
+            [w => w.getRes(0)[0].findElements(By.xpath('.//input[@data-index]')), w => w.getRes(0).length],
+            [w => new Promise((resolve, reject) => {
+                const q = new Queue(w.getRes(1), el => {
+                    this.works([
+                        [x => el.getAttribute('data-index')],
+                        [x => el.sendKeys(code.substr(parseInt(x.getRes(0)), 1))],
+                        [x => this.sleep(10)],
+                    ])
+                    .then(() => q.next())
+                    .catch(err => reject(err));
+                });
+                q.once('done', () => resolve());
+            }), w => w.getRes(0).length],
         ]);
     }
 
@@ -311,6 +343,23 @@ class Siap extends WebRobot {
             }
             f();
         });
+    }
+
+    // https://stackoverflow.com/questions/642125/encoding-xpath-expressions-with-both-single-and-double-quotes
+    escapeStr(s) {
+        if (typeof s !== 'string') {
+            s = '' + s;
+        }
+        // does not contain double quote
+        if (s.indexOf('"') < 0) {
+            return `"${s}"`;
+        }
+        // does not contain single quote
+        if (s.indexOf('\'') < 0) {
+            return `'${s}'`;
+        }
+        // contains both, escape single quote
+        return `concat('${s.replace(/'/g, '\', "\'", \'')}')`;
     }
 }
 

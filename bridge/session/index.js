@@ -41,7 +41,16 @@ class SiapSession {
         this.siap = new Siap(options);
         this.works = this.siap.works;
         this.clearUsingKey = true;
-        this.closeBrowser = true;
+    }
+
+    onStateChange(handler) {
+        if (typeof handler === 'function') {
+            this.siap.onState = handler;
+        }
+    }
+
+    state() {
+        return this.siap.state;
     }
 
     ready() {
@@ -81,6 +90,14 @@ class SiapSession {
             [w => this.start()],
             [w => this.siap.login(this.cred.username, this.cred.password, this.cred.role)],
         ]);
+    }
+
+    captchaImage() {
+        return this.siap.captchaImage();
+    }
+
+    solveCaptcha(code) {
+        return this.siap.solveCaptcha(code);
     }
 
     getTippy(el) {

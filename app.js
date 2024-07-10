@@ -139,7 +139,11 @@ class App {
 
     createDequeuer() {
         this.dequeue = SiapQueue.createDequeuer();
-        this.dequeue.setInfo({version: this.VERSION, ready: () => this.ready ? 'Yes' : 'No'});
+        this.dequeue.setInfo({
+            version: this.VERSION,
+            ready: () => this.ready ? 'Yes' : 'No',
+            captcha: () => this.getCaptcha(),
+        });
         this.dequeue.createQueue = data => {
             let queue;
             switch (data.type) {
@@ -161,9 +165,9 @@ class App {
             }
         }
         this.dequeue
-            .on('queue', queue => this.handleNotify(queue))
-            .on('queue-done', queue => this.handleNotify(queue))
-            .on('queue-error', queue => this.handleNotify(queue))
+            .on('queue', () => this.handleNotify())
+            .on('queue-done', () => this.handleNotify())
+            .on('queue-error', () => this.handleNotify())
         ;
         if (Cmd.get('queue')) {
             const f = () => {
@@ -203,6 +207,7 @@ class App {
             if (bridge) {
                 bridge.name = name;
                 bridge.year = config.year;
+                bridge.onState = () => this.handleNotify();
                 this.bridges.push(bridge);
                 console.log('Siap bridge created: %s', name);
             }
@@ -353,13 +358,23 @@ class App {
             const bridge = bridges[Math.floor(Math.random() * bridges.length)];
             bridge.queue = queue;
             queue.bridge = bridge;
-            queue.ontimeout = () => bridge.siap.stop();
+            queue.ontimeout = () => bridge.end();
             switch (queue.type) {
                 case SiapQueue.QUEUE_SPP:
                     return bridge.createSpp(queue);
             }
         }
         return Promise.reject(util.format('No bridge can handle %s!', queue.getInfo()));
+    }
+
+    getCaptcha() {
+        const res = [];
+        for (const bridge of this.bridges) {
+            if (bridge.hasState('captcha')) {
+                res.push(bridge.name);
+            }
+        }
+        return res;
     }
 
     run() {

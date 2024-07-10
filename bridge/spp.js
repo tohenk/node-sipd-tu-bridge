@@ -60,17 +60,9 @@ class SiapSppBridge extends SiapBridge {
                 resolve(queue.SPP ? queue.SPP : false);
             })],
         ], (w, err) => {
-            const works = [];
-            for (const sess of ['bp', 'ppk', 'pa']) {
-                if (w[sess]) {
-                    works.push(
-                        [e => w[sess].cleanFiles()],
-                        [e => w[sess].sleep(w[sess].timeout), e => err && w[sess].closeBrowser],
-                        [e => w[sess].stop(), e => w[sess].closeBrowser],
-                    );
-                }
-            }
-            return works;
+            return [
+                [e => this.end(this.autoClose)],
+            ];
         });
     }
 }
