@@ -49,7 +49,7 @@ const SiapNotifier = require('./notifier');
 
 class App {
 
-    VERSION = 'SIAP-BRIDGE-2.0'
+    VERSION = 'SIAP-BRIDGE-3.0'
 
     BRIDGE_SPP = 'spp'
 
