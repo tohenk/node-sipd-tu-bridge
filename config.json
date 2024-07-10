@@ -1,5 +1,6 @@
 {
     "global": {
+        "mode": "spp",
         "url":"https://sipd.kemendagri.go.id/landing",
         "browser":"chrome",
         "readinessTimeout":60000

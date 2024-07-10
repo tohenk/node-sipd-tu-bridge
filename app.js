@@ -26,6 +26,7 @@ const path = require('path');
 const Cmd = require('@ntlab/ntlib/cmd');
 
 Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
+Cmd.addVar('mode', 'm', 'Set bridge mode, spp or captcha', 'bridge-mode');
 Cmd.addVar('config', 'c', 'Set configuration file', 'filename');
 Cmd.addVar('port', 'p', 'Set server port to listen', 'port');
 Cmd.addVar('url', '', 'Set Siap url', 'url');
@@ -41,6 +42,7 @@ if (!Cmd.parse() || (Cmd.get('help') && usage())) {
 const fs = require('fs');
 const util = require('util');
 const Work = require('@ntlab/work/work');
+const SiapCmd = require('./cmd');
 const SiapSppBridge = require('./bridge/spp');
 const SiapQueue = require('./queue');
 const SiapNotifier = require('./notifier');
@@ -48,6 +50,8 @@ const SiapNotifier = require('./notifier');
 class App {
 
     VERSION = 'SIAP-BRIDGE-2.0'
+
+    BRIDGE_SPP = 'spp'
 
     config = {}
     bridges = []
@@ -68,23 +72,35 @@ class App {
                 this.config = config;
             }
         }
-        if (Cmd.get('url')) {
-            this.config.url = Cmd.get('url');
+        for (const c of ['mode', 'url']) {
+            if (Cmd.get(c)) {
+                this.config[c] = Cmd.get(c);
+            }
         }
         if (!this.config.workdir) {
             this.config.workdir = __dirname;
-        }
-        // load form maps
-        filename = path.join(__dirname, 'maps.json');
-        if (fs.existsSync(filename)) {
-            this.config.maps = JSON.parse(fs.readFileSync(filename));
-            console.log('Maps loaded from %s', filename);
         }
         // load roles
         filename = path.join(__dirname, 'roles.json');
         if (fs.existsSync(filename)) {
             this.config.roles = JSON.parse(fs.readFileSync(filename));
             console.log('Roles loaded from %s', filename);
+        }
+        // load bridge specific configuration
+        switch (this.config.mode) {
+            case this.BRIDGE_SPP:
+                // load form maps
+                filename = path.join(__dirname, 'maps.json');
+                if (fs.existsSync(filename)) {
+                    this.config.maps = JSON.parse(fs.readFileSync(filename));
+                    console.log('Maps loaded from %s', filename);
+                }
+                // add default bridges
+                if (!this.configs) {
+                    const year = new Date().getFullYear();
+                    this.configs = {[`siap-${year}`]: {year}};
+                }
+                break;
         }
         // load profile
         this.config.profiles = {};
@@ -110,10 +126,6 @@ class App {
                 }
                 this.config[key] = this.config.profiles[profile][key];
             }
-        }
-        // add default bridges
-        if (!this.configs) {
-            this.configs = {yr: {year: new Date().getFullYear()}};
         }
         // clean profile
         if (Cmd.get('clean')) {
@@ -182,31 +194,40 @@ class App {
                     config.session = 's' + this.sessions[browser];
                 }
             }
-            const bridge = new SiapSppBridge(config);
-            bridge.name = name;
-            bridge.year = config.year;
-            this.bridges.push(bridge);
-            console.log('Siap bridge created: %s', name);
+            let bridge;
+            switch (this.config.mode) {
+                case this.BRIDGE_SPP:
+                    bridge = new SiapSppBridge(config);
+                    break;
+            }
+            if (bridge) {
+                bridge.name = name;
+                bridge.year = config.year;
+                this.bridges.push(bridge);
+                console.log('Siap bridge created: %s', name);
+            }
         });
     }
 
-    createServer() {
+    createServer(serve = true) {
         const { createServer } = require('http');
         const { Server } = require('socket.io');
         const http = createServer();
         const port = Cmd.get('port') || 4000;
-        const opts = {};
-        if (this.config.cors) {
-            opts.cors = this.config.cors;
-        } else {
-            opts.cors = {origin: '*'};
+        if (serve) {
+            const opts = {};
+            if (this.config.cors) {
+                opts.cors = this.config.cors;
+            } else {
+                opts.cors = {origin: '*'};
+            }
+            const io = new Server(http, opts);
+            io.of('/siap')
+                .on('connection', socket => {
+                    this.handleConnection(socket);
+                })
+            ;
         }
-        const io = new Server(http, opts);
-        io.of('/siap')
-            .on('connection', socket => {
-                this.handleConnection(socket);
-            })
-        ;
         http.listen(port, () => {
             console.log('Application ready on port %s...', port);
             const selfTests = [];
@@ -231,6 +252,11 @@ class App {
         });
     }
 
+    registerCommands() {
+        const prefixes = {[this.BRIDGE_SPP]: 'spp'};
+        SiapCmd.register(this, prefixes[this.config.mode]);
+    }
+
     checkReadiness() {
         const readinessTimeout = this.config.readinessTimeout || 30000; // 30 seconds
         this.startTime = Date.now();
@@ -251,56 +277,7 @@ class App {
 
     handleConnection(socket) {
         console.log('Client connected: %s', socket.id);
-        socket
-            .on('disconnect', () => {
-                console.log('Client disconnected: %s', socket.id);
-                const idx = this.sockets.indexOf(socket);
-                if (idx >= 0) {
-                    this.sockets.splice(idx);
-                }
-            })
-            .on('notify', () => {
-                if (this.sockets.indexOf(socket) < 0) {
-                    this.sockets.push(socket);
-                    console.log('Client notification enabled: %s', socket.id);
-                }
-            })
-            .on('status', () => {
-                socket.emit('status', this.dequeue.getStatus());
-            })
-            .on('setup', data => {
-                if (data.callback) {
-                    socket.callback = data.callback;
-                }
-                socket.emit('setup', {version: this.VERSION});
-            })
-            .on('spp', data => {
-                const batch = Array.isArray(data.items);
-                const items = batch ? data.items : [data];
-                let result;
-                let cnt = 0;
-                items.forEach(spp => {
-                    const res = this.dequeue.createQueue({
-                        type: SiapQueue.QUEUE_SPP,
-                        data: spp,
-                        callback: socket.callback,
-                    });
-                    cnt++;
-                    if (!batch) {
-                        result = res;
-                    }
-                });
-                if (batch) {
-                    result = {count: cnt, message: 'SPP is being queued'};
-                }
-                socket.emit('spp', result);
-            })
-            .on('logs', data => {
-                if (data.id) {
-                    socket.emit('logs', {ref: data.id, logs: this.dequeue.getLogs()});
-                }
-            })
-        ;
+        SiapCmd.handle(socket);
     }
 
     handleNotify() {
@@ -389,8 +366,11 @@ class App {
         if (this.initialize()) {
             this.createDequeuer();
             this.createBridges();
+            this.registerCommands();
             this.createServer();
             return true;
+        } else {
+            usage();
         }
     }
 }
