@@ -40,6 +40,7 @@ class Siap extends WebRobot {
         this.opdelay = this.options.opdelay || 400;
         this.year = this.options.year || new Date().getFullYear();
         super.constructor.expectErr(SiapAnnouncedError);
+        super.constructor.expectErr(SiapRetryError);
     }
 
     setState(states) {
@@ -68,24 +69,28 @@ class Siap extends WebRobot {
     }
 
     login(username, password, role, force = false) {
-        return this.works([
-            [w => this.gotoPenatausahaan()],
-            [w => this.isLoggedIn()],
-            [w => this.logout(), w => force],
-            [w => this.waitFor(By.xpath(this.LOGIN_FORM)), w => force || !w.getRes(1)],
-            [w => this.fillInForm([
-                    {parent: w.res, target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'), value: this.year, onfill: (el, value) => this.reactSelect(el, value, 'Tahun anggaran tidak tersedia!')},
-                    {parent: w.res, target: By.id('ed_username'), value: username},
-                    {parent: w.res, target: By.id('ed_password'), value: password},
-                ],
-                By.xpath(this.LOGIN_FORM),
-                By.xpath('//button[@type="submit"]')), w => force || !w.getRes(1)],
-            [w => this.waitForProcessing(w.getRes(4), By.xpath('.//svg')), w => force || !w.getRes(1)],
-            [w => this.selectAccount(role), w => force || !w.getRes(1)],
-            [w => this.waitCaptcha(), w => force || !w.getRes(1)],
-            [w => this.waitLoader(), w => force || !w.getRes(1)],
-            [w => this.dismissUpdate()],
-        ]);
+        return new Promise((resolve, reject) => {
+            this.works([
+                [w => this.gotoPenatausahaan()],
+                [w => this.isLoggedIn()],
+                [w => this.logout(), w => force],
+                [w => this.waitFor(By.xpath(this.LOGIN_FORM)), w => force || !w.getRes(1)],
+                [w => this.fillInForm([
+                        {parent: w.res, target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'), value: this.year, onfill: (el, value) => this.reactSelect(el, value, 'Tahun anggaran tidak tersedia!')},
+                        {parent: w.res, target: By.id('ed_username'), value: username},
+                        {parent: w.res, target: By.id('ed_password'), value: password},
+                    ],
+                    By.xpath(this.LOGIN_FORM),
+                    By.xpath('//button[@type="submit"]')), w => force || !w.getRes(1)],
+                [w => this.waitForProcessing(w.getRes(4), By.xpath('.//svg')), w => force || !w.getRes(1)],
+                [w => this.selectAccount(role), w => force || !w.getRes(1)],
+                [w => this.waitCaptcha(), w => force || !w.getRes(1)],
+                [w => this.waitLoader(), w => force || !w.getRes(1)],
+                [w => this.dismissUpdate()],
+            ])
+            .then(() => resolve())
+            .catch(err => reject(new SiapRetryError(err instanceof Error ? err.message : err)));
+        });
     }
 
     logout() {
@@ -382,4 +387,7 @@ class SiapAnnouncedError extends Error {
     }
 }
 
-module.exports = {Siap, SiapAnnouncedError};
+class SiapRetryError extends Error {
+}
+
+module.exports = {Siap, SiapAnnouncedError, SiapRetryError};

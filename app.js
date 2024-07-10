@@ -353,12 +353,18 @@ class App {
         if (queue.type == SiapQueue.QUEUE_CALLBACK) {
             return SiapNotifier.notify(queue);
         }
-        const bridges = this.getQueueHandler(queue);
-        if (bridges.length) {
-            const bridge = bridges[Math.floor(Math.random() * bridges.length)];
-            bridge.queue = queue;
-            queue.bridge = bridge;
-            queue.ontimeout = () => bridge.end();
+        let bridge = queue.bridge;
+        if (!bridge) {
+            const bridges = this.getQueueHandler(queue);
+            if (bridges.length) {
+                bridge = bridges[Math.floor(Math.random() * bridges.length)];
+                bridge.queue = queue;
+                queue.bridge = bridge;
+                queue.onretry = () => bridge.end();
+                queue.ontimeout = () => bridge.end();
+            }
+        }
+        if (bridge) {
             switch (queue.type) {
                 case SiapQueue.QUEUE_SPP:
                     return bridge.createSpp(queue);

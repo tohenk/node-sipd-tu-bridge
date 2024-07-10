@@ -28,6 +28,7 @@ const path = require('path');
 const util = require('util');
 const EventEmitter = require('events');
 const Queue = require('@ntlab/work/queue');
+const { SiapRetryError } = require('./siap');
 
 let dequeue;
 
@@ -41,45 +42,65 @@ class SiapDequeue extends EventEmitter {
         this.queues = [];
         this.queue = new Queue([], queue => this.doQueue(queue), () => this.canProcess());
         this.timeout = 5 * 60 * 1000;
+        this.retry = 3;
     }
 
     doQueue(queue) {
         if (this.consumer) {
-            try {
-                queue.start();
-                this.emit('queue-start', queue);
-                this.consumer.processQueue(queue)
-                    .then(res => {
-                        queue.done(res);
-                        this.setLastQueue(queue);
-                        if (typeof queue.resolve === 'function') {
-                            queue.resolve(res);
-                        }
-                        this.emit('queue-done', queue);
-                        this.queue.next();
-                    })
-                    .catch(err => {
-                        queue.error(err);
-                        this.setLastQueue(queue);
-                        if (typeof queue.reject === 'function') {
-                            queue.reject(err);
-                        }
-                        this.emit('queue-error', queue);
-                        this.queue.next();
-                    })
-                ;
-                // check for next queue
-                const nextqueue = this.getNext();
-                if (nextqueue && nextqueue.type !== SiapQueue.QUEUE_CALLBACK) {
-                    if (this.consumer.canHandleNextQueue(nextqueue)) {
-                        this.queue.next();
-                    }
+            const success = res => {
+                queue.done(res);
+                this.setLastQueue(queue);
+                if (typeof queue.resolve === 'function') {
+                    queue.resolve(res);
                 }
-            }
-            catch (err) {
-                console.error('Got an error while processing queue: %s!', err);
+                this.emit('queue-done', queue);
                 this.queue.next();
             }
+            const fail = err => {
+                queue.error(err);
+                this.setLastQueue(queue);
+                if (typeof queue.reject === 'function') {
+                    queue.reject(err);
+                }
+                this.emit('queue-error', queue);
+                this.queue.next();
+            }
+            const retry = err => {
+                queue.retry = (queue.retry !== undefined ? queue.retry : 0) + 1;
+                if (err instanceof SiapRetryError && queue.retry <= this.retry) {
+                    console.log('Retrying %s (%d)...', queue.toString(), queue.retry);
+                    if (typeof queue.onretry === 'function') {
+                        queue.onretry()
+                            .then(() => doit())
+                            .catch(err => fail(err));
+                    } else {
+                        doit();
+                    }
+                } else {
+                    fail(err);
+                }
+            }
+            const doit = () => {
+                try {
+                    queue.start();
+                    this.emit('queue-start', queue);
+                    this.consumer.processQueue(queue)
+                        .then(res => success(res))
+                        .catch(err => retry(err));
+                    // check for next queue
+                    const nextqueue = this.getNext();
+                    if (nextqueue && nextqueue.type !== SiapQueue.QUEUE_CALLBACK) {
+                        if (this.consumer.canHandleNextQueue(nextqueue)) {
+                            this.queue.next();
+                        }
+                    }
+                }
+                catch (err) {
+                    console.error('Got an error while processing queue: %s!', err);
+                    this.queue.next();
+                }
+            }
+            doit();
         }
     }
 
