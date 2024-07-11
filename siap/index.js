@@ -145,6 +145,22 @@ class Siap extends WebRobot {
         ]);
     }
 
+    reloadCaptcha() {
+        return this.works([
+            [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
+            [w => w.getRes(0)[0].findElements(By.xpath('.//div[@class="custom-tippy"]')), w => w.getRes(0).length],
+            [w => w.getRes(1)[0].click(), w => w.getRes(0).length],
+        ]);
+    }
+
+    cancelCaptcha() {
+        if (this.state.captcha) {
+            return this.waitAndClick(By.xpath('//footer/button[2]/span/span[text()="Batalkan"]/../..'));
+        } else {
+            return Promise.resolve();
+        }
+    }
+
     gotoPenatausahaan() {
         return this.works([
             [w => this.getDriver().getCurrentUrl()],

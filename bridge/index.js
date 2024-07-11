@@ -61,7 +61,6 @@ class SiapBridge {
     }
 
     selfTest() {
-        let sess;
         if (this.state < this.STATE_SELF_TEST) {
             this.state = this.STATE_SELF_TEST;
         }
@@ -69,16 +68,15 @@ class SiapBridge {
             this.state = this.STATE_OPERATIONAL;
             return this.state;
         }
-        const users = this.getUsers(this.ROLE_BP);
-        if (users.length) {
-            sess = this.getSession(users[0]);
-        } else {
-            throw new Error('No user available!');
+        let role;
+        if (this.options.roles && this.options.roles.roles) {
+            role = Object.keys(this.options.roles.roles)[0];
         }
         return Work.works([
-            [s => sess.start()],
-            [s => Promise.resolve(f())],
-            [s => sess.stop()],
+            ['role', s => Promise.resolve(this.switchRole(role))],
+            ['bp', s => this.doAs(this.ROLE_BP)],
+            ['done', s => Promise.resolve(f())],
+            ['cleanup', s => s.bp.stop()],
         ]);
     }
 

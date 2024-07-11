@@ -26,7 +26,7 @@ const path = require('path');
 const Cmd = require('@ntlab/ntlib/cmd');
 
 Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
-Cmd.addVar('mode', 'm', 'Set bridge mode, spp or captcha', 'bridge-mode');
+Cmd.addVar('mode', 'm', 'Set bridge mode, spp or util', 'bridge-mode');
 Cmd.addVar('config', 'c', 'Set configuration file', 'filename');
 Cmd.addVar('port', 'p', 'Set server port to listen', 'port');
 Cmd.addVar('url', '', 'Set Siap url', 'url');
@@ -34,6 +34,7 @@ Cmd.addVar('profile', '', 'Use profile for operation', 'profile');
 Cmd.addBool('clean', '', 'Clean profile directory');
 Cmd.addBool('queue', 'q', 'Enable queue saving and loading');
 Cmd.addBool('noop', '', 'Do not process queue');
+Cmd.addVar('count', '', 'Set count of operation such as captcha fetching', 'number');
 
 if (!Cmd.parse() || (Cmd.get('help') && usage())) {
     process.exit();
@@ -43,15 +44,17 @@ const fs = require('fs');
 const util = require('util');
 const Work = require('@ntlab/work/work');
 const SiapCmd = require('./cmd');
-const SiapSppBridge = require('./bridge/spp');
-const SiapQueue = require('./queue');
 const SiapNotifier = require('./notifier');
+const SiapQueue = require('./queue');
+const SiapSppBridge = require('./bridge/spp');
+const SiapUtilBridge = require('./bridge/util');
 
 class App {
 
     VERSION = 'SIAP-BRIDGE-3.0'
 
     BRIDGE_SPP = 'spp'
+    BRIDGE_UTIL = 'util'
 
     config = {}
     bridges = []
@@ -151,6 +154,11 @@ class App {
                     queue = SiapQueue.createSppQueue(data.data, data.callback);
                     queue.maps = this.config.maps;
                     queue.info = queue.getMappedData('info.title');
+                    queue.retry = true;
+                    break;
+                case SiapQueue.QUEUE_CAPTCHA:
+                    queue = SiapQueue.createCaptchaQueue(data.data);
+                    queue.info = null;
                     break;
             }
             if (queue) {
@@ -202,6 +210,9 @@ class App {
             switch (this.config.mode) {
                 case this.BRIDGE_SPP:
                     bridge = new SiapSppBridge(config);
+                    break;
+                case this.BRIDGE_UTIL:
+                    bridge = new SiapUtilBridge(config);
                     break;
             }
             if (bridge) {
@@ -258,7 +269,7 @@ class App {
     }
 
     registerCommands() {
-        const prefixes = {[this.BRIDGE_SPP]: 'spp'};
+        const prefixes = {[this.BRIDGE_SPP]: 'spp', [this.BRIDGE_UTIL]: 'util'};
         SiapCmd.register(this, prefixes[this.config.mode]);
     }
 
@@ -368,6 +379,8 @@ class App {
             switch (queue.type) {
                 case SiapQueue.QUEUE_SPP:
                     return bridge.createSpp(queue);
+                case SiapQueue.QUEUE_CAPTCHA:
+                    return bridge.fetchCaptcha(queue);
             }
         }
         return Promise.reject(util.format('No bridge can handle %s!', queue.getInfo()));
@@ -388,7 +401,36 @@ class App {
             this.createDequeuer();
             this.createBridges();
             this.registerCommands();
-            this.createServer();
+            let serve = true;
+            switch (this.config.mode) {
+                case this.BRIDGE_UTIL:
+                    serve = false;
+                    let command, data;
+                    if (Cmd.args.length) {
+                        switch (Cmd.args.shift()) {
+                            case 'captcha':
+                                command = 'util:captcha';
+                                data = {
+                                    year: new Date().getFullYear(),
+                                    count: Cmd.get('count') ? parseInt(Cmd.get('count')) : 10,
+                                    timeout: 0,
+                                }
+                                break;
+                        }
+                    }
+                    if (command) {
+                        SiapCmd.get(command).consume({data: data ? data : {}});
+                    } else {
+                        console.log('Supported utility: captcha');
+                        process.exit();
+                    }
+                    break;
+            }
+            this.createServer(serve);
+            // exit once queue is processed
+            if (!serve) {
+                this.dequeue.on('queue-idle', () => setTimeout(() => process.exit(), 2000));
+            }
             return true;
         } else {
             usage();

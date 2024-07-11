@@ -66,9 +66,9 @@ class SiapDequeue extends EventEmitter {
                 this.queue.next();
             }
             const retry = err => {
-                queue.retry = (queue.retry !== undefined ? queue.retry : 0) + 1;
-                if (err instanceof SiapRetryError && queue.retry <= this.retry) {
-                    console.log('Retrying %s (%d)...', queue.toString(), queue.retry);
+                queue.retryCount = (queue.retryCount !== undefined ? queue.retryCount : 0) + 1;
+                if (err instanceof SiapRetryError && queue.retry && queue.retryCount <= this.retry) {
+                    console.log('Retrying %s (%d)...', queue.toString(), queue.retryCount);
                     if (typeof queue.onretry === 'function') {
                         queue.onretry()
                             .then(() => doit())
@@ -111,6 +111,9 @@ class SiapDequeue extends EventEmitter {
     setConsumer(consumer) {
         this.consumer = consumer;
         if (this.consumer) {
+            this.queue.on('done', () => {
+                this.emit('queue-idle', this);
+            });
             if (this.queues.length) {
                 this.queue.next();
             }
@@ -121,7 +124,7 @@ class SiapDequeue extends EventEmitter {
                     const queue = processing[0];
                     const t = new Date().getTime();
                     const d = t - queue.time.getTime();
-                    const timeout = queue.data && queue.data.timeout != undefined ?
+                    const timeout = queue.data && queue.data.timeout !== undefined ?
                         queue.data.timeout : this.timeout;
                     if (timeout > 0 && d > timeout) {
                         queue.setStatus(SiapQueue.STATUS_TIMED_OUT);
@@ -153,7 +156,7 @@ class SiapDequeue extends EventEmitter {
             queue.setId(this.genId());
         }
         this.queues.push(queue);
-        this.queue.requeue([queue], queue.type == SiapQueue.QUEUE_CALLBACK ? true : false);
+        this.queue.requeue([queue], queue.type === SiapQueue.QUEUE_CALLBACK ? true : false);
         this.queue.next();
         return {status: 'queued', id: queue.id};
     }
@@ -178,9 +181,11 @@ class SiapDequeue extends EventEmitter {
     }
 
     genId() {
-        const shasum = crypto.createHash('sha1');
-        shasum.update(new Date().getTime().toString());
-        return shasum.digest('hex').substring(0, 8);
+        return crypto
+            .createHash('sha1')
+            .update(new Date().getTime().toString())
+            .digest('hex')
+            .substring(0, 8);
     }
 
     getStatus() {
@@ -451,6 +456,10 @@ class SiapQueue
         return this.create(SiapQueue.QUEUE_CALLBACK, data, callback);
     }
 
+    static createCaptchaQueue(data) {
+        return this.create(SiapQueue.QUEUE_CAPTCHA, data);
+    }
+
     static createDequeuer() {
         if (!dequeue) {
             dequeue = new SiapDequeue();
@@ -475,6 +484,7 @@ class SiapQueue
 
     static get QUEUE_SPP() { return 'spp' }
     static get QUEUE_CALLBACK() { return 'callback' }
+    static get QUEUE_CAPTCHA() { return 'captcha' }
 
     static get STATUS_NEW() { return 'new' }
     static get STATUS_PROCESSING() { return 'processing' }

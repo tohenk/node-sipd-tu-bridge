@@ -104,4 +104,6 @@ dist
 .tern-port
 
 # app
+/captcha/
+/doctmp/
 /profile/

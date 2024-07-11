@@ -35,12 +35,20 @@ class SiapSession {
     PAGE_REKANAN = 1
     PAGE_SPP = 2
 
+    fn = ['stop', 'sleep', 'captchaImage', 'solveCaptcha', 'reloadCaptcha', 'cancelCaptcha']
+
     constructor(options) {
         this.options = options;
         this.bridge = options.bridge;
         this.siap = new Siap(options);
         this.works = this.siap.works;
         this.clearUsingKey = true;
+        const ctx = this.siap;
+        for (const fn of this.fn) {
+            this[fn] = function(...args) {
+                return this.siap[fn].apply(ctx, args);
+            }
+        }
     }
 
     onStateChange(handler) {
@@ -64,14 +72,6 @@ class SiapSession {
         ]);
     }
 
-    stop() {
-        return this.siap.stop();
-    }
-
-    sleep(ms) {
-        return this.siap.sleep(ms);
-    }
-
     waitUntilReady() {
         return new Promise((resolve, reject) => {
             const f = () => {
@@ -92,12 +92,18 @@ class SiapSession {
         ]);
     }
 
-    captchaImage() {
-        return this.siap.captchaImage();
+    genFilename(dir, filename) {
+        return path.join(this.options.workdir, dir, filename);
     }
 
-    solveCaptcha(code) {
-        return this.siap.solveCaptcha(code);
+    saveFile(filepath, content) {
+        const dir = path.dirname(filepath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, {recursive: true});
+        }
+        if (fs.existsSync(dir)) {
+            fs.writeFileSync(filepath, content);
+        }
     }
 
     getTippy(el) {
@@ -463,8 +469,7 @@ class SiapSession {
                         data.onfill = (el, value) => this.fillKegiatan(el, value);
                         break;
                     case 'FILE':
-                        const doctmp = path.join(this.options.workdir, 'doctmp');
-                        const docfile = path.join(doctmp, `${queue.id}.pdf`);
+                        const docfile = this.genFilename('doctmp', `${queue.id}.pdf`);
                         files.push(docfile);
                         data.onfill = (el, value) => new Promise((resolve, reject) => {
                             if (value) {
@@ -475,10 +480,7 @@ class SiapSession {
                                 if (!Buffer.isBuffer(value)) {
                                     reject('To upload file, value must be Buffer!');
                                 } else {
-                                    if (!fs.existsSync(doctmp)) {
-                                        fs.mkdirSync(doctmp, {recursive: true})
-                                    }
-                                    fs.writeFileSync(docfile, value);
+                                    this.saveFile(docfile, value);
                                     el.sendKeys(docfile)
                                         .then(() => resolve(true))
                                         .catch(err => reject(err));
