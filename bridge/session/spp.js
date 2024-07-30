@@ -79,6 +79,7 @@ class SiapSppSession extends SiapSession {
         const untuk = queue.getMappedData('spp.spp:UNTUK');
         const title = options.title;
         const jenis = options.jenis;
+        const nomor = options.nomor || 'SPP';
         const page = this.createPage(this.PAGE_SPP, title);
         const tvalues = {};
         const tselectors = {
@@ -151,7 +152,7 @@ class SiapSppSession extends SiapSession {
                     debug(statusSpp, ...states.info);
                     if (states.okay) {
                         result = el;
-                        queue.SPP = noSpp;
+                        queue[nomor] = noSpp;
                         queue.STATUS = statusSpp;
                         reject(SiapPage.stop());
                     } else {
@@ -222,8 +223,8 @@ class SiapSppSession extends SiapSession {
             [w => this.siap.waitLoader()],
             [w => this.siap.waitAndClick(By.xpath('//button/p[text()="LS"]/..'))],
             [w => this.siap.waitSpinner(w.getRes(3))],
-            [w => this.isSppExist(queue, {title, columns, jenis: 'Sudah Diverifikasi'})],
-            [w => this.isSppExist(queue, {title, columns, jenis: 'Belum Diverifikasi'}), w => !w.getRes(5)],
+            [w => this.isSppExist(queue, {title, columns, jenis: 'Sudah Diverifikasi', nomor: 'SPM'})],
+            [w => this.isSppExist(queue, {title, columns, jenis: 'Belum Diverifikasi', nomor: 'SPM'}), w => !w.getRes(5)],
             [w => w.getRes(6).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(6) && queue.STATUS === status],
             [w => w.getRes(7).click(), w => w.getRes(6) && queue.STATUS === status],
             [w => w.getRes(7).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(6) && queue.STATUS === status],

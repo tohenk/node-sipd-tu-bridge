@@ -54,7 +54,11 @@ class SiapSppBridge extends SiapBridge {
             // result
             ['res', w => new Promise((resolve, reject) => {
                 if (queue.SPP && queue.callback) {
-                    const callbackQueue = SiapQueue.createCallbackQueue({id: queue.getMappedData('info.id'), spp: queue.SPP}, queue.callback);
+                    const data = {id: queue.getMappedData('info.id'), spp: queue.SPP};
+                    if (queue.SPM) {
+                        data.spm = queue.SPM;
+                    }
+                    const callbackQueue = SiapQueue.createCallbackQueue(data, queue.callback);
                     SiapQueue.addQueue(callbackQueue);
                 }
                 resolve(queue.SPP ? queue.SPP : false);
