@@ -20,6 +20,7 @@ The field map is using the following convention:
 |          | `~`   Indicate optional field                            |
 |          | `$`   Fill value using javascript                        |
 |          | `-`   Noop, used to duplicate field                      |
+|          | `&`   Advance date to skip holiday                       |
 | parent   | If exist the field is located within parent element.     |
 | prefix   | Prefix determine how to treat selector:                  |
 |          | `#`   Field selector is using id                         |

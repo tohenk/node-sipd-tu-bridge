@@ -548,7 +548,7 @@ class SiapSession {
                 if (!data.onfill) {
                     // date time picker
                     if (key.toLowerCase().indexOf('tanggal') >= 0) {
-                        data.onfill = (el, value) => this.fillDatePicker(el, this.getDate(value));
+                        data.onfill = (el, value) => this.fillDatePicker(el, this.getDate(value, f.flags.indexOf('&') >= 0));
                     }
                     data.canfill = (tag, el, value) => {
                         return new Promise((resolve, reject) => {
@@ -607,7 +607,7 @@ class SiapSession {
         });
     }
 
-    getDate(date) {
+    getDate(date, skipHoliday = false) {
         if (date && (!isNaN(date) || typeof date === 'string')) {
             if (typeof date === 'string' && date.indexOf(' ') > 0) {
                 const dt = date.split(' ');
@@ -622,6 +622,14 @@ class SiapSession {
                 }
             }
             date = new Date(date);
+        }
+        if (date && skipHoliday) {
+            while (true) {
+                if ([0, 6].indexOf(date.getDay()) < 0) {
+                    break;
+                }
+                date.setDate(date.getDate() + 1);
+            }
         }
         return date;
     }
@@ -720,7 +728,8 @@ class SiapSession {
         // ~ optional
         // $ set value using javascript
         // - ignored, used to duplicate selector
-        res.flags = this.getFlags('+?*~$-', key, true);
+        // & advance date to skip holiday
+        res.flags = this.getFlags('+?*~$-&', key, true);
         if (res.flags.length) {
             key = key.substr(res.flags.length);
         }
