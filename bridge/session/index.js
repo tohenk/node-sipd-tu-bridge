@@ -245,7 +245,7 @@ class SiapSession {
                         [x => x.getRes(2).getAttribute('value'), x => x.getRes(1)],
                         [x => dtpicker.findElement(By.xpath('.//select[@aria-label="Month"]')), x => x.getRes(1)],
                         [x => this.siap.fillInput(x.getRes(2), value.getFullYear()), x => x.getRes(1) && x.getRes(3) != value.getFullYear()],
-                        [x => this.siap.fillSelect(x.getRes(4), value.getMonth()), x => x.getRes(1)],
+                        [x => this.siap.fillSelect(x.getRes(4), value.getMonth() + 1), x => x.getRes(1)],
                         [x => dtpicker.findElement(By.xpath(`.//span[contains(@class,"flatpickr-day") and text()="${value.getDate()}"]`)), x => x.getRes(1)],
                         [x => x.getRes(7).click(), x => x.getRes(1)],
                     ])
