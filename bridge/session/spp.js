@@ -24,6 +24,7 @@
 
 const SiapSession = require('.');
 const SiapPage = require('../../siap/page');
+const { SiapAnnouncedError } = require('../../siap');
 const { By } = require('selenium-webdriver');
 const debug = require('debug')('siap:spp');
 
@@ -32,6 +33,8 @@ class SiapSppSession extends SiapSession {
     COL_ICON = 1
     COL_STATUS = 2
     COL_SINGLE = 3
+    COL_TIPPY = 4
+    COL_TWOLINE2 = 5
 
     checkRekanan(queue, forceEdit = false) {
         let clicker;
@@ -77,12 +80,13 @@ class SiapSppSession extends SiapSession {
         const title = options.title;
         const jenis = options.jenis;
         const page = this.createPage(this.PAGE_SPP, title);
-        let untukSppIdx, untukSppUseTippy;
-        const tvalues = [];
+        const tvalues = {};
         const tselectors = {
             [this.COL_ICON]: '*/*/*[2]/*[1]',
             [this.COL_STATUS]: '*/*/*/p',
             [this.COL_SINGLE]: '*/*/span',
+            [this.COL_TIPPY]: 'div[@class="custom-tippy"]/div/div/div/div[2]/span[1]',
+            [this.COL_TWOLINE2]: 'span[2]',
         }
         // index, withIcon, withTippy
         const columns = {
@@ -92,19 +96,16 @@ class SiapSppSession extends SiapSession {
             nomSpp: 6,
             statusSpp: [2, this.COL_STATUS],
         }
+        const tippies = {};
         for (const k in columns) {
             const v = options.columns && options.columns[k] ? options.columns[k] : columns[k];
             const idx = Array.isArray(v) ? v[0] : (typeof v === 'object' ? v.index : v);
             const colType = Array.isArray(v) ? v[1] : (typeof v === 'object' && v.type ? v.type : this.COL_ICON);
             const withTippy = Array.isArray(v) ? v[2] : (typeof v === 'object' && v.tippy ? v.tippy : false);
-            let selector = typeof v === 'object' && v.selector ? v.selector : tselectors[colType];
+            const selector = typeof v === 'object' && v.selector ? v.selector : tselectors[colType];
+            tvalues[k] = By.xpath(`./td[${idx}]/${selector}`);
             if (withTippy) {
-                selector = '*/*/' + selector;
-            }
-            tvalues.push(By.xpath(`./td[${idx}]/${selector}`));
-            if (k === 'untukSpp') {
-                untukSppIdx = idx;
-                untukSppUseTippy = withTippy;
+                tippies[k] = By.xpath(`./td[${idx}]/div[@class="custom-tippy"]/div`);
             }
         }
         return this.works([
@@ -115,17 +116,40 @@ class SiapSppSession extends SiapSession {
             [w => page.search(untuk, 'Keterangan')],
             [w => page.each({filtered: true}, el => [
                 [x => this.siap.getText(tvalues, el)],
-                [x => el.findElement(By.xpath(`./td[${untukSppIdx}]/div[@class="custom-tippy"]/div`))],
-                [x => this.getTippy(x.getRes(1)), w => untukSppUseTippy],
+                [x => this.getTippyText(tippies, el), x => Object.keys(tippies).length],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0);
-                    const noSpp = values[0];
-                    const tglSpp = this.getDate(values[1]);
-                    const untukSpp = untukSppUseTippy ? x.getRes(2) : values[2];
-                    const nomSpp = parseFloat(this.pickCurr(values[3]));
-                    const statusSpp = values[4];
-                    debug(this.dateSerial(tgl), '=', this.dateSerial(tglSpp), nominal, '=', nomSpp, this.getSafeStr(untuk), '=', this.getSafeStr(untukSpp));
-                    if (this.dateSerial(tgl) == this.dateSerial(tglSpp) && nominal == nomSpp && this.getSafeStr(untuk) == this.getSafeStr(untukSpp)) {
+                    const tippyValues = Object.keys(tippies).length ? x.getRes(1) : {};
+                    const noSpp = values.noSpp;
+                    const tglSpp = this.getDate(values.tglSpp);
+                    const untukSpp = tippyValues.untukSpp ? tippyValues.untukSpp.trim() : values.untukSpp;
+                    const nomSpp = parseFloat(this.pickCurr(values.nomSpp));
+                    const statusSpp = values.statusSpp;
+                    const dbg = (l, s) => `${l} (${s ? 'v' : 'x'})`;
+                    const f = (...args) => {
+                        const res = {
+                            states: [],
+                            info: [],
+                        }
+                        for (const arg of args) {
+                            res.states.push(arg[0] == arg[1]);
+                            res.info.push(dbg(arg[0], arg[0] == arg[1]));
+                        }
+                        res.okay = true;
+                        res.states.forEach(state => {
+                            if (!state) {
+                                res.okay = false;
+                                return true;
+                            }
+                        });
+                        return res;
+                    }
+                    const states = f(
+                        [this.dateSerial(tglSpp), this.dateSerial(tgl)],
+                        [nomSpp, nominal],
+                        [this.getSafeStr(untukSpp), this.getSafeStr(untuk)]);
+                    debug(statusSpp, ...states.info);
+                    if (states.okay) {
                         result = el;
                         queue.SPP = noSpp;
                         queue.STATUS = statusSpp;
@@ -144,6 +168,7 @@ class SiapSppSession extends SiapSession {
         return this.works([
             [w => this.isSppExist(queue, {title, jenis: 'Sudah Diverifikasi'})],
             [w => this.isSppExist(queue, {title, jenis: 'Belum Diverifikasi'}), w => !w.getRes(0)],
+            [w => this.isSppExist(queue, {title, jenis: 'Dihapus'}), w => !w.getRes(0) && !w.getRes(1)],
         ]);
     }
 
@@ -160,31 +185,32 @@ class SiapSppSession extends SiapSession {
             [w => this.siap.waitAndClick(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(1)],
             [w => this.siap.waitLoader(), w => !w.getRes(1)],
             [w => this.isSppNeeded(queue), w => !w.getRes(1)],
+            [w => Promise.reject(new SiapAnnouncedError(`SPP ${queue.getMappedData('info.nama')} dihapus, diabaikan!`)), w => w.getRes(1) && queue.STATUS === 'Dihapus'],
         ]);
     }
 
-    checkVerifikasiSpp(queue) {
+    checkVerifikasiSpp(queue, status = 'Belum Diverifikasi') {
         const title = 'Surat Permintaan Pembayaran (SPP) | Verifikasi';
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigate('Pengeluaran', 'SPP', 'Verifikasi')],
             [w => this.isSppExist(queue, {title, jenis: 'Sudah Diverifikasi'})],
             [w => this.isSppExist(queue, {title, jenis: 'Belum Diverifikasi'}), w => !w.getRes(2)],
-            [w => w.getRes(3).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(3)],
-            [w => w.getRes(4).click(), w => w.getRes(3)],
-            [w => w.getRes(4).findElement(By.xpath('../div/div/button/span/p[text()="Verifikasi"]/../..')), w => w.getRes(3)],
-            [w => w.getRes(6).click(), w => w.getRes(3)],
+            [w => w.getRes(3).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(3) && queue.STATUS === status],
+            [w => w.getRes(4).click(), w => w.getRes(3) && queue.STATUS === status],
+            [w => w.getRes(4).findElement(By.xpath('../div/div/button/span/p[text()="Verifikasi"]/../..')), w => w.getRes(3) && queue.STATUS === status],
+            [w => w.getRes(6).click(), w => w.getRes(3) && queue.STATUS === status],
             [w => this.fillForm(queue, 'verifikasi-spp',
                 By.xpath('//header[text()="Verifikasi (SPP)"]/../div[contains(@class,"chakra-modal__body")]'),
-                By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(3)],
-            [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(3)],
+                By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(3) && queue.STATUS === status],
+            [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(3) && queue.STATUS === status],
         ]);
     }
 
     checkVerifikasiSpm(queue, status = 'Belum Disetujui') {
         const title = 'Pengeluaran';
         const columns = {
-            noSpp: [1, this.COL_ICON, true],
+            noSpp: [1, this.COL_TIPPY],
             tglSpp: 3,
             untukSpp: [6, this.COL_SINGLE, true],
             nomSpp: 7,
@@ -203,6 +229,7 @@ class SiapSppSession extends SiapSession {
             [w => w.getRes(7).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(6) && queue.STATUS === status],
             [w => w.getRes(9).click(), w => w.getRes(6) && queue.STATUS === status],
             [w => this.siap.waitAndClick(By.xpath('//header[text()="Persetujuan SPM"]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(6) && queue.STATUS === status],
+            [w => this.siap.waitLoader(), w => w.getRes(6) && queue.STATUS === status],
         ]);
     }
 }

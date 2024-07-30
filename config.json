@@ -3,7 +3,8 @@
         "mode": "spp",
         "url":"https://sipd.kemendagri.go.id/landing",
         "browser":"chrome",
-        "readinessTimeout":60000
+        "readinessTimeout":60000,
+        "clearUsingKey":true
     },
     "bridges": {
         "siap-2024": {

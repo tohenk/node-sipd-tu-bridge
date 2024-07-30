@@ -304,18 +304,22 @@ class Siap extends WebRobot {
      */
     navigate(...menus) {
         return new Promise((resolve, reject) => {
-            let restart;
+            let restart, waitLoader;
             const dep = (s, n) => Array.from({length: n}, () => s).join('/');
             const f = () => {
                 restart = false;
                 let res, level = 0, length = menus.length;
                 const items = [...menus];
                 const q = new Queue(items, menu => {
-                    let root, selector, parent = res ? res : this.getDriver(), n = 3;
+                    let root, selector, loader, parent = res ? res : this.getDriver(), n = 3;
                     const last = ++level === length;
                     switch (level) {
                         case 1:
                             root = '//div[@class="simplebar-content"]/ul/li';
+                            if (!waitLoader) {
+                                waitLoader = true;
+                                loader = '//div[@class="simplebar-content"]/ul/div/div[contains(@class,"animate-pulse")]';
+                            }
                             break;
                         case 2:
                             root = './../div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div/div/div/div';
@@ -335,14 +339,15 @@ class Siap extends WebRobot {
                     debug(`Menu: ${level} ${root + selector}`);
                     let clicked = false;
                     this.works([
+                        [w => this.waitForPresence(By.xpath(loader), false, 0), w => loader],
                         [w => parent.findElement(By.xpath(root + selector))],
-                        [w => w.getRes(0).findElement(By.xpath(dep('..', n)))],
-                        [w => w.getRes(0).getAttribute('class')],
+                        [w => w.getRes(1).findElement(By.xpath(dep('..', n)))],
                         [w => w.getRes(1).getAttribute('class')],
-                        [w => Promise.resolve(level > 1 ? w.getRes(2) : w.getRes(3))],
-                        [w => w.getRes(1).click(), w => w.getRes(4).indexOf('false') >= 0],
-                        [w => Promise.resolve(clicked = true), w => w.getRes(4).indexOf('false') >= 0],
-                        [w => Promise.resolve(res = w.getRes(1))],
+                        [w => w.getRes(2).getAttribute('class')],
+                        [w => Promise.resolve(level > 1 ? w.getRes(3) : w.getRes(4))],
+                        [w => w.getRes(2).click(), w => w.getRes(5).indexOf('false') >= 0],
+                        [w => Promise.resolve(clicked = true), w => w.getRes(5).indexOf('false') >= 0],
+                        [w => Promise.resolve(res = w.getRes(2))],
                     ])
                     .then(() => {
                         if (clicked && !last) {

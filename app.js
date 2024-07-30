@@ -190,7 +190,10 @@ class App {
     }
 
     createBridges() {
-        Object.keys(this.configs).forEach(name => {
+        const bridges = Object.keys(this.configs);
+        let seq = 0;
+        bridges.forEach(name => {
+            const id = `bridge${++seq}`;
             const options = this.configs[name];
             const config = Object.assign({}, this.config, options);
             if (config.enabled !== undefined && !config.enabled) {
@@ -198,12 +201,16 @@ class App {
             }
             const browser = config.browser ? config.browser : 'default';
             if (browser) {
-                if (!this.sessions[browser]) {
-                    this.sessions[browser] = 0;
+                config.profiledir = path.join(this.config.workdir, 'profile', id);
+                if (!this.sessions[id]) {
+                    this.sessions[id] = {};
                 }
-                this.sessions[browser]++;
-                if (this.sessions[browser] > 1) {
-                    config.session = 's' + this.sessions[browser];
+                if (!this.sessions[id][browser]) {
+                    this.sessions[id][browser] = 0;
+                }
+                this.sessions[id][browser]++;
+                if (this.sessions[id][browser] > 1) {
+                    config.session = 's' + this.sessions[id][browser];
                 }
             }
             let bridge;

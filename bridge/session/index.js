@@ -42,7 +42,6 @@ class SiapSession {
         this.bridge = options.bridge;
         this.siap = new Siap(options);
         this.works = this.siap.works;
-        this.clearUsingKey = true;
         const ctx = this.siap;
         for (const fn of this.fn) {
             this[fn] = function(...args) {
@@ -113,6 +112,22 @@ class SiapSession {
                     return el._tippy.popper.innerText;
                 }
             }, el);
+    }
+
+    getTippyText(items, el) {
+        return new Promise((resolve, reject) => {
+            const res = {};
+            const q = new Queue(Object.keys(items), tippy => {
+                this.works([
+                    [w => el.findElements(items[tippy])],
+                    [w => this.getTippy(w.getRes(0)[0]), w => w.getRes(0).length],
+                    [w => Promise.resolve(res[tippy] = w.getRes(1)), w => w.getRes(0).length],
+                ])
+                .then(res => q.next())
+                .catch(err => reject(err));
+            });
+            q.once('done', () => resolve(res));
+        });
     }
 
     getPageOptions(page, title) {
@@ -219,9 +234,10 @@ class SiapSession {
         return this.works([
             [w => Promise.reject(`Date "${value}" is not valid!`), w => value instanceof Date && isNaN(value)],
             [w => el.click()],
+            [w => el.getAttribute('readonly')],
             [w => this.siap.findElements(By.xpath('//div[contains(@class,"flatpickr-calendar")]'))],
             [w => new Promise((resolve, reject) => {
-                const q = new Queue([...w.getRes(2)], dtpicker => {
+                const q = new Queue([...w.getRes(3)], dtpicker => {
                     this.works([
                         [x => dtpicker.getAttribute('class')],
                         [x => Promise.resolve(x.getRes(0).indexOf('open') >= 0)],
@@ -238,16 +254,15 @@ class SiapSession {
                 });
                 q.once('done', () => resolve());
             })],
-            [w => el.getAttribute('readonly')],
             [w => this.siap.getDriver().executeScript(
                 function(el) {
                     if (el._flatpickr) {
                         el._flatpickr.close();
                     }
-                }, el), w => w.getRes(4)],
-            [w => el.getAttribute('value'), w => !w.getRes(4)],
-            [w => Promise.resolve(this.getDate(w.getRes(6))), w => !w.getRes(4)],
-            [w => Promise.reject(`Date ${w.getRes(7)} is not expected of ${value}!`), w => !w.getRes(4) && this.dateSerial(value) != this.dateSerial(w.getRes(7))],
+                }, el), w => w.getRes(2)],
+            [w => el.getAttribute('value'), w => !w.getRes(2)],
+            [w => Promise.resolve(this.getDate(w.getRes(6))), w => !w.getRes(2)],
+            [w => Promise.reject(`Date ${w.getRes(7)} is not expected of ${value}!`), w => !w.getRes(2) && this.dateSerial(value) != this.dateSerial(w.getRes(7))],
         ]);
     }
 
@@ -320,9 +335,11 @@ class SiapSession {
     fillAfektasi(el, value, rekening) {
         let allocated = false;
         return this.works([
-            [w => el.findElements(By.xpath('.//div/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
+            [w => this.siap.waitForPresence({el, data: By.xpath('.//div/div/div[@class="animate-pulse"]')}, false, 0)],
+            [w => this.siap.sleep(this.siap.opdelay)],
+            [w => this.siap.findElements(By.xpath('//div/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
             [w => new Promise((resolve, reject) => {
-                const items = w.getRes(0);
+                const items = w.getRes(2);
                 const q = new Queue(items, item => {
                     this.works([
                         [x => item.getAttribute('innerText')],
@@ -331,7 +348,7 @@ class SiapSession {
                         [x => item.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/p[2]')), x => x.getRes(1) === rekening],
                         [x => Promise.resolve(x.getRes(3).getAttribute('innerText')), x => x.getRes(1) === rekening],
                         [x => Promise.resolve(parseFloat(this.pickCurr(x.getRes(4)))), x => x.getRes(1) === rekening],
-                        [x => this.siap.fillInput(x.getRes(2), null, this.clearUsingKey), x => x.getRes(1) === rekening && x.getRes(5) >= value],
+                        [x => this.siap.fillInput(x.getRes(2), null, this.options.clearUsingKey), x => x.getRes(1) === rekening && x.getRes(5) >= value],
                         [x => new Promise((resolve, reject) => {
                             const input = x.getRes(2);
                             const chars = value.toString().split('');
@@ -546,7 +563,7 @@ class SiapSession {
                         });
                     }
                 }
-                if (this.clearUsingKey) {
+                if (this.options.clearUsingKey) {
                     data.clearUsingKey = true;
                 }
                 result.push(data);
@@ -630,7 +647,9 @@ class SiapSession {
     }
 
     dateSerial(date) {
-        return (date.getFullYear() * 10000) + ((date.getMonth() + 1) * 100) + date.getDate();
+        if (date) {
+            return (date.getFullYear() * 10000) + ((date.getMonth() + 1) * 100) + date.getDate();
+        }
     }
 
     dateCreate(s) {
@@ -655,14 +674,18 @@ class SiapSession {
     }
 
     pickCurr(s) {
-        const matches = s.match(/([0-9\.]+)/);
-        if (matches) {
-            return this.pickNumber(matches[0]);
+        if (s) {
+            const matches = s.match(/([0-9\.]+)/);
+            if (matches) {
+                return this.pickNumber(matches[0]);
+            }
         }
     }
 
     getSafeStr(s) {
-        return s.replace(/\s{2,}/g, ' ').trim();
+        if (s) {
+            return s.replace(/\s{2,}/g, ' ').trim();
+        }
     }
 
     getFlags(flags, s, multiple = false) {
