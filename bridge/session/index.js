@@ -33,7 +33,8 @@ const debug = require('debug')('siap:session');
 class SiapSession {
 
     PAGE_REKANAN = 1
-    PAGE_SPP = 2
+    PAGE_REKANAN_ALT = 2
+    PAGE_SPP = 3
 
     fn = ['stop', 'sleep', 'captchaImage', 'solveCaptcha', 'reloadCaptcha', 'cancelCaptcha']
 
@@ -67,6 +68,7 @@ class SiapSession {
     start() {
         return this.works([
             [w => this.waitUntilReady(), w => !this.siap.ready],
+            [w => this.doStartup(), w => this.options.startup],
             [w => this.siap.open()],
         ]);
     }
@@ -81,6 +83,19 @@ class SiapSession {
                 }
             }
             f();
+        });
+    }
+
+    doStartup() {
+        if (!this.options.startup) {
+            return Promise.resolve();
+        }
+        return new Promise((resolve, reject) => {
+            debug('Startup', this.options.startup);
+            const exec = require('child_process').exec;
+            exec(this.options.startup, (err, stdout, stderr) => {
+                resolve(err);
+            });
         });
     }
 
@@ -134,9 +149,11 @@ class SiapSession {
         const res = {title};
         switch (page) {
             case this.PAGE_REKANAN:
+            case this.PAGE_REKANAN_ALT:
+                const placeholder = page === this.PAGE_REKANAN ? 'perusahaan' : 'nik';
                 res.selector = '//h1[contains(@class,"card-title")]/h1[text()="%TITLE%"]/../../../..';
                 res.search = {
-                    input: By.xpath('//input[contains(@placeholder,"Cari perusahaan")]'),
+                    input: By.xpath(`//input[contains(@placeholder,"Cari ${placeholder}")]`),
                     submit: By.xpath('//button[text()="Cari Sekarang"]'),
                     toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
                 }
@@ -169,11 +186,12 @@ class SiapSession {
                 tableSelector: './/table/..',
                 pageSelector: 'li/a[text()="%PAGE%"]',
             }, options.page ? this.getPageOptions(options.page, title) : {});
+            const searchIdx = options.searchIdx !== undefined ? options.searchIdx : 0;
             const page = new SiapPage(this.siap, pageOptions);
             let clicker;
             this.works([
                 [w => page.setup()],
-                [w => page.search(Array.isArray(value) ? value[0] : value), w => page._search],
+                [w => page.search(Array.isArray(value) ? value[searchIdx] : value), w => page._search],
                 [w => page.each(el => [
                     [x => this.siap.getText([...values], el)],
                     [x => el.findElement(By.xpath('.//button'))],
@@ -289,9 +307,10 @@ class SiapSession {
     }
 
     fillRekanan(el, value) {
+        const alt = (Array.isArray(value) ? value[0] : value).indexOf('\'') >= 0;
         return this.works([
             [w => el.click()],
-            [w => this.doChoose('Daftar Rekanan', value, [By.xpath('./td[2]/div/div/div[2]/span[1]'), By.xpath('./td[1]/div/div/div[2]/span[2]')], {page: this.PAGE_REKANAN}, values => {
+            [w => this.doChoose('Daftar Rekanan', value, [By.xpath('./td[2]/div/div/div[2]/span[1]'), By.xpath('./td[1]/div/div/div[2]/span[2]')], {page: alt ? this.PAGE_REKANAN_ALT : this.PAGE_REKANAN, searchIdx: alt ? 1 : 0}, values => {
                 // clean nik
                 if (values.length > 1 && values[1]) {
                     values[1] = this.pickNumber(values[1]);
@@ -428,7 +447,11 @@ class SiapSession {
                 } else {
                     value = v;
                 }
-                debug(`Special TYPE:value ${name + '->' + key} = ${value}`);
+                debug(`Special TYPE:value ${name + '->' + key} = ${typeof value === 'string' && value.length > 100 ? value.substr(0, 100) + '...' : value}`);
+            }
+            // check for safe string
+            if (typeof value === 'string' && value.length) {
+                value = this.getSafeStr(value);
             }
             // handle special key
             if (key.indexOf(':') > 0) {

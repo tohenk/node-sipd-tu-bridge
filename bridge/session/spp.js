@@ -30,6 +30,10 @@ const debug = require('debug')('siap:spp');
 
 class SiapSppSession extends SiapSession {
 
+    VERIFIED = 1
+    UNVERIFIED = 2
+    DELETED = 4
+
     COL_ICON = 1
     COL_STATUS = 2
     COL_SINGLE = 3
@@ -38,14 +42,15 @@ class SiapSppSession extends SiapSession {
 
     checkRekanan(queue, forceEdit = false) {
         let clicker;
-        const page = this.createPage(this.PAGE_REKANAN, 'Daftar Rekanan');
-        const lembaga = queue.getMappedData('info.nama');
+        const lembaga = this.getSafeStr(queue.getMappedData('info.nama'));
         const nik = queue.getMappedData('info.nik');
+        const alt = lembaga.indexOf('\'') >= 0;
+        const page = this.createPage(alt ? this.PAGE_REKANAN_ALT : this.PAGE_REKANAN, 'Daftar Rekanan');
         return this.works([
             [w => this.siap.navigate('Pengeluaran', 'Daftar Rekanan')],
             [w => this.siap.waitLoader()],
             [w => page.setup()],
-            [w => page.search(lembaga)],
+            [w => page.search(alt ? nik : lembaga)],
             [w => page.each({filtered: true}, el => [
                 [x => this.siap.getText([By.xpath('./td[2]/div/div/div[2]/span[1]'), By.xpath('./td[1]/div/div/div[2]/span[2]')], el)],
                 [x => el.findElement(By.xpath('./td[4]/a'))],
@@ -72,11 +77,11 @@ class SiapSppSession extends SiapSession {
         ]);
     }
 
-    isSppExist(queue, options) {
+    queryData(queue, options) {
         let result;
         const tgl = this.getDate(queue.getMappedData('spp.spp:TGL'));
         const nominal = queue.getMappedData('spp.spp:NOMINAL');
-        const untuk = queue.getMappedData('spp.spp:UNTUK');
+        const untuk = this.getSafeStr(queue.getMappedData('spp.spp:UNTUK'));
         const title = options.title;
         const jenis = options.jenis;
         const nomor = options.nomor || 'SPP';
@@ -148,7 +153,7 @@ class SiapSppSession extends SiapSession {
                     const states = f(
                         [this.dateSerial(tglSpp), this.dateSerial(tgl)],
                         [nomSpp, nominal],
-                        [this.getSafeStr(untukSpp), this.getSafeStr(untuk)]);
+                        [this.getSafeStr(untukSpp), untuk]);
                     debug(statusSpp, ...states.info);
                     if (states.okay) {
                         result = el;
@@ -164,19 +169,23 @@ class SiapSppSession extends SiapSession {
         ]);
     }
 
-    isSppNeeded(queue) {
-        const title = 'Surat Permintaan Pembayaran (SPP) | Langsung';
+    querySpp(queue, options) {
+        options = options || {};
+        const title = options.title || 'Surat Permintaan Pembayaran (SPP) | Langsung';
+        const fVerified = options.flags === undefined ? true : (options.flags & this.VERIFIED) === this.VERIFIED;
+        const fUnverified = options.flags === undefined ? true : (options.flags & this.UNVERIFIED) === this.UNVERIFIED;
+        const fDeleted = options.flags === undefined ? true : (options.flags & this.DELETED) === this.DELETED;
         return this.works([
-            [w => this.isSppExist(queue, {title, jenis: 'Sudah Diverifikasi'})],
-            [w => this.isSppExist(queue, {title, jenis: 'Belum Diverifikasi'}), w => !w.getRes(0)],
-            [w => this.isSppExist(queue, {title, jenis: 'Dihapus'}), w => !w.getRes(0) && !w.getRes(1)],
+            [w => this.queryData(queue, {title, jenis: 'Sudah Diverifikasi'}), w => fVerified],
+            [w => this.queryData(queue, {title, jenis: 'Belum Diverifikasi'}), w => fUnverified && !w.getRes(0)],
+            [w => this.queryData(queue, {title, jenis: 'Dihapus'}), w => fDeleted && !w.getRes(0) && !w.getRes(1)],
         ]);
     }
 
     checkSpp(queue) {
         return this.works([
             [w => this.siap.navigate('Pengeluaran', 'SPP', 'Pembuatan', 'LS')],
-            [w => this.isSppNeeded(queue)],
+            [w => this.querySpp(queue)],
             [w => this.siap.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w => !w.getRes(1)],
             [w => this.siap.waitAndClick(By.xpath('//a/span/p[text()="SPP LS (Barang & Jasa)"]/../..')), w => !w.getRes(1)],
             [w => Promise.resolve(this.spp = {}), w => !w.getRes(1)],
@@ -185,7 +194,7 @@ class SiapSppSession extends SiapSession {
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => !w.getRes(1)],
             [w => this.siap.waitAndClick(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(1)],
             [w => this.siap.waitLoader(), w => !w.getRes(1)],
-            [w => this.isSppNeeded(queue), w => !w.getRes(1)],
+            [w => this.querySpp(queue, {flags: this.UNVERIFIED}), w => !w.getRes(1)],
             [w => Promise.reject(new SiapAnnouncedError(`SPP ${queue.getMappedData('info.nama')} dihapus, diabaikan!`)), w => w.getRes(1) && queue.STATUS === 'Dihapus'],
         ]);
     }
@@ -195,42 +204,52 @@ class SiapSppSession extends SiapSession {
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigate('Pengeluaran', 'SPP', 'Verifikasi')],
-            [w => this.isSppExist(queue, {title, jenis: 'Sudah Diverifikasi'})],
-            [w => this.isSppExist(queue, {title, jenis: 'Belum Diverifikasi'}), w => !w.getRes(2)],
-            [w => w.getRes(3).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(3) && queue.STATUS === status],
-            [w => w.getRes(4).click(), w => w.getRes(3) && queue.STATUS === status],
-            [w => w.getRes(4).findElement(By.xpath('../div/div/button/span/p[text()="Verifikasi"]/../..')), w => w.getRes(3) && queue.STATUS === status],
-            [w => w.getRes(6).click(), w => w.getRes(3) && queue.STATUS === status],
+            [w => this.querySpp(queue, {title, flags: this.VERIFIED | this.UNVERIFIED})],
+            [w => w.getRes(2).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(2) && queue.STATUS === status],
+            [w => w.getRes(3).click(), w => w.getRes(2) && queue.STATUS === status],
+            [w => w.getRes(3).findElement(By.xpath('../div/div/button/span/p[text()="Verifikasi"]/../..')), w => w.getRes(2) && queue.STATUS === status],
+            [w => w.getRes(5).click(), w => w.getRes(2) && queue.STATUS === status],
             [w => this.fillForm(queue, 'verifikasi-spp',
                 By.xpath('//header[text()="Verifikasi (SPP)"]/../div[contains(@class,"chakra-modal__body")]'),
-                By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(3) && queue.STATUS === status],
-            [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(3) && queue.STATUS === status],
+                By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(2) && queue.STATUS === status],
+            [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(2) && queue.STATUS === status],
+            [w => this.querySpp(queue, {title, flags: this.VERIFIED}), w => w.getRes(2) && queue.STATUS === status],
         ]);
     }
 
-    checkVerifikasiSpm(queue, status = 'Belum Disetujui') {
-        const title = 'Pengeluaran';
-        const columns = {
+    querySpm(queue, options) {
+        options = options || {};
+        const title = options.title || 'Pengeluaran';
+        const columns = options.columns || {
             noSpp: [1, this.COL_TIPPY],
             tglSpp: 3,
             untukSpp: [6, this.COL_SINGLE, true],
             nomSpp: 7,
             statusSpp: {index: 4, type: this.COL_STATUS, selector: '*/*/p'},
         }
+        const fVerified = options.flags === undefined ? true : (options.flags & this.VERIFIED) === this.VERIFIED;
+        const fUnverified = options.flags === undefined ? true : (options.flags & this.UNVERIFIED) === this.UNVERIFIED;
+        return this.works([
+            [w => this.queryData(queue, {title, columns, jenis: 'Sudah Diverifikasi', nomor: 'SPM'}), w => fVerified],
+            [w => this.queryData(queue, {title, columns, jenis: 'Belum Diverifikasi', nomor: 'SPM'}), w => fUnverified && !w.getRes(0)],
+        ]);
+    }
+
+    checkVerifikasiSpm(queue, status = 'Belum Disetujui') {
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.siap.navigate('Pengeluaran', 'SPM', 'Pembuatan')],
             [w => this.siap.waitLoader()],
             [w => this.siap.waitAndClick(By.xpath('//button/p[text()="LS"]/..'))],
             [w => this.siap.waitSpinner(w.getRes(3))],
-            [w => this.isSppExist(queue, {title, columns, jenis: 'Sudah Diverifikasi', nomor: 'SPM'})],
-            [w => this.isSppExist(queue, {title, columns, jenis: 'Belum Diverifikasi', nomor: 'SPM'}), w => !w.getRes(5)],
-            [w => w.getRes(6).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(6) && queue.STATUS === status],
-            [w => w.getRes(7).click(), w => w.getRes(6) && queue.STATUS === status],
-            [w => w.getRes(7).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(6) && queue.STATUS === status],
-            [w => w.getRes(9).click(), w => w.getRes(6) && queue.STATUS === status],
-            [w => this.siap.waitAndClick(By.xpath('//header[text()="Persetujuan SPM"]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(6) && queue.STATUS === status],
-            [w => this.siap.waitLoader(), w => w.getRes(6) && queue.STATUS === status],
+            [w => this.querySpm(queue)],
+            [w => w.getRes(5).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(5) && queue.STATUS === status],
+            [w => w.getRes(6).click(), w => w.getRes(5) && queue.STATUS === status],
+            [w => w.getRes(6).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(5) && queue.STATUS === status],
+            [w => w.getRes(8).click(), w => w.getRes(5) && queue.STATUS === status],
+            [w => this.siap.waitAndClick(By.xpath('//header[text()="Persetujuan SPM"]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(5) && queue.STATUS === status],
+            [w => this.siap.waitLoader(), w => w.getRes(5) && queue.STATUS === status],
+            [w => this.querySpm(queue, this.VERIFIED), w => w.getRes(5) && queue.STATUS === status],
         ]);
     }
 }
