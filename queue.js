@@ -41,7 +41,7 @@ class SiapDequeue extends EventEmitter {
         this.time = new Date();
         this.queues = [];
         this.queue = new Queue([], queue => this.doQueue(queue), () => this.canProcess());
-        this.timeout = 5 * 60 * 1000;
+        this.timeout = 10 * 60 * 1000;
         this.retry = 3;
     }
 
@@ -82,17 +82,21 @@ class SiapDequeue extends EventEmitter {
             }
             const doit = () => {
                 try {
-                    queue.start();
-                    this.emit('queue-start', queue);
-                    this.consumer.processQueue(queue)
-                        .then(res => success(res))
-                        .catch(err => retry(err));
-                    // check for next queue
-                    const nextqueue = this.getNext();
-                    if (nextqueue && nextqueue.type !== SiapQueue.QUEUE_CALLBACK) {
-                        if (this.consumer.canHandleNextQueue(nextqueue)) {
-                            this.queue.next();
+                    if (queue.status !== SiapQueue.STATUS_SKIPPED) {
+                        queue.start();
+                        this.emit('queue-start', queue);
+                        this.consumer.processQueue(queue)
+                            .then(res => success(res))
+                            .catch(err => retry(err));
+                        // check for next queue
+                        const nextqueue = this.getNext();
+                        if (nextqueue && nextqueue.type !== SiapQueue.QUEUE_CALLBACK) {
+                            if (this.consumer.canHandleNextQueue(nextqueue)) {
+                                this.queue.next();
+                            }
                         }
+                    } else {
+                        this.queue.next();
                     }
                 }
                 catch (err) {
@@ -114,9 +118,6 @@ class SiapDequeue extends EventEmitter {
             this.queue.on('done', () => {
                 this.emit('queue-idle', this);
             });
-            if (this.queues.length) {
-                this.queue.next();
-            }
             const f = () => {
                 // check for timeout
                 const processing = this.queues.filter(queue => queue.status === SiapQueue.STATUS_PROCESSING);
@@ -137,6 +138,8 @@ class SiapDequeue extends EventEmitter {
                             this.queue.next();
                         }
                     }
+                } else if (this.queues.length) {
+                    this.queue.next();
                 }
                 // run on next
                 setTimeout(f, 100);
@@ -301,7 +304,7 @@ class SiapQueue
     }
 
     setResult(result) {
-        if (this.result != result) {
+        if (this.result !== result) {
             this.result = result;
             console.log('Queue %s result: %s', this.toString(), this.result instanceof Error ? this.result.toString() : this.result);
         }
@@ -405,7 +408,12 @@ class SiapQueue
     }
 
     finished() {
-        return [SiapQueue.STATUS_DONE, SiapQueue.STATUS_ERROR, SiapQueue.STATUS_TIMED_OUT].indexOf(this.status) >= 0;
+        return [
+            SiapQueue.STATUS_DONE,
+            SiapQueue.STATUS_ERROR,
+            SiapQueue.STATUS_TIMED_OUT,
+            SiapQueue.STATUS_SKIPPED,
+        ].indexOf(this.status) >= 0;
     }
 
     getLog(raw = false) {
@@ -427,7 +435,7 @@ class SiapQueue
 
     getInfo() {
         let info = this.info;
-        if (!info && this.type == SiapQueue.QUEUE_CALLBACK) {
+        if (!info && this.type === SiapQueue.QUEUE_CALLBACK) {
             info = this.callback;
         }
         return info;
@@ -491,6 +499,7 @@ class SiapQueue
     static get STATUS_DONE() { return 'done' }
     static get STATUS_ERROR() { return 'error' }
     static get STATUS_TIMED_OUT() { return 'timeout' }
+    static get STATUS_SKIPPED() { return 'skipped' }
 }
 
 module.exports = SiapQueue;

@@ -48,6 +48,7 @@ const SiapNotifier = require('./notifier');
 const SiapQueue = require('./queue');
 const SiapSppBridge = require('./bridge/spp');
 const SiapUtilBridge = require('./bridge/util');
+const debug = require('debug')('siap:main');
 
 class App {
 
@@ -66,7 +67,6 @@ class App {
         // read configuration from command line values
         let profile, filename = Cmd.get('config') ? Cmd.get('config') : path.join(__dirname, 'config.json');
         if (fs.existsSync(filename)) {
-            console.log('Reading configuration %s', filename);
             const config = JSON.parse(fs.readFileSync(filename));
             if (config.global) {
                 this.config = config.global;
@@ -80,8 +80,14 @@ class App {
                 this.config[c] = Cmd.get(c);
             }
         }
+        if (!this.config.mode) {
+            return false;
+        }
         if (!this.config.workdir) {
             this.config.workdir = __dirname;
+        }
+        if (fs.existsSync(filename)) {
+            console.log('Configuration loaded from %s', filename);
         }
         // load roles
         filename = path.join(__dirname, 'roles.json');
@@ -265,11 +271,17 @@ class App {
                     if (Cmd.get('noop')) {
                         console.log('Bridge ready, queuing only...');
                     } else {
-                        this.dequeue.setConsumer(this);
                         console.log('Queue processing is ready...');
+                        this.dequeue.setConsumer(this);
                     }
                 })
-                .catch(err => console.error(err))
+                .catch(err => {
+                    if (err) {
+                        console.error('Self test reaches an error: %s!', err);
+                    } else {
+                        console.error('Self test reaches an error!');
+                    }
+                })
             ;
             this.checkReadiness();
         });
@@ -283,9 +295,9 @@ class App {
     checkReadiness() {
         const readinessTimeout = this.config.readinessTimeout || 30000; // 30 seconds
         this.startTime = Date.now();
-        let interval = setInterval(() => {
-            let now = Date.now();
-            this.ready = this.readyCount() == this.bridges.length;
+        const interval = setInterval(() => {
+            const now = Date.now();
+            this.ready = this.readyCount() === this.bridges.length;
             if (this.ready) {
                 clearInterval(interval);
                 console.log('Readiness checking is done...');
@@ -318,13 +330,13 @@ class App {
         return false;
     }
 
-    getQueueHandler(queue) {
+    getQueueHandler(queue, ready = true) {
         const bridges = [];
         const year = queue.data && queue.data.year ? queue.data.year : null;
         // get prioritized bridge based on accepts type
         this.bridges.forEach(b => {
             if (b.isOperational() && b.year == year && Array.isArray(b.accepts) && b.accepts.indexOf(queue.type) >= 0) {
-                if (this.isBridgeReady(b)) {
+                if (!ready || this.isBridgeReady(b)) {
                     bridges.push(b);
                 }
             }
@@ -333,7 +345,7 @@ class App {
         if (!bridges.length) {
             this.bridges.forEach(b => {
                 if (b.isOperational() && b.year == year && b.accepts === undefined) {
-                    if (this.isBridgeReady(b)) {
+                    if (!ready || this.isBridgeReady(b)) {
                         bridges.push(b);
                     }
                 }
@@ -345,20 +357,36 @@ class App {
     readyCount() {
         let readyCnt = 0;
         this.bridges.forEach(b => {
-            if (b.isOperational()) readyCnt++;
+            if (b.isOperational()) {
+                readyCnt++;
+            }
         });
         return readyCnt;
     }
 
     isBridgeIdle(queue) {
-        const bridges = this.getQueueHandler(queue);
+        const handlers = this.getQueueHandler(queue, false);
+        if (handlers.length === 0) {
+            debug('No handler', queue);
+            queue.setStatus(SiapQueue.STATUS_SKIPPED);
+        }
+        const bridges = handlers.filter(b => this.isBridgeReady(b));
         return bridges.length ? true : false;
     }
 
     canProcessQueue() {
         if (this.readyCount() > 0) {
             const queue = this.dequeue.getNext();
-            return queue && (queue.type == SiapQueue.QUEUE_CALLBACK || this.isBridgeIdle(queue));
+            if (queue) {
+                if (!queue.logged) {
+                    debug('Next queue', queue);
+                    queue.logged = true;
+                }
+            }
+            return queue && (
+                queue.type === SiapQueue.QUEUE_CALLBACK ||
+                queue.status === SiapQueue.STATUS_SKIPPED ||
+                this.isBridgeIdle(queue));
         }
         return false;
     }
@@ -368,7 +396,7 @@ class App {
     }
 
     processQueue(queue) {
-        if (queue.type == SiapQueue.QUEUE_CALLBACK) {
+        if (queue.type === SiapQueue.QUEUE_CALLBACK) {
             return SiapNotifier.notify(queue);
         }
         let bridge = queue.bridge;
@@ -408,22 +436,23 @@ class App {
             this.createDequeuer();
             this.createBridges();
             this.registerCommands();
-            let serve = true;
+            let cmd, serve = true;
+            if (Cmd.args.length) {
+                cmd = Cmd.args.shift();
+            }
             switch (this.config.mode) {
                 case this.BRIDGE_UTIL:
                     serve = false;
                     let command, data;
-                    if (Cmd.args.length) {
-                        switch (Cmd.args.shift()) {
-                            case 'captcha':
-                                command = 'util:captcha';
-                                data = {
-                                    year: new Date().getFullYear(),
-                                    count: Cmd.get('count') ? parseInt(Cmd.get('count')) : 10,
-                                    timeout: 0,
-                                }
-                                break;
-                        }
+                    switch (cmd) {
+                        case 'captcha':
+                            command = 'util:captcha';
+                            data = {
+                                year: new Date().getFullYear(),
+                                count: Cmd.get('count') ? parseInt(Cmd.get('count')) : 10,
+                                timeout: 0,
+                            }
+                            break;
                     }
                     if (command) {
                         SiapCmd.get(command).consume({data: data ? data : {}});
