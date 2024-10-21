@@ -30,6 +30,7 @@ const EventEmitter = require('events');
 const Queue = require('@ntlab/work/queue');
 const { SiapRetryError } = require('./siap');
 
+/** @type {SiapDequeue} */
 let dequeue;
 
 class SiapDequeue extends EventEmitter {

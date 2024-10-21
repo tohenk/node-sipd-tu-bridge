@@ -43,7 +43,7 @@ class SiapNotifier {
             const f = () => {
                 /** @type {Buffer} buff */
                 let buff, err, code;
-                const parsedUrl = require('url').parse(url);
+                const parsedUrl = new URL(url);
                 const http = require('https:' == parsedUrl.protocol ? 'https' : 'http');
                 const req = http.request(url, options, res => {
                     code = res.statusCode;
