@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2022-2024 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2022-2025 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -455,7 +455,12 @@ class App {
                             break;
                     }
                     if (command) {
-                        SiapCmd.get(command).consume({data: data ? data : {}});
+                        const queue = SiapCmd.get(command).consume({data: data ? data : {}});
+                        this.dequeue.on('queue-done', q => {
+                            if (q.id === queue.id) {
+                                process.exit();
+                            }
+                        });
                     } else {
                         console.log('Supported utility: captcha');
                         process.exit();
@@ -463,10 +468,6 @@ class App {
                     break;
             }
             this.createServer(serve);
-            // exit once queue is processed
-            if (!serve) {
-                this.dequeue.on('queue-idle', () => setTimeout(() => process.exit(), 2000));
-            }
             return true;
         } else {
             usage();

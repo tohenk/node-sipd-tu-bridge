@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2022-2024 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2022-2025 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -46,6 +46,7 @@ class SiapCmd {
     constructor(name, options) {
         this.name = name;
         this.parent = options.parent;
+        /** @type {SiapDequeue} */
         this.dequeue = options.dequeue;
         this.initialize();
     }

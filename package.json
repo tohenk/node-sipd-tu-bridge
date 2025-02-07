@@ -6,10 +6,10 @@
   "license": "MIT",
   "main": "app.js",
   "dependencies": {
-    "@ntlab/ntlib": "^2.2.0",
+    "@ntlab/ntlib": "^2.6.2",
     "@ntlab/webrobot": "^1.8.0",
-    "@ntlab/work": "^2.2.0",
-    "debug": "^4.3.7",
-    "socket.io": "^4.8.0"
+    "@ntlab/work": "^2.3.0",
+    "debug": "^4.4.0",
+    "socket.io": "^4.8.1"
   }
 }

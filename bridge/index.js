@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2022-2024 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2022-2025 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -253,7 +253,7 @@ class SiapBridge {
             return Promise.reject(util.format('User has no credential: %s!', user));
         }
         const session = this.getSession(cred.username);
-        session.cred = {username: cred.username, password: cred.password, role: this.getRoleTitle(role)};
+        session.cred = {username: cred.username, password: cred.password, role: cred.role || this.getRoleTitle(role)};
         return Promise.resolve(session);
     }
 

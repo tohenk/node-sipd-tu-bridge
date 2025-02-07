@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2022-2024 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2022-2025 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -121,7 +121,19 @@ class Siap extends WebRobot {
     captchaImage() {
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
-            [w => w.getRes(0)[0].findElement(By.xpath('.//img')), w => w.getRes(0).length],
+            [w => new Promise((resolve, reject) => {
+                (function f() {
+                    w.getRes(0)[0].findElements(By.xpath('.//img'))
+                        .then(elements => {
+                            if (elements.length) {
+                                resolve(elements[0]);
+                            } else {
+                                setTimeout(f, 100);
+                            }
+                        })
+                        .catch(err => reject(err));
+                })();
+            }), w => w.getRes(0).length],
             [w => w.getRes(1).getAttribute('src'), w => w.getRes(0).length],
         ]);
     }
@@ -199,7 +211,7 @@ class Siap extends WebRobot {
     selectAccount(role) {
         return this.works([
             [w => this.waitFor(By.xpath('//div[@class="container-account-select"]'))],
-            [w => w.getRes(0).findElement(By.xpath(`.//div[@class="account-select-card"]/div/div/h1[text()="${role}"]/../../../button`))],
+            [w => w.getRes(0).findElement(By.xpath(`.//div[@class="container-txt-account-list"]/h1[text()="${role}"]/../../../button`))],
             [w => w.getRes(1).click()],
             [w => this.waitSpinner(w.getRes(0))],
         ]);
@@ -217,9 +229,10 @@ class Siap extends WebRobot {
         return this.works([
             [w => el.click()],
             [w => el.getAttribute('aria-controls')],
-            [w => this.findElements(By.xpath(`//*[@id="${w.getRes(1)}"]/div[contains(text(),"${value}")]`))],
-            [w => Promise.reject(SiapAnnouncedError.create(util.format(message ? message : 'Pilihan %s tidak tersedia!', value))), w => w.getRes(2).length === 0],
-            [w => w.getRes(2)[0].click(), w => w.getRes(2).length],
+            [w => this.findElement(By.id(w.getRes(1)))],
+            [w => w.getRes(2).findElements(By.xpath(`.//*[contains(.,"${value}")]`))],
+            [w => Promise.reject(SiapAnnouncedError.create(util.format(message ? message : 'Pilihan %s tidak tersedia!', value))), w => w.getRes(3).length === 0],
+            [w => w.getRes(3)[0].click(), w => w.getRes(3).length],
         ]);
     }
 
