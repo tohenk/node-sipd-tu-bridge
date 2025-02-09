@@ -238,6 +238,23 @@ class SiapBridge {
     }
 
     /**
+     * Save captcha image.
+     *
+     * @param {string} dir
+     * @returns {Promise<string>|undefined}
+     */
+    saveCaptcha(dir) {
+        for (const session of this.getSessions()) {
+            if (session.state().captcha) {
+                return Work.works([
+                    [w => session.captchaImage()],
+                    [w => Promise.resolve(session.saveCaptcha(w.getRes(0), dir))],
+                ]);
+            }
+        }
+    }
+
+    /**
      * Do the operation as requested role and returns the session.
      *
      * @param {string} role User role
@@ -301,6 +318,16 @@ class SiapBridge {
             );
         }
         return Work.works(works);
+    }
+
+    noop() {
+        return this.do([
+            [w => this.getSessions()[0].login()],
+        ], (w, err) => {
+            return [
+                [e => this.end(this.autoClose)],
+            ];
+        });
     }
 }
 

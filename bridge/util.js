@@ -71,28 +71,13 @@ class SiapUtilBridge extends SiapBridge {
             const q = new Queue(sequences, async (seq) => {
                 const res = await sess.captchaImage();
                 if (res) {
-                    this.saveCaptcha(res);
+                    this.getSessions()[0].saveCaptcha(res);
                 }
                 await sess.reloadCaptcha();
                 q.next();
             });
             q.once('done', () => resolve());
         });
-    }
-
-    saveCaptcha(data) {
-        const session = this.getSessions()[0];
-        const [mimetype, payload] = data.split(';');
-        const [encoding, content] = payload.split(',');
-        if (content) {
-            const buff = Buffer.from(content, encoding);
-            const shasum = require('crypto')
-                .createHash('md5')
-                .update(buff)
-                .digest('hex');
-            const filename = session.genFilename('captcha', shasum + '.' + (mimetype.indexOf('png') > 0 ? 'png' : 'jpg'));
-            session.saveFile(filename, buff);
-        }
     }
 }
 

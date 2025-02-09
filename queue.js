@@ -469,6 +469,10 @@ class SiapQueue
         return this.create(SiapQueue.QUEUE_CAPTCHA, data);
     }
 
+    static createNoopQueue(data) {
+        return this.create(SiapQueue.QUEUE_NOOP, data);
+    }
+
     static createDequeuer() {
         if (!dequeue) {
             dequeue = new SiapDequeue();
@@ -494,6 +498,7 @@ class SiapQueue
     static get QUEUE_SPP() { return 'spp' }
     static get QUEUE_CALLBACK() { return 'callback' }
     static get QUEUE_CAPTCHA() { return 'captcha' }
+    static get QUEUE_NOOP() { return 'noop' }
 
     static get STATUS_NEW() { return 'new' }
     static get STATUS_PROCESSING() { return 'processing' }

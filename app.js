@@ -46,9 +46,11 @@ const Work = require('@ntlab/work/work');
 const SiapCmd = require('./cmd');
 const SiapNotifier = require('./notifier');
 const SiapQueue = require('./queue');
+const SiapBridge = require('./bridge');
 const SiapSppBridge = require('./bridge/spp');
 const SiapUtilBridge = require('./bridge/util');
 const debug = require('debug')('siap:main');
+const { Socket } = require('socket.io');
 
 class App {
 
@@ -58,9 +60,10 @@ class App {
     BRIDGE_UTIL = 'util'
 
     config = {}
+    /** @type {SiapBridge[]} */
     bridges = []
+    /** @type {Socket[]} */
     sockets = []
-    uploads = {}
     sessions = {}
 
     initialize() {
@@ -143,6 +146,48 @@ class App {
                 fs.rmSync(profiledir, {recursive: true, force: true});
             }
         }
+        // captcha solver
+        if (this.config['captcha-solver']) {
+            // {
+            //     "global": {
+            //         "captcha-solver": {
+            //             "bin": "python",
+            //             "args": ["/path/to/solver.py", "%CAPTCHA%"]
+            //         }
+            //     }
+            // }
+            const cmd = require('@ntlab/ntlib/command')(this.config['captcha-solver'], {});
+            this.solver = captcha => {
+                if (captcha) {
+                    return new Promise((resolve, reject) => {
+                        let stdout, stderr;
+                        const p = cmd.exec({CAPTCHA: captcha});
+                        p.stdout.on('data', line => {
+                            if (stdout === undefined) {
+                                stdout = line;
+                            } else {
+                                stdout = Buffer.concat([stdout, line]);
+                            }
+                        });
+                        p.stderr.on('data', line => {
+                            if (stderr === undefined) {
+                                stderr = line;
+                            } else {
+                                stderr = Buffer.concat([stderr, line]);
+                            }
+                        });
+                        p.on('exit', code => {
+                            fs.rmSync(captcha);
+                            resolve({code, stdout, stderr});
+                        });
+                        p.on('error', err => {
+                            reject(err);
+                        });
+                    });
+                }
+                return Promise.resolve();
+            }
+        }
         return true;
     }
 
@@ -164,6 +209,10 @@ class App {
                     break;
                 case SiapQueue.QUEUE_CAPTCHA:
                     queue = SiapQueue.createCaptchaQueue(data.data);
+                    queue.info = null;
+                    break;
+                case SiapQueue.QUEUE_NOOP:
+                    queue = SiapQueue.createNoopQueue(data.data);
                     queue.info = null;
                     break;
             }
@@ -316,9 +365,33 @@ class App {
     }
 
     handleNotify() {
-        this.sockets.forEach(socket => {
-            socket.emit('status', this.dequeue.getStatus());
-        });
+        let captcha = 0;
+        if (typeof this.solver === 'function') {
+            for (const bridge of this.bridges) {
+                if (bridge.hasState('captcha')) {
+                    captcha++;
+                    Work.works([
+                        [w => bridge.saveCaptcha('tmp')],
+                        [w => this.solver(w.getRes(0))],
+                        [w => new Promise((resolve, reject) => {
+                            const res = w.getRes(1);
+                            if (typeof res === 'object' && res.stdout) {
+                                const code = res.stdout.toString().trim();
+                                if (code) {
+                                    bridge.solveCaptcha(code);
+                                }
+                            }
+                            resolve();
+                        })],
+                    ]);
+                }
+            }
+        }
+        if (captcha === 0) {
+            this.sockets.forEach(socket => {
+                socket.emit('status', this.dequeue.getStatus());
+            });
+        }
     }
 
     isBridgeReady(bridge) {
@@ -399,6 +472,7 @@ class App {
         if (queue.type === SiapQueue.QUEUE_CALLBACK) {
             return SiapNotifier.notify(queue);
         }
+        /** @type {SiapBridge} */
         let bridge = queue.bridge;
         if (!bridge) {
             const bridges = this.getQueueHandler(queue);
@@ -416,6 +490,8 @@ class App {
                     return bridge.createSpp(queue);
                 case SiapQueue.QUEUE_CAPTCHA:
                     return bridge.fetchCaptcha(queue);
+                case SiapQueue.QUEUE_NOOP:
+                    return bridge.noop();
             }
         }
         return Promise.reject(util.format('No bridge can handle %s!', queue.getInfo()));
@@ -453,6 +529,13 @@ class App {
                                 timeout: 0,
                             }
                             break;
+                        case 'noop':
+                            command = 'util:noop';
+                            data = {
+                                year: new Date().getFullYear(),
+                                timeout: 0,
+                            }
+                            break;
                     }
                     if (command) {
                         const queue = SiapCmd.get(command).consume({data: data ? data : {}});
@@ -462,7 +545,7 @@ class App {
                             }
                         });
                     } else {
-                        console.log('Supported utility: captcha');
+                        console.log('Supported utility: captcha, noop');
                         process.exit();
                     }
                     break;
