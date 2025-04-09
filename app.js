@@ -147,16 +147,16 @@ class App {
             }
         }
         // captcha solver
-        if (this.config['captcha-solver']) {
+        if (this.config.captchaSolver) {
             // {
             //     "global": {
-            //         "captcha-solver": {
+            //         "captchaSolver": {
             //             "bin": "python",
             //             "args": ["/path/to/solver.py", "%CAPTCHA%"]
             //         }
             //     }
             // }
-            const cmd = require('@ntlab/ntlib/command')(this.config['captcha-solver'], {});
+            const cmd = require('@ntlab/ntlib/command')(this.config.captchaSolver, {});
             this.solver = captcha => {
                 if (captcha) {
                     return new Promise((resolve, reject) => {
