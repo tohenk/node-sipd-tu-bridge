@@ -22,13 +22,13 @@
  * SOFTWARE.
  */
 
-const SiapCmd = require('.');
+const SipdCmd = require('.');
 
-class SiapCmdStatus extends SiapCmd {
+class SipdCmdStatus extends SipdCmd {
 
     consume(payload) {
         return this.dequeue.getStatus();
     }
 }
 
-module.exports = SiapCmdStatus;
+module.exports = SipdCmdStatus;

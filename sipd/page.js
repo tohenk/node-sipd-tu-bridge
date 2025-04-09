@@ -23,10 +23,10 @@
  */
 
 const Queue = require('@ntlab/work/queue');
-const { Siap } = require('.');
+const { Sipd } = require('.');
 const { By } = require('selenium-webdriver');
 
-class SiapPage {
+class SipdPage {
 
     PAGE_SIZE = 10
     PAGINATION_CLASS = 'pagination-custom'
@@ -34,12 +34,12 @@ class SiapPage {
     /**
      * Constructor.
      *
-     * @param {Siap} parent Parent
+     * @param {Sipd} parent Parent
      * @param {object} options Options
      */
     constructor(parent, options) {
         this.parent = parent;
-        this.parent.constructor.expectErr(SiapStopError);
+        this.parent.constructor.expectErr(SipdStopError);
         this.works = this.parent.works;
         this.options = options;
     }
@@ -227,7 +227,7 @@ class SiapPage {
                     this.eachPage(page, callback)
                         .then(() => q.next())
                         .catch(err => {
-                            if (err instanceof SiapStopError) {
+                            if (err instanceof SipdStopError) {
                                 q.done();
                             } else {
                                 reject(err);
@@ -240,12 +240,12 @@ class SiapPage {
     }
 
     static stop() {
-        return new SiapStopError();
+        return new SipdStopError();
     }
 }
 
-class SiapStopError extends Error
+class SipdStopError extends Error
 {
 }
 
-module.exports = SiapPage;
+module.exports = SipdPage;

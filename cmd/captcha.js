@@ -22,9 +22,9 @@
  * SOFTWARE.
  */
 
-const SiapCmd = require('.');
+const SipdCmd = require('.');
 
-class SiapCmdCaptcha extends SiapCmd {
+class SipdCmdCaptcha extends SipdCmd {
 
     consume(payload) {
         const { data } = payload;
@@ -61,4 +61,4 @@ class SiapCmdCaptcha extends SiapCmd {
     }
 }
 
-module.exports = SiapCmdCaptcha;
+module.exports = SipdCmdCaptcha;

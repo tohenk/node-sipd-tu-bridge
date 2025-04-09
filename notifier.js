@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-class SiapNotifier {
+class SipdNotifier {
 
     static notify(queue) {
         return this.notifyCallback(queue.callback, queue.data);
@@ -91,4 +91,4 @@ class SiapNotifier {
     }
 }
 
-module.exports = SiapNotifier;
+module.exports = SipdNotifier;

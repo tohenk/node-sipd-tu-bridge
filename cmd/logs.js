@@ -22,9 +22,9 @@
  * SOFTWARE.
  */
 
-const SiapCmd = require('.');
+const SipdCmd = require('.');
 
-class SiapCmdLogs extends SiapCmd {
+class SipdCmdLogs extends SipdCmd {
 
     consume(payload) {
         const { data } = payload;
@@ -34,4 +34,4 @@ class SiapCmdLogs extends SiapCmd {
     }
 }
 
-module.exports = SiapCmdLogs;
+module.exports = SipdCmdLogs;

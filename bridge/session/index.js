@@ -25,12 +25,12 @@
 const fs = require('fs');
 const path = require('path');
 const Queue = require('@ntlab/work/queue');
-const { Siap, SiapAnnouncedError } = require('../../siap');
-const SiapPage = require('../../siap/page');
+const { Sipd, SipdAnnouncedError } = require('../../sipd');
+const SipdPage = require('../../sipd/page');
 const { By } = require('selenium-webdriver');
-const debug = require('debug')('siap:session');
+const debug = require('debug')('sipd:session');
 
-class SiapSession {
+class SipdSession {
 
     PAGE_REKANAN = 1
     PAGE_REKANAN_ALT = 2
@@ -41,35 +41,35 @@ class SiapSession {
     constructor(options) {
         this.options = options;
         this.bridge = options.bridge;
-        this.siap = new Siap(options);
-        this.works = this.siap.works;
-        const ctx = this.siap;
+        this.sipd = new Sipd(options);
+        this.works = this.sipd.works;
+        const ctx = this.sipd;
         for (const fn of this.fn) {
             this[fn] = function(...args) {
-                return this.siap[fn].apply(ctx, args);
+                return this.sipd[fn].apply(ctx, args);
             }
         }
     }
 
     onStateChange(handler) {
         if (typeof handler === 'function') {
-            this.siap.onState = handler;
+            this.sipd.onState = handler;
         }
     }
 
     state() {
-        return this.siap.state;
+        return this.sipd.state;
     }
 
     ready() {
-        return this.siap.ready;
+        return this.sipd.ready;
     }
 
     start() {
         return this.works([
-            [w => this.waitUntilReady(), w => !this.siap.ready],
+            [w => this.waitUntilReady(), w => !this.sipd.ready],
             [w => this.doStartup(), w => this.options.startup],
-            [w => this.siap.open()],
+            [w => this.sipd.open()],
         ]);
     }
 
@@ -102,7 +102,7 @@ class SiapSession {
     login() {
         return this.works([
             [w => this.start()],
-            [w => this.siap.login(this.cred.username, this.cred.password, this.cred.role)],
+            [w => this.sipd.login(this.cred.username, this.cred.password, this.cred.role)],
         ]);
     }
 
@@ -136,7 +136,7 @@ class SiapSession {
     }
 
     getTippy(el) {
-        return this.siap.getDriver().executeScript(
+        return this.sipd.getDriver().executeScript(
             function(el) {
                 if (el._tippy && el._tippy.popper) {
                     return el._tippy.popper.innerText;
@@ -185,7 +185,7 @@ class SiapSession {
     }
 
     createPage(page, title) {
-        return new SiapPage(this.siap, this.getPageOptions(page, title));
+        return new SipdPage(this.sipd, this.getPageOptions(page, title));
     }
 
     doChoose(title, value, values, options, callback = null) {
@@ -202,13 +202,13 @@ class SiapSession {
                 pageSelector: 'li/a[text()="%PAGE%"]',
             }, options.page ? this.getPageOptions(options.page, title) : {});
             const searchIdx = options.searchIdx !== undefined ? options.searchIdx : 0;
-            const page = new SiapPage(this.siap, pageOptions);
+            const page = new SipdPage(this.sipd, pageOptions);
             let clicker;
             this.works([
                 [w => page.setup()],
                 [w => page.search(Array.isArray(value) ? value[searchIdx] : value), w => page._search],
                 [w => page.each(el => [
-                    [x => this.siap.getText([...values], el)],
+                    [x => this.sipd.getText([...values], el)],
                     [x => el.findElement(By.xpath('.//button'))],
                     [x => new Promise((resolve, reject) => {
                         const v = x.getRes(0);
@@ -219,14 +219,14 @@ class SiapSession {
                         }
                         if (expected === checked) {
                             clicker = x.getRes(1);
-                            reject(SiapPage.stop());
+                            reject(SipdPage.stop());
                         } else {
                             resolve();
                         }
                     })],
                 ])],
                 [w => clicker.click(), w => clicker],
-                [w => Promise.reject(new SiapAnnouncedError(`${title}: ${value} tidak ada!`)), w => !clicker],
+                [w => Promise.reject(new SipdAnnouncedError(`${title}: ${value} tidak ada!`)), w => !clicker],
             ])
             .then(() => resolve())
             .catch(err => reject(err));
@@ -234,7 +234,7 @@ class SiapSession {
     }
 
     dismissModal(title) {
-        return this.siap.waitAndClick(By.xpath(`//header[text()="${title}"]/../button[@aria-label="Close"]`));
+        return this.sipd.waitAndClick(By.xpath(`//header[text()="${title}"]/../button[@aria-label="Close"]`));
     }
 
     readValue(el, value, queue) {
@@ -249,7 +249,7 @@ class SiapSession {
         return this.works([
             [w => el.click()],
             [w => el.getAttribute('aria-controls')],
-            [w => this.siap.findElements(By.xpath(`//*[@id="${w.getRes(1)}"]/div[contains(text(),"${value}")]`))],
+            [w => this.sipd.findElements(By.xpath(`//*[@id="${w.getRes(1)}"]/div[contains(text(),"${value}")]`))],
             [w => Promise.reject(`Combobox value ${value} not available!`), w => w.getRes(2).length === 0],
             [w => w.getRes(2)[0].click(), w => w.getRes(2).length],
         ]);
@@ -268,7 +268,7 @@ class SiapSession {
             [w => Promise.reject(`Date "${value}" is not valid!`), w => value instanceof Date && isNaN(value)],
             [w => el.click()],
             [w => el.getAttribute('readonly')],
-            [w => this.siap.findElements(By.xpath('//div[contains(@class,"flatpickr-calendar")]'))],
+            [w => this.sipd.findElements(By.xpath('//div[contains(@class,"flatpickr-calendar")]'))],
             [w => new Promise((resolve, reject) => {
                 const q = new Queue([...w.getRes(3)], dtpicker => {
                     this.works([
@@ -277,8 +277,8 @@ class SiapSession {
                         [x => dtpicker.findElement(By.xpath('.//input[@aria-label="Year"]')), x => x.getRes(1)],
                         [x => x.getRes(2).getAttribute('value'), x => x.getRes(1)],
                         [x => dtpicker.findElement(By.xpath('.//select[@aria-label="Month"]')), x => x.getRes(1)],
-                        [x => this.siap.fillInput(x.getRes(2), value.getFullYear()), x => x.getRes(1) && x.getRes(3) != value.getFullYear()],
-                        [x => this.siap.fillSelect(x.getRes(4), value.getMonth() + 1), x => x.getRes(1)],
+                        [x => this.sipd.fillInput(x.getRes(2), value.getFullYear()), x => x.getRes(1) && x.getRes(3) != value.getFullYear()],
+                        [x => this.sipd.fillSelect(x.getRes(4), value.getMonth() + 1), x => x.getRes(1)],
                         [x => dtpicker.findElement(By.xpath(`.//span[contains(@class,"flatpickr-day") and text()="${value.getDate()}"]`)), x => x.getRes(1)],
                         [x => x.getRes(7).click(), x => x.getRes(1)],
                     ])
@@ -287,7 +287,7 @@ class SiapSession {
                 });
                 q.once('done', () => resolve());
             })],
-            [w => this.siap.getDriver().executeScript(
+            [w => this.sipd.getDriver().executeScript(
                 function(el) {
                     if (el._flatpickr) {
                         el._flatpickr.close();
@@ -302,7 +302,7 @@ class SiapSession {
     fillDatePicker2(el, value) {
         return this.works([
             [w => Promise.reject(`Date "${value}" is not valid!`), w => value instanceof Date && isNaN(value)],
-            [w => this.siap.getDriver().executeScript(
+            [w => this.sipd.getDriver().executeScript(
                 function(el, date) {
                     if (el._flatpickr) {
                         el._flatpickr.setDate(date);
@@ -338,8 +338,8 @@ class SiapSession {
     fillKegiatan(el, value) {
         return this.works([
             [w => el.click()],
-            [w => this.siap.waitAndClick(By.xpath('//div[@class="css-j-3jq-af-a2fa"]'))],
-            [w => this.siap.findElements(By.xpath('//div[@class="css-j03r-a-cf3fa"]/div/span/div/span[2]'))],
+            [w => this.sipd.waitAndClick(By.xpath('//div[@class="css-j-3jq-af-a2fa"]'))],
+            [w => this.sipd.findElements(By.xpath('//div[@class="css-j03r-a-cf3fa"]/div/span/div/span[2]'))],
             [w => new Promise((resolve, reject) => {
                 let done = false;
                 const items = w.getRes(2);
@@ -362,16 +362,16 @@ class SiapSession {
                 });
                 q.once('done', () => resolve());
             })],
-            [w => this.siap.sleep(this.siap.opdelay)],
+            [w => this.sipd.sleep(this.sipd.opdelay)],
         ]);
     }
 
     fillAfektasi(el, value, rekening) {
         let allocated = false;
         return this.works([
-            [w => this.siap.waitForPresence({el, data: By.xpath('.//div/div/div[@class="animate-pulse"]')}, false, 0)],
-            [w => this.siap.sleep(this.siap.opdelay)],
-            [w => this.siap.findElements(By.xpath('//div/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
+            [w => this.sipd.waitForPresence({el, data: By.xpath('.//div/div/div[@class="animate-pulse"]')}, false, 0)],
+            [w => this.sipd.sleep(this.sipd.opdelay)],
+            [w => this.sipd.findElements(By.xpath('//div/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
             [w => new Promise((resolve, reject) => {
                 const items = w.getRes(2);
                 const q = new Queue(items, item => {
@@ -382,7 +382,7 @@ class SiapSession {
                         [x => item.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/p[2]')), x => x.getRes(1) === rekening],
                         [x => Promise.resolve(x.getRes(3).getAttribute('innerText')), x => x.getRes(1) === rekening],
                         [x => Promise.resolve(parseFloat(this.pickCurr(x.getRes(4)))), x => x.getRes(1) === rekening],
-                        [x => this.siap.fillInput(x.getRes(2), null, this.options.clearUsingKey), x => x.getRes(1) === rekening && x.getRes(5) >= value],
+                        [x => this.sipd.fillInput(x.getRes(2), null, this.options.clearUsingKey), x => x.getRes(1) === rekening && x.getRes(5) >= value],
                         [x => new Promise((resolve, reject) => {
                             const input = x.getRes(2);
                             const chars = value.toString().split('');
@@ -562,7 +562,7 @@ class SiapSession {
                         break;
                     // fill value using javascript
                     case f.flags.indexOf('$') >= 0:
-                        data.onfill = (el, value) => this.siap.getDriver().executeScript(
+                        data.onfill = (el, value) => this.sipd.getDriver().executeScript(
                             function(el, value) {
                                 $(el).val(value);
                             }, el, value);
@@ -570,7 +570,7 @@ class SiapSession {
                     // add waiting
                     case f.flags.indexOf('+') >= 0:
                         data.done = (d, next) => {
-                            this.siap.waitLoader()
+                            this.sipd.waitLoader()
                                 .then(() => next())
                                 .catch(err => {
                                     throw err;
@@ -622,14 +622,14 @@ class SiapSession {
             this.files = [];
         }
         return this.works([
-            [w => this.siap.sleep(this.siap.opdelay)],
-            [w => this.siap.fillInForm(
+            [w => this.sipd.sleep(this.sipd.opdelay)],
+            [w => this.sipd.fillInForm(
                 this.handleFormFill(name, queue, this.files),
                 form,
                 submit,
                 options.wait)],
-            [w => this.siap.sleep(this.siap.opdelay)],
-            [w => this.siap.waitLoader()],
+            [w => this.sipd.sleep(this.sipd.opdelay)],
+            [w => this.sipd.waitLoader()],
         ]);
     }
 
@@ -789,4 +789,4 @@ class SiapSession {
     }
 }
 
-module.exports = SiapSession;
+module.exports = SipdSession;

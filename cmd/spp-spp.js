@@ -22,10 +22,10 @@
  * SOFTWARE.
  */
 
-const SiapCmd = require('.');
-const SiapQueue = require('../queue');
+const SipdCmd = require('.');
+const SipdQueue = require('../queue');
 
-class SiapCmdSpp extends SiapCmd {
+class SipdCmdSpp extends SipdCmd {
 
     consume(payload) {
         let result;
@@ -35,7 +35,7 @@ class SiapCmdSpp extends SiapCmd {
         let cnt = 0;
         items.forEach(spp => {
             const res = this.dequeue.createQueue({
-                type: SiapQueue.QUEUE_SPP,
+                type: SipdQueue.QUEUE_SPP,
                 data: spp,
                 callback: socket.callback,
             });
@@ -51,4 +51,4 @@ class SiapCmdSpp extends SiapCmd {
     }
 }
 
-module.exports = SiapCmdSpp;
+module.exports = SipdCmdSpp;

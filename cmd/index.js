@@ -25,28 +25,28 @@
 const fs = require('fs');
 const path = require('path');
 const { Socket } = require('socket.io');
-const { SiapDequeue } = require('../queue');
-const debug = require('debug')('siap:cmd');
+const { SipdDequeue } = require('../queue');
+const debug = require('debug')('sipd:cmd');
 
 /**
- * Siap command handler.
+ * Sipd command handler.
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SiapCmd {
+class SipdCmd {
 
     /**
      * Constructor.
      *
      * @param {string} name Command name
      * @param {object} options Options
-     * @param {SiapDequeue} options.dequeue Dequeue
+     * @param {SipdDequeue} options.dequeue Dequeue
      * @param {object} options.parent Parent
      */
     constructor(name, options) {
         this.name = name;
         this.parent = options.parent;
-        /** @type {SiapDequeue} */
+        /** @type {SipdDequeue} */
         this.dequeue = options.dequeue;
         this.initialize();
     }
@@ -124,7 +124,7 @@ class SiapCmd {
      * Get registered command.
      *
      * @param {string} name Name
-     * @returns {SiapCmd}
+     * @returns {SipdCmd}
      */
     static get(name) {
         for (const cmd of this.commands) {
@@ -161,7 +161,7 @@ class SiapCmd {
     /**
      * Get available commands.
      *
-     * @returns {SiapCmd[]}
+     * @returns {SipdCmd[]}
      */
     static get commands() {
         if (!this._commands) {
@@ -171,4 +171,4 @@ class SiapCmd {
     }
 }
 
-module.exports = SiapCmd;
+module.exports = SipdCmd;

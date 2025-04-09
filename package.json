@@ -1,7 +1,7 @@
 {
-  "name": "siap-bridge",
-  "version": "1.0.0",
-  "description": "SIAP automation tools",
+  "name": "sipd-tu-bridge",
+  "version": "3.0.0",
+  "description": "SIPD Penatausahaan Kemendagri automation tools",
   "author": "Toha <tohenk@yahoo.com>",
   "license": "MIT",
   "main": "app.js",

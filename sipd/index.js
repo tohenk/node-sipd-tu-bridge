@@ -26,9 +26,9 @@ const util = require('util');
 const Queue = require('@ntlab/work/queue');
 const WebRobot = require('@ntlab/webrobot');
 const { By, error } = require('selenium-webdriver');
-const debug = require('debug')('siap:core');
+const debug = require('debug')('sipd:core');
 
-class Siap extends WebRobot {
+class Sipd extends WebRobot {
 
     LOGIN_FORM = '//div[contains(@class,"auth-box")]/form'
     CAPTCHA_MODAL = '//div[contains(@class,"chakra-modal__body")]/h4[contains(text(),"CAPTCHA")]/..'
@@ -39,8 +39,8 @@ class Siap extends WebRobot {
         this.delay = this.options.delay || 500;
         this.opdelay = this.options.opdelay || 400;
         this.year = this.options.year || new Date().getFullYear();
-        super.constructor.expectErr(SiapAnnouncedError);
-        super.constructor.expectErr(SiapRetryError);
+        super.constructor.expectErr(SipdAnnouncedError);
+        super.constructor.expectErr(SipdRetryError);
     }
 
     setState(states) {
@@ -89,7 +89,7 @@ class Siap extends WebRobot {
                 [w => this.dismissUpdate()],
             ])
             .then(() => resolve())
-            .catch(err => reject(new SiapRetryError(err instanceof Error ? err.message : err)));
+            .catch(err => reject(new SipdRetryError(err instanceof Error ? err.message : err)));
         });
     }
 
@@ -231,7 +231,7 @@ class Siap extends WebRobot {
             [w => el.getAttribute('aria-controls')],
             [w => this.findElement(By.id(w.getRes(1)))],
             [w => w.getRes(2).findElements(By.xpath(`.//*[contains(.,"${value}")]`))],
-            [w => Promise.reject(SiapAnnouncedError.create(util.format(message ? message : 'Pilihan %s tidak tersedia!', value))), w => w.getRes(3).length === 0],
+            [w => Promise.reject(SipdAnnouncedError.create(util.format(message ? message : 'Pilihan %s tidak tersedia!', value))), w => w.getRes(3).length === 0],
             [w => w.getRes(3)[0].click(), w => w.getRes(3).length],
         ]);
     }
@@ -402,7 +402,7 @@ class Siap extends WebRobot {
     }
 }
 
-class SiapAnnouncedError extends Error {
+class SipdAnnouncedError extends Error {
 
     toString() {
         return this.message;
@@ -413,7 +413,7 @@ class SiapAnnouncedError extends Error {
     }
 
     static create(message, queue = null) {
-        const err = new SiapAnnouncedError(message);
+        const err = new SipdAnnouncedError(message);
         if (queue) {
             err._queue = queue;
         }
@@ -421,7 +421,7 @@ class SiapAnnouncedError extends Error {
     }
 }
 
-class SiapRetryError extends Error {
+class SipdRetryError extends Error {
 }
 
-module.exports = {Siap, SiapAnnouncedError, SiapRetryError};
+module.exports = {Sipd, SipdAnnouncedError, SipdRetryError};

@@ -23,9 +23,9 @@
  */
 
 const Work = require('@ntlab/work/work');
-const SiapQueue = require('../queue');
-const SiapSession = require('./session');
-const { SiapAnnouncedError } = require('../siap');
+const SipdQueue = require('../queue');
+const SipdSession = require('./session');
+const { SipdAnnouncedError } = require('../sipd');
 
 /**
  * Work finished callback. The callback must returns an array of works to do.
@@ -37,11 +37,11 @@ const { SiapAnnouncedError } = require('../siap');
  */
 
 /**
- * Siap bridge base class.
+ * Sipd bridge base class.
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SiapBridge {
+class SipdBridge {
 
     STATE_NONE = 1
     STATE_SELF_TEST = 2
@@ -149,7 +149,7 @@ class SiapBridge {
     /**
      * Get sessions.
      *
-     * @returns {SiapSession[]}
+     * @returns {SipdSession[]}
      */
     getSessions() {
         return Object.values(this.sessions);
@@ -159,17 +159,17 @@ class SiapBridge {
      * Create a session.
      *
      * @param {object} options Session constructor options
-     * @returns {SiapSession}
+     * @returns {SipdSession}
      */
     createSession(options) {
-        return new SiapSession(options);
+        return new SipdSession(options);
     }
 
     /**
      * Get session for a name.
      *
      * @param {string} name Session name
-     * @returns {SiapSession}
+     * @returns {SipdSession}
      */
     getSession(name) {
         name = name.replace(/\s/g, '');
@@ -199,7 +199,7 @@ class SiapBridge {
     /**
      * Check if queue has a role defined.
      *
-     * @param {SiapQueue} queue Queue to check
+     * @param {SipdQueue} queue Queue to check
      * @returns {Promise<void>}
      */
     checkRole(queue) {
@@ -258,14 +258,14 @@ class SiapBridge {
      * Do the operation as requested role and returns the session.
      *
      * @param {string} role User role
-     * @returns {Promise<SiapSession>}
+     * @returns {Promise<SipdSession>}
      */
     doAs(role) {
-        let user = this.getUser(role);
+        const user = this.getUser(role);
         if (!user) {
             return Promise.reject(util.format('Role not found: %s!', role));
         }
-        let cred = this.getCredential(user);
+        const cred = this.getCredential(user);
         if (!cred) {
             return Promise.reject(util.format('User has no credential: %s!', user));
         }
@@ -291,10 +291,10 @@ class SiapBridge {
         }
         return Work.works(_works, {
             done: (w, err) => {
-                if (err instanceof SiapAnnouncedError && err._queue) {
+                if (err instanceof SipdAnnouncedError && err._queue) {
                     const queue = err._queue;
-                    const callbackQueue = SiapQueue.createCallbackQueue({id: queue.getMappedData('info.id'), error: err.message}, queue.callback);
-                    SiapQueue.addQueue(callbackQueue);
+                    const callbackQueue = SipdQueue.createCallbackQueue({id: queue.getMappedData('info.id'), error: err.message}, queue.callback);
+                    SipdQueue.addQueue(callbackQueue);
                 }
                 if (typeof callback === 'function') {
                     return Work.works(callback(w, err));
@@ -331,4 +331,4 @@ class SiapBridge {
     }
 }
 
-module.exports = SiapBridge;
+module.exports = SipdBridge;

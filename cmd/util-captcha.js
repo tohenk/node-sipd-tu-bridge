@@ -22,15 +22,15 @@
  * SOFTWARE.
  */
 
-const SiapCmd = require('.');
-const SiapQueue = require('../queue');
+const SipdCmd = require('.');
+const SipdQueue = require('../queue');
 
-class SiapCmdUtilCaptcha extends SiapCmd {
+class SipdCmdUtilCaptcha extends SipdCmd {
 
     consume(payload) {
         const { data } = payload;
-        return this.dequeue.createQueue({type: SiapQueue.QUEUE_CAPTCHA, data});
+        return this.dequeue.createQueue({type: SipdQueue.QUEUE_CAPTCHA, data});
     }
 }
 
-module.exports = SiapCmdUtilCaptcha;
+module.exports = SipdCmdUtilCaptcha;

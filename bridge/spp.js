@@ -22,16 +22,16 @@
  * SOFTWARE.
  */
 
-const SiapBridge = require('.');
-const SiapQueue = require('../queue');
-const SiapSppSession = require('./session/spp');
+const SipdBridge = require('.');
+const SipdQueue = require('../queue');
+const SipdSppSession = require('./session/spp');
 
-class SiapSppBridge extends SiapBridge {
+class SipdSppBridge extends SipdBridge {
 
     alwaysEditRekanan = false
 
     createSession(options) {
-        return new SiapSppSession(options);
+        return new SipdSppSession(options);
     }
 
     createSpp(queue) {
@@ -58,8 +58,8 @@ class SiapSppBridge extends SiapBridge {
                     if (queue.SPM) {
                         data.spm = queue.SPM;
                     }
-                    const callbackQueue = SiapQueue.createCallbackQueue(data, queue.callback);
-                    SiapQueue.addQueue(callbackQueue);
+                    const callbackQueue = SipdQueue.createCallbackQueue(data, queue.callback);
+                    SipdQueue.addQueue(callbackQueue);
                 }
                 resolve(queue.SPP ? queue.SPP : false);
             })],
@@ -71,4 +71,4 @@ class SiapSppBridge extends SiapBridge {
     }
 }
 
-module.exports = SiapSppBridge;
+module.exports = SipdSppBridge;

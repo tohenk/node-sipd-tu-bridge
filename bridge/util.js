@@ -22,11 +22,11 @@
  * SOFTWARE.
  */
 
-const SiapBridge = require('.');
-const SiapSession = require('./session');
+const SipdBridge = require('.');
+const SipdSession = require('./session');
 const Queue = require('@ntlab/work/queue');
 
-class SiapUtilBridge extends SiapBridge {
+class SipdUtilBridge extends SipdBridge {
 
     fetchCaptcha(queue) {
         const sess = this.getSessions()[0];
@@ -61,7 +61,7 @@ class SiapUtilBridge extends SiapBridge {
     /**
      * Get captcha images.
      *
-     * @param {SiapSession} sess Session object
+     * @param {SipdSession} sess Session object
      * @param {number} count Number of captcha to fetch
      * @returns {Promise<any>}
      */
@@ -81,4 +81,4 @@ class SiapUtilBridge extends SiapBridge {
     }
 }
 
-module.exports = SiapUtilBridge;
+module.exports = SipdUtilBridge;

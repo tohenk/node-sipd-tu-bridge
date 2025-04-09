@@ -22,15 +22,15 @@
  * SOFTWARE.
  */
 
-const SiapCmd = require('.');
-const SiapQueue = require('../queue');
+const SipdCmd = require('.');
+const SipdQueue = require('../queue');
 
-class SiapCmdUtilNoop extends SiapCmd {
+class SipdCmdUtilNoop extends SipdCmd {
 
     consume(payload) {
         const { data } = payload;
-        return this.dequeue.createQueue({type: SiapQueue.QUEUE_NOOP, data});
+        return this.dequeue.createQueue({type: SipdQueue.QUEUE_NOOP, data});
     }
 }
 
-module.exports = SiapCmdUtilNoop;
+module.exports = SipdCmdUtilNoop;

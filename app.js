@@ -29,7 +29,7 @@ Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
 Cmd.addVar('mode', 'm', 'Set bridge mode, spp or util', 'bridge-mode');
 Cmd.addVar('config', 'c', 'Set configuration file', 'filename');
 Cmd.addVar('port', 'p', 'Set server port to listen', 'port');
-Cmd.addVar('url', '', 'Set Siap url', 'url');
+Cmd.addVar('url', '', 'Set Sipd url', 'url');
 Cmd.addVar('profile', '', 'Use profile for operation', 'profile');
 Cmd.addBool('clean', '', 'Clean profile directory');
 Cmd.addBool('queue', 'q', 'Enable queue saving and loading');
@@ -43,24 +43,24 @@ if (!Cmd.parse() || (Cmd.get('help') && usage())) {
 const fs = require('fs');
 const util = require('util');
 const Work = require('@ntlab/work/work');
-const SiapCmd = require('./cmd');
-const SiapNotifier = require('./notifier');
-const SiapQueue = require('./queue');
-const SiapBridge = require('./bridge');
-const SiapSppBridge = require('./bridge/spp');
-const SiapUtilBridge = require('./bridge/util');
-const debug = require('debug')('siap:main');
+const SipdCmd = require('./cmd');
+const SipdNotifier = require('./notifier');
+const SipdQueue = require('./queue');
+const SipdBridge = require('./bridge');
+const SipdSppBridge = require('./bridge/spp');
+const SipdUtilBridge = require('./bridge/util');
+const debug = require('debug')('sipd:main');
 const { Socket } = require('socket.io');
 
 class App {
 
-    VERSION = 'SIAP-BRIDGE-3.0'
+    VERSION = 'SIPD-BRIDGE-3.0'
 
     BRIDGE_SPP = 'spp'
     BRIDGE_UTIL = 'util'
 
     config = {}
-    /** @type {SiapBridge[]} */
+    /** @type {SipdBridge[]} */
     bridges = []
     /** @type {Socket[]} */
     sockets = []
@@ -110,7 +110,7 @@ class App {
                 // add default bridges
                 if (!this.configs) {
                     const year = new Date().getFullYear();
-                    this.configs = {[`siap-${year}`]: {year}};
+                    this.configs = {[`sipd-${year}`]: {year}};
                 }
                 break;
         }
@@ -192,7 +192,7 @@ class App {
     }
 
     createDequeuer() {
-        this.dequeue = SiapQueue.createDequeuer();
+        this.dequeue = SipdQueue.createDequeuer();
         this.dequeue.setInfo({
             version: this.VERSION,
             ready: () => this.ready ? 'Yes' : 'No',
@@ -201,18 +201,18 @@ class App {
         this.dequeue.createQueue = data => {
             let queue;
             switch (data.type) {
-                case SiapQueue.QUEUE_SPP:
-                    queue = SiapQueue.createSppQueue(data.data, data.callback);
+                case SipdQueue.QUEUE_SPP:
+                    queue = SipdQueue.createSppQueue(data.data, data.callback);
                     queue.maps = this.config.maps;
                     queue.info = queue.getMappedData('info.title');
                     queue.retry = true;
                     break;
-                case SiapQueue.QUEUE_CAPTCHA:
-                    queue = SiapQueue.createCaptchaQueue(data.data);
+                case SipdQueue.QUEUE_CAPTCHA:
+                    queue = SipdQueue.createCaptchaQueue(data.data);
                     queue.info = null;
                     break;
-                case SiapQueue.QUEUE_NOOP:
-                    queue = SiapQueue.createNoopQueue(data.data);
+                case SipdQueue.QUEUE_NOOP:
+                    queue = SipdQueue.createNoopQueue(data.data);
                     queue.info = null;
                     break;
             }
@@ -220,11 +220,11 @@ class App {
                 if (data.id) {
                     queue.id = data.id;
                 }
-                if (queue.type === SiapQueue.QUEUE_SPP && SiapQueue.hasPendingQueue(queue)) {
+                if (queue.type === SipdQueue.QUEUE_SPP && SipdQueue.hasPendingQueue(queue)) {
                     return {message: `SPP ${queue.info} sudah dalam antrian!`};
                 }
                 console.log('%s: %s', queue.type.toUpperCase(), queue.info);
-                return SiapQueue.addQueue(queue);
+                return SipdQueue.addQueue(queue);
             }
         }
         this.dequeue
@@ -271,10 +271,10 @@ class App {
             let bridge;
             switch (this.config.mode) {
                 case this.BRIDGE_SPP:
-                    bridge = new SiapSppBridge(config);
+                    bridge = new SipdSppBridge(config);
                     break;
                 case this.BRIDGE_UTIL:
-                    bridge = new SiapUtilBridge(config);
+                    bridge = new SipdUtilBridge(config);
                     break;
             }
             if (bridge) {
@@ -282,7 +282,7 @@ class App {
                 bridge.year = config.year;
                 bridge.onState = () => this.handleNotify();
                 this.bridges.push(bridge);
-                console.log('Siap bridge created: %s', name);
+                console.log('Sipd bridge created: %s', name);
             }
         });
     }
@@ -300,7 +300,7 @@ class App {
                 opts.cors = {origin: '*'};
             }
             const io = new Server(http, opts);
-            io.of('/siap')
+            io.of('/sipd')
                 .on('connection', socket => {
                     this.handleConnection(socket);
                 })
@@ -338,7 +338,7 @@ class App {
 
     registerCommands() {
         const prefixes = {[this.BRIDGE_SPP]: 'spp', [this.BRIDGE_UTIL]: 'util'};
-        SiapCmd.register(this, prefixes[this.config.mode]);
+        SipdCmd.register(this, prefixes[this.config.mode]);
     }
 
     checkReadiness() {
@@ -361,7 +361,7 @@ class App {
 
     handleConnection(socket) {
         console.log('Client connected: %s', socket.id);
-        SiapCmd.handle(socket);
+        SipdCmd.handle(socket);
     }
 
     handleNotify() {
@@ -441,7 +441,7 @@ class App {
         const handlers = this.getQueueHandler(queue, false);
         if (handlers.length === 0) {
             debug('No handler', queue);
-            queue.setStatus(SiapQueue.STATUS_SKIPPED);
+            queue.setStatus(SipdQueue.STATUS_SKIPPED);
         }
         const bridges = handlers.filter(b => this.isBridgeReady(b));
         return bridges.length ? true : false;
@@ -457,8 +457,8 @@ class App {
                 }
             }
             return queue && (
-                queue.type === SiapQueue.QUEUE_CALLBACK ||
-                queue.status === SiapQueue.STATUS_SKIPPED ||
+                queue.type === SipdQueue.QUEUE_CALLBACK ||
+                queue.status === SipdQueue.STATUS_SKIPPED ||
                 this.isBridgeIdle(queue));
         }
         return false;
@@ -469,10 +469,10 @@ class App {
     }
 
     processQueue(queue) {
-        if (queue.type === SiapQueue.QUEUE_CALLBACK) {
-            return SiapNotifier.notify(queue);
+        if (queue.type === SipdQueue.QUEUE_CALLBACK) {
+            return SipdNotifier.notify(queue);
         }
-        /** @type {SiapBridge} */
+        /** @type {SipdBridge} */
         let bridge = queue.bridge;
         if (!bridge) {
             const bridges = this.getQueueHandler(queue);
@@ -486,11 +486,11 @@ class App {
         }
         if (bridge) {
             switch (queue.type) {
-                case SiapQueue.QUEUE_SPP:
+                case SipdQueue.QUEUE_SPP:
                     return bridge.createSpp(queue);
-                case SiapQueue.QUEUE_CAPTCHA:
+                case SipdQueue.QUEUE_CAPTCHA:
                     return bridge.fetchCaptcha(queue);
-                case SiapQueue.QUEUE_NOOP:
+                case SipdQueue.QUEUE_NOOP:
                     return bridge.noop();
             }
         }
@@ -538,7 +538,7 @@ class App {
                             break;
                     }
                     if (command) {
-                        const queue = SiapCmd.get(command).consume({data: data ? data : {}});
+                        const queue = SipdCmd.get(command).consume({data: data ? data : {}});
                         this.dequeue.on('queue-done', q => {
                             if (q.id === queue.id) {
                                 process.exit();
