@@ -187,6 +187,18 @@ class App {
                 }
                 return Promise.resolve();
             }
+            this.config.getPath = function(path) {
+                let rootPath = this.rootPath;
+                if (rootPath) {
+                    if (rootPath.substr(-1) === '/') {
+                        rootPath = rootPath.substr(0, rootPath.length - 1);
+                    }
+                    if (rootPath) {
+                        path = rootPath + path;
+                    }
+                }
+                return path;
+            }
         }
         return true;
     }
@@ -294,6 +306,9 @@ class App {
         const port = Cmd.get('port') || 4000;
         if (serve) {
             const opts = {};
+            if (this.config.rootPath) {
+                opts.path = this.config.getPath('/socket.io/');
+            }
             if (this.config.cors) {
                 opts.cors = this.config.cors;
             } else {
