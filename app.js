@@ -315,11 +315,24 @@ class App {
                 opts.cors = {origin: '*'};
             }
             const io = new Server(http, opts);
-            io.of('/sipd')
+            const ns = io.of('/sipd')
                 .on('connection', socket => {
                     this.handleConnection(socket);
                 })
             ;
+            if (this.config.token) {
+                ns.use((socket, next) => {
+                    const auth = socket.handshake.headers.authorization;
+                    if (auth) {
+                        const token = auth.replace('Bearer ', '');
+                        if (token === this.config.token) {
+                            return next();
+                        }
+                    }
+                    debug('Client %s is using invalid authorization', socket.id);
+                    next(new Error('Invalid authorization'));
+                });
+            }
         }
         http.listen(port, () => {
             console.log('Application ready on port %s...', port);
