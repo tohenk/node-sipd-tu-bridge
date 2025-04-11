@@ -117,7 +117,7 @@ class SipdPage {
                     if (res) {
                         resolve();
                     } else {
-                        setTimeout(f, 100);
+                        setTimeout(f, this.parent.loopdelay);
                     }
                 })
                 .catch(err => reject(err));
@@ -200,7 +200,7 @@ class SipdPage {
     search(term, key = null) {
         return this.works([
             [w => Promise.reject('Search not initialized!'), w => !this._search],
-            [w => this._search_toggler.click(), w => this._search_toggler],
+            [w => this.parent.clickExpanded(this._search_toggler), w => this._search_toggler],
             [w => this._search_filter.click(), w => this._search_filter && key],
             [w => this._search_filter.findElements(By.xpath(`./../*/*/button/span/p[text()="${key}"]/../..`)), w => this._search_filter && key],
             [w => Promise.reject(`No filter key found for ${key}!`), w => this._search_filter && key && !w.getRes(3).length],

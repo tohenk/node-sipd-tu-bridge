@@ -158,6 +158,7 @@ class SipdSppSession extends SipdSession {
                     if (states.okay) {
                         result = el;
                         queue[nomor] = noSpp;
+                        queue[nomor + '_TGL'] = tglSpp;
                         queue.STATUS = statusSpp;
                         reject(SipdPage.stop());
                     } else {
@@ -171,7 +172,7 @@ class SipdSppSession extends SipdSession {
 
     querySpp(queue, options) {
         options = options || {};
-        const title = options.title || 'Surat Permintaan Pembayaran (SPP) | Langsung';
+        const title = options.title || 'Surat Permintaan Pembayaran (SPP) | LS';
         const fVerified = options.flags === undefined ? true : (options.flags & this.VERIFIED) === this.VERIFIED;
         const fUnverified = options.flags === undefined ? true : (options.flags & this.UNVERIFIED) === this.UNVERIFIED;
         const fDeleted = options.flags === undefined ? true : (options.flags & this.DELETED) === this.DELETED;
@@ -184,10 +185,10 @@ class SipdSppSession extends SipdSession {
 
     checkSpp(queue) {
         return this.works([
-            [w => this.sipd.navigate('Pengeluaran', 'SPP', 'Pembuatan', 'LS')],
+            [w => this.sipd.navigate('Pengeluaran', 'SPP', 'LS')],
             [w => this.querySpp(queue)],
             [w => this.sipd.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w => !w.getRes(1)],
-            [w => this.sipd.waitAndClick(By.xpath('//a/span/p[text()="SPP LS (Barang & Jasa)"]/../..')), w => !w.getRes(1)],
+            [w => this.sipd.waitAndClick(By.xpath('//a/span/p[text()="Barang dan Jasa"]/../..')), w => !w.getRes(1)],
             [w => Promise.resolve(this.spp = {}), w => !w.getRes(1)],
             [w => this.fillForm(queue, 'spp',
                 By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
@@ -200,20 +201,19 @@ class SipdSppSession extends SipdSession {
     }
 
     checkVerifikasiSpp(queue, status = 'Belum Diverifikasi') {
-        const title = 'Surat Permintaan Pembayaran (SPP) | Verifikasi';
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
-            [w => this.sipd.navigate('Pengeluaran', 'SPP', 'Verifikasi')],
-            [w => this.querySpp(queue, {title, flags: this.VERIFIED | this.UNVERIFIED})],
-            [w => w.getRes(2).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(2) && queue.STATUS === status],
+            [w => this.sipd.navigate('Pengeluaran', 'SPP', 'LS')],
+            [w => this.querySpp(queue, {flags: this.VERIFIED | this.UNVERIFIED})],
+            [w => w.getRes(2).findElement(By.xpath('./td[7]/div/button')), w => w.getRes(2) && queue.STATUS === status],
             [w => w.getRes(3).click(), w => w.getRes(2) && queue.STATUS === status],
             [w => w.getRes(3).findElement(By.xpath('../div/div/button/span/p[text()="Verifikasi"]/../..')), w => w.getRes(2) && queue.STATUS === status],
             [w => w.getRes(5).click(), w => w.getRes(2) && queue.STATUS === status],
             [w => this.fillForm(queue, 'verifikasi-spp',
-                By.xpath('//header[text()="Verifikasi (SPP)"]/../div[contains(@class,"chakra-modal__body")]'),
+                By.xpath('//header[contains(text(),"Konfirmasi")]/../div[contains(@class,"chakra-modal__body")]'),
                 By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(2) && queue.STATUS === status],
             [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(2) && queue.STATUS === status],
-            [w => this.querySpp(queue, {title, flags: this.VERIFIED}), w => w.getRes(2) && queue.STATUS === status],
+            [w => this.querySpp(queue, {flags: this.VERIFIED}), w => w.getRes(2) && queue.STATUS === status],
         ]);
     }
 
@@ -247,7 +247,7 @@ class SipdSppSession extends SipdSession {
             [w => w.getRes(6).click(), w => w.getRes(5) && queue.STATUS === status],
             [w => w.getRes(6).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(5) && queue.STATUS === status],
             [w => w.getRes(8).click(), w => w.getRes(5) && queue.STATUS === status],
-            [w => this.sipd.waitAndClick(By.xpath('//header[text()="Persetujuan SPM"]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(5) && queue.STATUS === status],
+            [w => this.sipd.waitAndClick(By.xpath('//header[contains(text(),"Persetujuan SPM")]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(5) && queue.STATUS === status],
             [w => this.sipd.waitLoader(), w => w.getRes(5) && queue.STATUS === status],
             [w => this.querySpm(queue, this.VERIFIED), w => w.getRes(5) && queue.STATUS === status],
         ]);

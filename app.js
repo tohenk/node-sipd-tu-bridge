@@ -178,6 +178,7 @@ class App {
                         });
                         p.on('exit', code => {
                             fs.rmSync(captcha);
+                            debug('Resolved captcha', stdout);
                             resolve({code, stdout, stderr});
                         });
                         p.on('error', err => {

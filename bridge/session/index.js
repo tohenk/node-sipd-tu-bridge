@@ -27,7 +27,7 @@ const path = require('path');
 const Queue = require('@ntlab/work/queue');
 const { Sipd, SipdAnnouncedError } = require('../../sipd');
 const SipdPage = require('../../sipd/page');
-const { By } = require('selenium-webdriver');
+const { By, Key } = require('selenium-webdriver');
 const debug = require('debug')('sipd:session');
 
 class SipdSession {
@@ -266,33 +266,11 @@ class SipdSession {
     fillDatePicker(el, value) {
         return this.works([
             [w => Promise.reject(`Date "${value}" is not valid!`), w => value instanceof Date && isNaN(value)],
-            [w => el.click()],
+            [w => this.sipd.clickWait(el)],
             [w => el.getAttribute('readonly')],
-            [w => this.sipd.findElements(By.xpath('//div[contains(@class,"flatpickr-calendar")]'))],
-            [w => new Promise((resolve, reject) => {
-                const q = new Queue([...w.getRes(3)], dtpicker => {
-                    this.works([
-                        [x => dtpicker.getAttribute('class')],
-                        [x => Promise.resolve(x.getRes(0).indexOf('open') >= 0)],
-                        [x => dtpicker.findElement(By.xpath('.//input[@aria-label="Year"]')), x => x.getRes(1)],
-                        [x => x.getRes(2).getAttribute('value'), x => x.getRes(1)],
-                        [x => dtpicker.findElement(By.xpath('.//select[@aria-label="Month"]')), x => x.getRes(1)],
-                        [x => this.sipd.fillInput(x.getRes(2), value.getFullYear()), x => x.getRes(1) && x.getRes(3) != value.getFullYear()],
-                        [x => this.sipd.fillSelect(x.getRes(4), value.getMonth() + 1), x => x.getRes(1)],
-                        [x => dtpicker.findElement(By.xpath(`.//span[contains(@class,"flatpickr-day") and text()="${value.getDate()}"]`)), x => x.getRes(1)],
-                        [x => x.getRes(7).click(), x => x.getRes(1)],
-                    ])
-                    .then(() => q.next())
-                    .catch(err => reject(err));
-                });
-                q.once('done', () => resolve());
-            })],
-            [w => this.sipd.getDriver().executeScript(
-                function(el) {
-                    if (el._flatpickr) {
-                        el._flatpickr.close();
-                    }
-                }, el), w => w.getRes(2)],
+            [w => this.flatpickrGet()],
+            [w => this.flatpickrPick(w.getRes(3), value)],
+            [w => el.sendKeys(Key.TAB), w => w.getRes(2)],
             [w => el.getAttribute('value'), w => !w.getRes(2)],
             [w => Promise.resolve(this.getDate(w.getRes(6))), w => !w.getRes(2)],
             [w => Promise.reject(`Date ${w.getRes(7)} is not expected of ${value}!`), w => !w.getRes(2) && this.dateSerial(value) != this.dateSerial(w.getRes(7))],
@@ -412,6 +390,46 @@ class SipdSession {
                 q.once('done', () => resolve());
             })],
             [w => Promise.reject(`Tidak dapat mengalokasikan ${value} pada rekening ${rekening}!`), w => !allocated],
+        ]);
+    }
+
+    flatpickrGet() {
+        return this.works([
+            [w => this.sipd.findElements(By.xpath('//div[contains(@class,"flatpickr-calendar")]'))],
+            [w => new Promise((resolve, reject) => {
+                let res = null;
+                const q = new Queue([...w.getRes(0)], dtpicker => {
+                    this.works([
+                        [x => dtpicker.getAttribute('class')],
+                        [x => Promise.resolve(res = dtpicker), x => x.getRes(0).indexOf('open') >= 0],
+                    ])
+                    .then(() => q.next())
+                    .catch(err => reject(err));
+                });
+                q.once('done', () => resolve(res));
+            })],
+        ]);
+    }
+
+    flatpickrPick(el, date) {
+        return this.works([
+            [w => el.findElement(By.xpath('.//input[@aria-label="Year"]'))],
+            [w => w.getRes(0).getAttribute('value')],
+            [w => this.sipd.fillInput(w.getRes(0), date.getFullYear()), w => w.getRes(1) != date.getFullYear()],
+            [w => el.findElement(By.xpath('.//select[@aria-label="Month"]'))],
+            [w => this.sipd.fillSelect(w.getRes(3), date.getMonth())],
+            [w => el.findElements(By.xpath(`.//span[contains(@class,"flatpickr-day") and text()="${date.getDate()}"]`))],
+            [w => new Promise((resolve, reject) => {
+                const q = new Queue([...w.getRes(5)], flatpickrDay => {
+                    this.works([
+                        [x => flatpickrDay.getAttribute('class')],
+                        [x => flatpickrDay.click(), x => x.getRes(0).indexOf('flatpickr-disabled') < 0],
+                    ])
+                    .then(() => q.next())
+                    .catch(err => reject(err));
+                });
+                q.once('done', () => resolve());
+            })],
         ]);
     }
 
@@ -649,7 +667,36 @@ class SipdSession {
         if (date && (!isNaN(date) || typeof date === 'string')) {
             if (typeof date === 'string' && date.indexOf(' ') > 0) {
                 const dt = date.split(' ');
-                if (dt[1] === '00:00:00') {
+                if (dt.length === 3) {
+                    let d, m, y;
+                    for (const part of dt) {
+                        if (!isNaN(part)) {
+                            if (part.length === 4) {
+                                y = parseInt(part);
+                            } else {
+                                d = parseInt(part);
+                            }
+                        } else {
+                            m = [
+                                'Januari',
+                                'Februari',
+                                'Maret',
+                                'April',
+                                'Mei',
+                                'Juni',
+                                'Juli',
+                                'Agustus',
+                                'September',
+                                'Oktober',
+                                'November',
+                                'Desember',
+                            ].indexOf(part) + 1;
+                        }
+                    }
+                    if (d !== undefined && m !== undefined && y !== undefined) {
+                        date = [y.toString(), m.toString().padStart(2, '0'), d.toString().padStart(2, '0')].join('-');
+                    }
+                } else if (dt[1] === '00:00:00') {
                     date = dt[0];
                 }
             }

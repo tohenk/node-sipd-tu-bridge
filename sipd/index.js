@@ -36,9 +36,11 @@ class Sipd extends WebRobot {
     state = {}
 
     initialize() {
+        this.year = this.options.year || new Date().getFullYear();
         this.delay = this.options.delay || 500;
         this.opdelay = this.options.opdelay || 400;
-        this.year = this.options.year || new Date().getFullYear();
+        this.typedelay = this.options.typedelay || 5;
+        this.loopdelay = this.options.loopdelay || 25;
         super.constructor.expectErr(SipdAnnouncedError);
         super.constructor.expectErr(SipdRetryError);
     }
@@ -86,6 +88,7 @@ class Sipd extends WebRobot {
                 [w => this.selectAccount(role), w => force || !w.getRes(1)],
                 [w => this.waitCaptcha(), w => force || !w.getRes(1)],
                 [w => this.waitLoader(), w => force || !w.getRes(1)],
+                [w => this.waitSidebar()],
                 [w => this.dismissUpdate()],
             ])
             .then(() => resolve())
@@ -128,7 +131,7 @@ class Sipd extends WebRobot {
                             if (elements.length) {
                                 resolve(elements[0]);
                             } else {
-                                setTimeout(f, 100);
+                                setTimeout(f, this.loopdelay);
                             }
                         })
                         .catch(err => reject(err));
@@ -147,7 +150,7 @@ class Sipd extends WebRobot {
                     this.works([
                         [x => el.getAttribute('data-index')],
                         [x => el.sendKeys(code.substr(parseInt(x.getRes(0)), 1))],
-                        [x => this.sleep(10)],
+                        [x => this.sleep(this.typedelay)],
                     ])
                     .then(() => q.next())
                     .catch(err => reject(err));
@@ -195,6 +198,7 @@ class Sipd extends WebRobot {
                 }
             }), w => w.getRes(1)],
             [w => this.getDriver().switchTo().window(w.getRes(7)), w => w.getRes(1)],
+            [w => this.waitPage(), w => w.getRes(1)],
         ]);
     }
 
@@ -242,6 +246,43 @@ class Sipd extends WebRobot {
             [w => el.findElement(By.xpath('..')), w => w.getRes(0) != value],
             [w => w.getRes(1).click(), w => w.getRes(0) != value],
         ]);
+    }
+
+    clickWait(el) {
+        return this.works([
+            [w => el.click()],
+            [w => this.sleep(this.opdelay)],
+        ]);
+    }
+
+    clickExpanded(el) {
+        let click = true;
+        return new Promise((resolve, reject) => {
+            const f = () => {
+                this.works([
+                    [w => this.clickWait(el), w => click],
+                    [w => el.getAttribute('aria-expanded')],
+                ])
+                .then(res => {
+                    click = false;
+                    if (res === 'true') {
+                        resolve();
+                    } else {
+                        setTimeout(f, this.loopdelay);
+                    }
+                })
+                .catch(err => reject(err));
+            }
+            f();
+        });
+    }
+
+    waitPage() {
+        return this.waitForPresence(By.id('cw-wwwig-gw'));
+    }
+
+    waitSidebar() {
+        return this.waitForPresence(By.xpath('//div[@class="simplebar-content"]/ul/div/div[contains(@class,"animate-pulse")]'), false, 0);
     }
 
     waitLoader() {
@@ -292,7 +333,7 @@ class Sipd extends WebRobot {
                 ])
                 .then(result => {
                     if (result) {
-                        setTimeout(f, 100);
+                        setTimeout(f, this.loopdelay);
                     } else {
                         resolve(res);
                     }
@@ -316,72 +357,68 @@ class Sipd extends WebRobot {
      * @returns Promise
      */
     navigate(...menus) {
-        return new Promise((resolve, reject) => {
-            let restart, waitLoader;
-            const dep = (s, n) => Array.from({length: n}, () => s).join('/');
-            const f = () => {
-                restart = false;
-                let res, level = 0, length = menus.length;
-                const items = [...menus];
-                const q = new Queue(items, menu => {
-                    let root, selector, loader, parent = res ? res : this.getDriver(), n = 3;
-                    const last = ++level === length;
-                    switch (level) {
-                        case 1:
-                            root = '//div[@class="simplebar-content"]/ul/li';
-                            if (!waitLoader) {
-                                waitLoader = true;
-                                loader = '//div[@class="simplebar-content"]/ul/div/div[contains(@class,"animate-pulse")]';
-                            }
-                            break;
-                        case 2:
-                            root = './../div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div/div/div/div';
-                            if (!last) {
+        return this.works([
+            [w => this.waitSidebar()],
+            [w => new Promise((resolve, reject) => {
+                let restart;
+                const dep = (s, n) => Array.from({length: n}, () => s).join('/');
+                const f = () => {
+                    restart = false;
+                    let res, level = 0, length = menus.length;
+                    const q = new Queue([...menus], menu => {
+                        let root, selector, parent = res ? res : this.getDriver(), n = 3;
+                        const last = ++level === length;
+                        switch (level) {
+                            case 1:
+                                root = '//div[@class="simplebar-content"]/ul/li';
+                                break;
+                            case 2:
+                                root = './../div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div/div/div/div';
+                                if (!last) {
+                                    n = 4;
+                                }
+                                break;
+                            case 3:
+                                root = './../../../div/div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div';
                                 n = 4;
-                            }
-                            break;
-                        case 3:
-                            root = './../../../div/div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div';
-                            break;
-                        default:
-                            root = './../../../../div/div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div';
-                            n = 4;
-                            break;
-                    }
-                    selector = `/a/${dep('*', n)}[text()="${menu}"]`;
-                    debug(`Menu: ${level} ${root + selector}`);
-                    let clicked = false;
-                    this.works([
-                        [w => this.waitForPresence(By.xpath(loader), false, 0), w => loader],
-                        [w => parent.findElement(By.xpath(root + selector))],
-                        [w => w.getRes(1).findElement(By.xpath(dep('..', n)))],
-                        [w => w.getRes(1).getAttribute('class')],
-                        [w => w.getRes(2).getAttribute('class')],
-                        [w => Promise.resolve(level > 1 ? w.getRes(3) : w.getRes(4))],
-                        [w => w.getRes(2).click(), w => w.getRes(5).indexOf('false') >= 0],
-                        [w => Promise.resolve(clicked = true), w => w.getRes(5).indexOf('false') >= 0],
-                        [w => Promise.resolve(res = w.getRes(2))],
-                    ])
-                    .then(() => {
-                        if (clicked && !last) {
-                            restart = true;
-                            q.done();
-                        } else {
-                            q.next();
+                                break;
                         }
-                    })
-                    .catch(err => reject(err));
-                });
-                q.once('done', () => {
-                    if (restart) {
-                        f();
-                    } else {
-                        setTimeout(() => resolve(res), this.opdelay);
-                    }
-                });
-            }
-            f();
-        });
+                        let clicked = false;
+                        this.works([
+                            [w => parent.findElements(By.xpath(root)), w => level === 3],
+                            [w => Promise.resolve(--n), w => level === 3 && w.getRes(0).length === 1],
+                            [w => Promise.resolve(selector = `/a/${dep('*', n)}[text()="${menu}"]`)],
+                            [w => Promise.resolve(debug(`Menu: ${level} ${root + selector}`))],
+                            [w => parent.findElement(By.xpath(root + selector))],
+                            [w => w.getRes(4).findElement(By.xpath(dep('..', n)))],
+                            [w => w.getRes(4).getAttribute('class')],
+                            [w => w.getRes(5).getAttribute('class')],
+                            [w => Promise.resolve(level > 1 ? w.getRes(6) : w.getRes(7))],
+                            [w => w.getRes(5).click(), w => w.getRes(8).indexOf('false') >= 0],
+                            [w => Promise.resolve(clicked = true), w => w.getRes(8).indexOf('false') >= 0],
+                            [w => Promise.resolve(res = w.getRes(5))],
+                        ])
+                        .then(() => {
+                            if (clicked && !last) {
+                                restart = true;
+                                q.done();
+                            } else {
+                                q.next();
+                            }
+                        })
+                        .catch(err => reject(err));
+                    });
+                    q.once('done', () => {
+                        if (restart) {
+                            f();
+                        } else {
+                            setTimeout(() => resolve(res), this.opdelay);
+                        }
+                    });
+                }
+                f();
+            })],
+        ]);
     }
 
     // https://stackoverflow.com/questions/642125/encoding-xpath-expressions-with-both-single-and-double-quotes
