@@ -33,6 +33,7 @@ class SipdSppSession extends SipdSession {
     VERIFIED = 1
     UNVERIFIED = 2
     DELETED = 4
+    TRANSFERED = 8
 
     COL_ICON = 1
     COL_STATUS = 2
@@ -40,12 +41,17 @@ class SipdSppSession extends SipdSession {
     COL_TIPPY = 4
     COL_TWOLINE2 = 5
 
+    queueAllowChange(queue) {
+        return !queue.readonly;
+    }
+
     checkRekanan(queue, forceEdit = false) {
         let clicker;
         const lembaga = this.getSafeStr(queue.getMappedData('info.nama'));
         const nik = queue.getMappedData('info.nik');
         const alt = lembaga.indexOf('\'') >= 0;
         const page = this.createPage(alt ? this.PAGE_REKANAN_ALT : this.PAGE_REKANAN, 'Daftar Rekanan');
+        const allowChange = this.queueAllowChange(queue);
         return this.works([
             [w => this.sipd.navigate('Pengeluaran', 'Daftar Rekanan')],
             [w => this.sipd.waitLoader()],
@@ -67,13 +73,13 @@ class SipdSppSession extends SipdSession {
                     }
                 })],
             ])],
-            [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Rekanan"]')), w => !clicker],
-            [w => clicker.click(), w => clicker && forceEdit],
+            [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Rekanan"]')), w => !clicker && allowChange],
+            [w => clicker.click(), w => clicker && forceEdit && allowChange],
             [w => this.fillForm(queue, 'rekanan',
                 By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
-                By.xpath('//button[text()="Konfirmasi"]')), w => !clicker || forceEdit],
-            [w => this.sipd.waitAndClick(By.xpath('//section/footer/button[1]')), w => !clicker || forceEdit],
-            [w => this.sipd.waitLoader(), w => !clicker || forceEdit],
+                By.xpath('//button[text()="Konfirmasi"]')), w => (!clicker || forceEdit) && allowChange],
+            [w => this.sipd.waitAndClick(By.xpath('//section/footer/button[1]')), w => (!clicker || forceEdit) && allowChange],
+            [w => this.sipd.waitLoader(), w => (!clicker || forceEdit) && allowChange],
         ]);
     }
 
@@ -126,6 +132,12 @@ class SipdSppSession extends SipdSession {
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0);
                     const tippyValues = Object.keys(tippies).length ? x.getRes(1) : {};
+                    // convert dates
+                    for (const k of Object.keys(values)) {
+                        if (k.includes('tgl') && values[k] && !values[k] instanceof Date) {
+                            values[k] = this.getDate(values[k]);
+                        }
+                    }
                     const noSpp = values.noSpp;
                     const tglSpp = this.getDate(values.tglSpp);
                     const untukSpp = tippyValues.untukSpp ? tippyValues.untukSpp.trim() : values.untukSpp;
@@ -160,6 +172,7 @@ class SipdSppSession extends SipdSession {
                         queue[nomor] = noSpp;
                         queue[nomor + '_TGL'] = tglSpp;
                         queue.STATUS = statusSpp;
+                        queue.values = {...values, ...tippyValues};
                         reject(SipdPage.stop());
                     } else {
                         resolve();
@@ -184,36 +197,38 @@ class SipdSppSession extends SipdSession {
     }
 
     checkSpp(queue) {
+        const allowChange = this.queueAllowChange(queue);
         return this.works([
             [w => this.sipd.navigate('Pengeluaran', 'SPP', 'LS')],
             [w => this.querySpp(queue)],
-            [w => this.sipd.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w => !w.getRes(1)],
-            [w => this.sipd.waitAndClick(By.xpath('//a/span/p[text()="Barang dan Jasa"]/../..')), w => !w.getRes(1)],
-            [w => Promise.resolve(this.spp = {}), w => !w.getRes(1)],
+            [w => this.sipd.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w =>!w.getRes(1) && allowChange],
+            [w => this.sipd.waitAndClick(By.xpath('//a/span/p[text()="Barang dan Jasa"]/../..')), w => !w.getRes(1) && allowChange],
+            [w => Promise.resolve(this.spp = {}), w => !w.getRes(1) && allowChange],
             [w => this.fillForm(queue, 'spp',
                 By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
-                By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => !w.getRes(1)],
-            [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(1)],
-            [w => this.sipd.waitLoader(), w => !w.getRes(1)],
-            [w => this.querySpp(queue, {flags: this.UNVERIFIED}), w => !w.getRes(1)],
+                By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(1) && allowChange],
+            [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(1) && allowChange],
+            [w => this.sipd.waitLoader(), w => !w.getRes(1) && allowChange],
+            [w => this.querySpp(queue, {flags: this.UNVERIFIED}), w => !w.getRes(1) && allowChange],
             [w => Promise.reject(new SipdAnnouncedError(`SPP ${queue.getMappedData('info.nama')} dihapus, diabaikan!`)), w => w.getRes(1) && queue.STATUS === 'Dihapus'],
         ]);
     }
 
     checkVerifikasiSpp(queue, status = 'Belum Diverifikasi') {
+        const allowChange = this.queueAllowChange(queue);
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.sipd.navigate('Pengeluaran', 'SPP', 'LS')],
             [w => this.querySpp(queue, {flags: this.VERIFIED | this.UNVERIFIED})],
-            [w => w.getRes(2).findElement(By.xpath('./td[7]/div/button')), w => w.getRes(2) && queue.STATUS === status],
-            [w => w.getRes(3).click(), w => w.getRes(2) && queue.STATUS === status],
-            [w => w.getRes(3).findElement(By.xpath('../div/div/button/span/p[text()="Verifikasi"]/../..')), w => w.getRes(2) && queue.STATUS === status],
-            [w => w.getRes(5).click(), w => w.getRes(2) && queue.STATUS === status],
+            [w => w.getRes(2).findElement(By.xpath('./td[7]/div/button')), w => w.getRes(2) && queue.STATUS === status && allowChange],
+            [w => w.getRes(3).click(), w => w.getRes(2) && queue.STATUS === status && allowChange],
+            [w => w.getRes(3).findElement(By.xpath('../div/div/button/span/p[text()="Verifikasi"]/../..')), w => w.getRes(2) && queue.STATUS === status && allowChange],
+            [w => w.getRes(5).click(), w => w.getRes(2) && queue.STATUS === status && allowChange],
             [w => this.fillForm(queue, 'verifikasi-spp',
                 By.xpath('//header[contains(text(),"Konfirmasi")]/../div[contains(@class,"chakra-modal__body")]'),
-                By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(2) && queue.STATUS === status],
-            [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(2) && queue.STATUS === status],
-            [w => this.querySpp(queue, {flags: this.VERIFIED}), w => w.getRes(2) && queue.STATUS === status],
+                By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(2) && queue.STATUS === status && allowChange],
+            [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(2) && queue.STATUS === status && allowChange],
+            [w => this.querySpp(queue, {flags: this.VERIFIED}), w => w.getRes(2) && queue.STATUS === status && allowChange],
         ]);
     }
 
@@ -236,6 +251,7 @@ class SipdSppSession extends SipdSession {
     }
 
     checkVerifikasiSpm(queue, status = 'Belum Disetujui') {
+        const allowChange = this.queueAllowChange(queue);
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.sipd.navigate('Pengeluaran', 'SPM', 'Pembuatan')],
@@ -243,13 +259,44 @@ class SipdSppSession extends SipdSession {
             [w => this.sipd.waitAndClick(By.xpath('//button/p[text()="LS"]/..'))],
             [w => this.sipd.waitSpinner(w.getRes(3))],
             [w => this.querySpm(queue)],
-            [w => w.getRes(5).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(5) && queue.STATUS === status],
-            [w => w.getRes(6).click(), w => w.getRes(5) && queue.STATUS === status],
-            [w => w.getRes(6).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(5) && queue.STATUS === status],
-            [w => w.getRes(8).click(), w => w.getRes(5) && queue.STATUS === status],
-            [w => this.sipd.waitAndClick(By.xpath('//header[contains(text(),"Persetujuan SPM")]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(5) && queue.STATUS === status],
-            [w => this.sipd.waitLoader(), w => w.getRes(5) && queue.STATUS === status],
-            [w => this.querySpm(queue, this.VERIFIED), w => w.getRes(5) && queue.STATUS === status],
+            [w => w.getRes(5).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(5) && queue.STATUS === status && allowChange],
+            [w => w.getRes(6).click(), w => w.getRes(5) && queue.STATUS === status && allowChange],
+            [w => w.getRes(6).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(5) && queue.STATUS === status && allowChange],
+            [w => w.getRes(8).click(), w => w.getRes(5) && queue.STATUS === status && allowChange],
+            [w => this.sipd.waitAndClick(By.xpath('//header[contains(text(),"Persetujuan SPM")]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(5) && queue.STATUS === status && allowChange],
+            [w => this.sipd.waitLoader(), w => w.getRes(5) && queue.STATUS === status && allowChange],
+            [w => this.querySpm(queue, this.VERIFIED), w => w.getRes(5) && queue.STATUS === status && allowChange],
+        ]);
+    }
+
+    querySp2d(queue, options) {
+        options = options || {};
+        const title = options.title || 'Surat Perintah Pencairan Dana | Pencairan';
+        const columns = options.columns || {
+            noSpp: [1, this.COL_TIPPY],
+            tglSpp: 3,
+            untukSpp: [9, this.COL_SINGLE, true],
+            nomSpp: 10,
+            tglCair: 7,
+            statusSpp: {index: 6, type: this.COL_STATUS, selector: '*/*/p'},
+        }
+        const fTransfered = options.flags === undefined ? true : (options.flags & this.TRANSFERED) === this.TRANSFERED;
+        return this.works([
+            [w => this.queryData(queue, {title, columns, jenis: 'Sudah Ditransfer', nomor: 'SP2D'}), w => fTransfered],
+            [w => new Promise((resolve, reject) => {
+                const res = w.getRes(0);
+                if (res.values && res.values.tglCair) {
+                    res.CAIR = res.values.tglCair;
+                }
+                resolve(res);
+            }), w => w.getRes(0)],
+        ]);
+    }
+
+    checkSp2d(queue) {
+        return this.works([
+            [w => this.sipd.navigate('Pengeluaran', 'SP2D', 'Pencairan')],
+            [w => this.querySp2d(queue)],
         ]);
     }
 }

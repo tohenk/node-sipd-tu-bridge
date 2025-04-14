@@ -216,9 +216,13 @@ class App {
             switch (data.type) {
                 case SipdQueue.QUEUE_SPP:
                     queue = SipdQueue.createSppQueue(data.data, data.callback);
-                    queue.maps = this.config.maps;
-                    queue.info = queue.getMappedData('info.title');
+                    this.dequeue.setMaps(queue);
                     queue.retry = true;
+                    break;
+                case SipdQueue.QUEUE_QUERY:
+                    queue = SipdQueue.createQueryQueue(data.data, data.callback);
+                    this.dequeue.setMaps(queue);
+                    queue.readonly = true;
                     break;
                 case SipdQueue.QUEUE_CAPTCHA:
                     queue = SipdQueue.createCaptchaQueue(data.data);
@@ -239,6 +243,10 @@ class App {
                 console.log('%s: %s', queue.type.toUpperCase(), queue.info);
                 return SipdQueue.addQueue(queue);
             }
+        }
+        this.dequeue.setMaps = queue => {
+            queue.maps = this.config.maps;
+            queue.info = queue.getMappedData('info.title');
         }
         this.dequeue
             .on('queue', () => this.handleNotify())
@@ -516,6 +524,7 @@ class App {
         if (bridge) {
             switch (queue.type) {
                 case SipdQueue.QUEUE_SPP:
+                case SipdQueue.QUEUE_QUERY:
                     return bridge.createSpp(queue);
                 case SipdQueue.QUEUE_CAPTCHA:
                     return bridge.fetchCaptcha(queue);

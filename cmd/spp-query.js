@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2022-2025 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2025 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -25,7 +25,7 @@
 const SipdCmd = require('.');
 const SipdQueue = require('../queue');
 
-class SipdCmdSppSpp extends SipdCmd {
+class SipdCmdSppQuery extends SipdCmd {
 
     consume(payload) {
         let result;
@@ -35,7 +35,7 @@ class SipdCmdSppSpp extends SipdCmd {
         let cnt = 0;
         items.forEach(spp => {
             const res = this.dequeue.createQueue({
-                type: SipdQueue.QUEUE_SPP,
+                type: SipdQueue.QUEUE_QUERY,
                 data: spp,
                 callback: socket.callback,
             });
@@ -45,10 +45,10 @@ class SipdCmdSppSpp extends SipdCmd {
             }
         });
         if (batch) {
-            result = {count: cnt, message: 'SPP is being queued'};
+            result = {count: cnt, message: 'SPP query is being queued'};
         }
         return result;
     }
 }
 
-module.exports = SipdCmdSppSpp;
+module.exports = SipdCmdSppQuery;

@@ -51,6 +51,7 @@ class SipdSppBridge extends SipdBridge {
             ['pa', w => this.doAs(this.ROLE_PA)],
             ['pa-login', w => w.pa.login()],
             ['pa-verif', w => w.pa.checkVerifikasiSpm(queue)],
+            ['pa-sp2d', w => w.pa.checkSp2d(queue)],
             // result
             ['res', w => new Promise((resolve, reject) => {
                 if (queue.SPP && queue.callback) {
@@ -58,6 +59,13 @@ class SipdSppBridge extends SipdBridge {
                     if (queue.SPM) {
                         data.spm = queue.SPM;
                         data.tglspm = queue.SPM_TGL;
+                    }
+                    if (queue.SP2D) {
+                        data.sp2d = queue.SP2D;
+                        data.tglsp2d = queue.SP2D_TGL;
+                    }
+                    if (queue.CAIR) {
+                        data.cair = queue.CAIR;
                     }
                     const callbackQueue = SipdQueue.createCallbackQueue(data, queue.callback);
                     SipdQueue.addQueue(callbackQueue);

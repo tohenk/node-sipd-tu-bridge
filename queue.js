@@ -461,6 +461,10 @@ class SipdQueue
         return this.create(SipdQueue.QUEUE_SPP, data, callback);
     }
 
+    static createQueryQueue(data, callback = null) {
+        return this.create(SipdQueue.QUEUE_QUERY, data, callback);
+    }
+
     static createCallbackQueue(data, callback = null) {
         return this.create(SipdQueue.QUEUE_CALLBACK, data, callback);
     }
@@ -496,6 +500,7 @@ class SipdQueue
     }
 
     static get QUEUE_SPP() { return 'spp' }
+    static get QUEUE_QUERY() { return 'query' }
     static get QUEUE_CALLBACK() { return 'callback' }
     static get QUEUE_CAPTCHA() { return 'captcha' }
     static get QUEUE_NOOP() { return 'noop' }
