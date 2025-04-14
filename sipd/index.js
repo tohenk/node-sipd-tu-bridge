@@ -122,6 +122,7 @@ class Sipd extends WebRobot {
     }
 
     captchaImage() {
+        const delay = this.loopdelay;
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
             [w => new Promise((resolve, reject) => {
@@ -131,7 +132,7 @@ class Sipd extends WebRobot {
                             if (elements.length) {
                                 resolve(elements[0]);
                             } else {
-                                setTimeout(f, this.loopdelay);
+                                setTimeout(f, delay);
                             }
                         })
                         .catch(err => reject(err));
