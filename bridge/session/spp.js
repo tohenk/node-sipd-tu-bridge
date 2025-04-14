@@ -32,8 +32,7 @@ class SipdSppSession extends SipdSession {
 
     VERIFIED = 1
     UNVERIFIED = 2
-    DELETED = 4
-    TRANSFERED = 8
+    TRANSFERED = 4
 
     COL_ICON = 1
     COL_STATUS = 2
@@ -188,11 +187,9 @@ class SipdSppSession extends SipdSession {
         const title = options.title || 'Surat Permintaan Pembayaran (SPP) | LS';
         const fVerified = options.flags === undefined ? true : (options.flags & this.VERIFIED) === this.VERIFIED;
         const fUnverified = options.flags === undefined ? true : (options.flags & this.UNVERIFIED) === this.UNVERIFIED;
-        const fDeleted = options.flags === undefined ? true : (options.flags & this.DELETED) === this.DELETED;
         return this.works([
             [w => this.queryData(queue, {title, jenis: 'Sudah Diverifikasi'}), w => fVerified],
             [w => this.queryData(queue, {title, jenis: 'Belum Diverifikasi'}), w => fUnverified && !w.getRes(0)],
-            [w => this.queryData(queue, {title, jenis: 'Dihapus'}), w => fDeleted && !w.getRes(0) && !w.getRes(1)],
         ]);
     }
 
