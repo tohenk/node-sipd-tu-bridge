@@ -69,6 +69,7 @@ class SipdSession {
         return this.works([
             [w => this.waitUntilReady(), w => !this.sipd.ready],
             [w => this.doStartup(), w => this.options.startup],
+            [w => this.sipd.handlePageLoad()],
             [w => this.sipd.open()],
         ]);
     }

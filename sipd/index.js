@@ -104,6 +104,20 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    handlePageLoad() {
+        return this.getDriver().sendDevToolsCommand('Page.addScriptToEvaluateOnNewDocument', {
+            source: this.getHelperScript(),
+        });
+    }
+
+    clearMessages() {
+        return this.getDriver().executeScript('clearSipdMessages()');
+    }
+
+    getLastMessage() {
+        return this.getDriver().executeScript('return getSipdLastMessage()');
+    }
+
     waitCaptcha() {
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
@@ -122,21 +136,21 @@ class Sipd extends WebRobot {
     }
 
     captchaImage() {
-        const delay = this.loopdelay;
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
             [w => new Promise((resolve, reject) => {
-                (function f() {
+                const f = () => {
                     w.getRes(0)[0].findElements(By.xpath('.//img'))
                         .then(elements => {
                             if (elements.length) {
                                 resolve(elements[0]);
                             } else {
-                                setTimeout(f, delay);
+                                setTimeout(f, this.loopdelay);
                             }
                         })
                         .catch(err => reject(err));
-                })();
+                }
+                f();
             }), w => w.getRes(0).length],
             [w => w.getRes(1).getAttribute('src'), w => w.getRes(0).length],
         ]);
@@ -145,9 +159,10 @@ class Sipd extends WebRobot {
     solveCaptcha(code) {
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
+            [w => this.clearMessages(), w => w.getRes(0).length],
             [w => w.getRes(0)[0].findElements(By.xpath('.//input[@data-index]')), w => w.getRes(0).length],
             [w => new Promise((resolve, reject) => {
-                const q = new Queue(w.getRes(1), el => {
+                const q = new Queue(w.getRes(2), el => {
                     this.works([
                         [x => el.getAttribute('data-index')],
                         [x => el.sendKeys(code.substr(parseInt(x.getRes(0)), 1))],
@@ -158,6 +173,9 @@ class Sipd extends WebRobot {
                 });
                 q.once('done', () => resolve());
             }), w => w.getRes(0).length],
+            [w => this.sleep(this.opdelay), w => w.getRes(0).length],
+            [w => this.getLastMessage(), w => w.getRes(0).length],
+            [w => Promise.resolve(null === w.getRes(5) || !w.getRes(5).includes('invalid') ? true : false), w => w.getRes(0).length],
         ]);
     }
 
@@ -205,11 +223,9 @@ class Sipd extends WebRobot {
 
     isLoggedIn() {
         return this.works([
-            [w => this.getDriver().getCurrentUrl()],
-            [w => Promise.resolve(w.getRes(0).indexOf('login') > 0)],
-            [w => this.waitLoader(), w => w.getRes(1)],
-            [w => this.findElements(By.xpath(this.LOGIN_FORM)), w => w.getRes(1)],
-            [w => Promise.resolve(w.getRes(1) && w.getRes(3).length > 0 ? false : true)],
+            [w => this.waitLoader()],
+            [w => this.findElements(By.xpath(this.LOGIN_FORM))],
+            [w => Promise.resolve(w.getRes(1).length > 0 ? false : true)],
         ]);
     }
 
@@ -437,6 +453,94 @@ class Sipd extends WebRobot {
         }
         // contains both, escape single quote
         return `concat('${s.replace(/'/g, '\', "\'", \'')}')`;
+    }
+
+    getHelperScript() {
+        return `
+            if (window._xhelper === undefined) {
+                window._xstates = {};
+                window._xhelper = [
+                    {
+                        selector: '.css-af-eg-kw3g21',
+                        callback(el) {
+                            window._xstates.loading = el ? true : false;
+                            return window._xstates.loading;
+                        }
+                    },
+                    {
+                        selector: '#_rht_toaster',
+                        callback(el) {
+                            window._xlog(el);
+                            return false;
+                        }
+                    }
+                ];
+                window._xobserve = (el, cb) => {
+                    const observer = new MutationObserver(mutations => {
+                        mutations.forEach(mutation => {
+                            if (mutation.type === 'childList' && mutation.target === el) {
+                                cb(mutation);
+                            }
+                        });
+                    });
+                    observer.observe(el, {attributes: false, childList: true, subtree: true});
+                    return observer;
+                }
+                window._xlog = el => {
+                    if (el) {
+                        const observer = window._xobserve(el, () => {
+                            if (window._xlogs === undefined) {
+                                window._xlogs = [];
+                            }
+                            const status = el.querySelector('div[role="status"]');
+                            if (status) {
+                                console.log(status.textContent);
+                                window._xlogs.push(status.textContent);
+                            }
+                        });
+                    }
+                }
+                window._xinit = () => {
+                    const z = document.getElementById('ZEUS');
+                    const o = window._xobserve(z, () => {
+                        let idx = 0;
+                        while (true) {
+                            if (idx === window._xhelper.length) {
+                                break;
+                            }
+                            const xh = window._xhelper[idx];
+                            const el = document.querySelector(xh.selector);
+                            if (typeof xh.callback === 'function') {
+                                const retval = xh.callback(el);
+                                if (retval) {
+                                    idx++;
+                                } else {
+                                    window._xhelper.splice(idx, 1);
+                                }
+                            } else {
+                                idx++;
+                            }
+                        }
+                        if (window._xhelper.length === 0) {
+                            o.disconnect();
+                        }
+                    });
+                }
+                window.isSipdLoading = () => {
+                    return window._xstates && window._xstates.loading !== undefined ? window._xstates.loading : true;
+                }
+                window.getSipdMessages = () => {
+                    return window._xlogs ? window._xlogs : [];
+                }
+                window.getSipdLastMessage = () => {
+                    const messages = window.getSipdMessages();
+                    return messages.length ? messages[messages.length - 1] : null;
+                }
+                window.clearSipdMessages = () => {
+                    window._xlogs = [];
+                }
+                addEventListener('load', e => window._xinit());
+            }`;
     }
 }
 

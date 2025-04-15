@@ -178,8 +178,9 @@ class App {
                         });
                         p.on('exit', code => {
                             fs.rmSync(captcha);
-                            debug('Resolved captcha', stdout);
-                            resolve({code, stdout, stderr});
+                            const res = stdout.toString().trim();
+                            debug('Resolved captcha', res);
+                            resolve(res);
                         });
                         p.on('error', err => {
                             reject(err);
@@ -407,20 +408,23 @@ class App {
             for (const bridge of this.bridges) {
                 if (bridge.hasState('captcha')) {
                     captcha++;
-                    Work.works([
-                        [w => bridge.saveCaptcha('tmp')],
-                        [w => this.solver(w.getRes(0))],
-                        [w => new Promise((resolve, reject) => {
-                            const res = w.getRes(1);
-                            if (typeof res === 'object' && res.stdout) {
-                                const code = res.stdout.toString().trim();
-                                if (code) {
-                                    bridge.solveCaptcha(code);
-                                }
+                    const f = () => {
+                        Work.works([
+                            [w => bridge.saveCaptcha('tmp')],
+                            [w => this.solver(w.getRes(0))],
+                            [w => bridge.solveCaptcha(w.getRes(1)), w => w.getRes(1)],
+                        ])
+                        .then(res => {
+                            if (!res) {
+                                console.error(`Captcha code is invalid, retrying...`);
+                                f();
                             }
-                            resolve();
-                        })],
-                    ]);
+                        })
+                        .catch(err => {
+                            console.error(`An error occured while solving captcha: ${err}!`);
+                        });
+                    }
+                    f();
                 }
             }
         }
@@ -587,7 +591,7 @@ class App {
                     if (command) {
                         const queue = SipdCmd.get(command).consume({data: data ? data : {}});
                         this.dequeue.on('queue-done', q => {
-                            if (q.id === queue.id) {
+                            if (q.id === queue.id && (this.config.autoClose === undefined || this.config.autoClose)) {
                                 process.exit();
                             }
                         });

@@ -57,7 +57,7 @@ class SipdBridge {
     constructor(options) {
         this.options = options;
         this.state = this.STATE_NONE;
-        this.autoClose = true;
+        this.autoClose = this.options.autoClose !== undefined ? this.options.autoClose : true;
     }
 
     selfTest() {

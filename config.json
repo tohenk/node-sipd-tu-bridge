@@ -1,14 +1,14 @@
 {
     "global": {
-        "mode":"spp",
-        "url":"https://sipd.kemendagri.go.id/landing",
-        "browser":"chrome",
-        "readinessTimeout":60000,
-        "clearUsingKey":true
+        "mode": "spp",
+        "url": "https://sipd.kemendagri.go.id/penatausahaan",
+        "browser": "chrome",
+        "readinessTimeout": 60000,
+        "clearUsingKey": true
     },
     "bridges": {
         "sipd-2025": {
-            "year":2025
+            "year": 2025
         }
     }
 }
