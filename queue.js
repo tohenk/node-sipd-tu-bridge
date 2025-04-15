@@ -161,7 +161,6 @@ class SipdDequeue extends EventEmitter {
         }
         this.queues.push(queue);
         this.queue.requeue([queue], queue.type === SipdQueue.QUEUE_CALLBACK ? true : false);
-        this.queue.next();
         return {status: 'queued', id: queue.id};
     }
 

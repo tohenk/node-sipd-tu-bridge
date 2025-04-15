@@ -436,6 +436,15 @@ class SipdSession {
     handleFormFill(name, queue, files) {
         const result = [];
         const maps = queue.getMap(name);
+        const trunc = (s, len = 100) => {
+            if (s instanceof Buffer) {
+                s = s.toString();
+            }
+            if (typeof s === 'string' && s.length > len) {
+                s = s.substr(0, len) + '...';
+            }
+            return s;
+        }
         Object.keys(maps).forEach(k => {
             const selector = [];
             const f = this.getFormKey(k);
@@ -451,7 +460,7 @@ class SipdSession {
                     break;
             }
             let value = queue.getMappedData([name, k]);
-            debug(`Mapped value ${name + '->' + key} = ${value}`);
+            debug(`Mapped value ${name + '->' + key} = ${trunc(value)}`);
             // fall back to non mapped value if undefined
             if (value === undefined) {
                 if (f.flags.indexOf('*') >= 0) {
@@ -480,7 +489,7 @@ class SipdSession {
                 } else {
                     value = v;
                 }
-                debug(`Special TYPE:value ${name + '->' + key} = ${typeof value === 'string' && value.length > 100 ? value.substr(0, 100) + '...' : value}`);
+                debug(`Special TYPE:value ${name + '->' + key} = ${trunc(value)}`);
             }
             // check for safe string
             if (typeof value === 'string' && value.length) {

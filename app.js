@@ -435,6 +435,7 @@ class App {
         // bridge currently has no queue
         // or the last queue has been finished
         if (bridge && (bridge.queue === undefined || bridge.queue.finished())) {
+            debug('Bridge %s is ready, reason %s', bridge.name, bridge.queue === undefined ? 'no queue' : 'queue has finished');
             return true;
         }
         return false;
@@ -481,22 +482,30 @@ class App {
             queue.setStatus(SipdQueue.STATUS_SKIPPED);
         }
         const bridges = handlers.filter(b => this.isBridgeReady(b));
+        if (bridges.length) {
+            debug('Queue %s can be handled by %s', queue.id, bridges.map(b => b.name).join(', '));
+        }
         return bridges.length ? true : false;
     }
 
     canProcessQueue() {
         if (this.readyCount() > 0) {
-            const queue = this.dequeue.getNext();
-            if (queue) {
-                if (!queue.logged) {
-                    debug('Next queue', queue);
-                    queue.logged = true;
-                }
+            if (this.nqueue && this.nqueue.finished()) {
+                delete this.nqueue;
             }
-            return queue && (
-                queue.type === SipdQueue.QUEUE_CALLBACK ||
-                queue.status === SipdQueue.STATUS_SKIPPED ||
-                this.isBridgeIdle(queue));
+            if (!this.nqueue) {
+                this.nqueue = this.dequeue.getNext();
+                if (this.nqueue) {
+                    if (!this.nqueue.logged) {
+                        debug('Next queue', this.nqueue);
+                        this.nqueue.logged = true;
+                    }
+                }
+                return this.nqueue && (
+                    this.nqueue.type === SipdQueue.QUEUE_CALLBACK ||
+                    this.nqueue.status === SipdQueue.STATUS_SKIPPED ||
+                    this.isBridgeIdle(this.nqueue));
+            }
         }
         return false;
     }
