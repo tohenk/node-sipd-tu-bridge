@@ -217,6 +217,7 @@ class Sipd extends WebRobot {
                 }
             }), w => w.getRes(1)],
             [w => this.getDriver().switchTo().window(w.getRes(7)), w => w.getRes(1)],
+            [w => this.getDriver().executeScript(this.getHelperScript()), w => w.getRes(1)],
             [w => this.waitPage(), w => w.getRes(1)],
         ]);
     }
