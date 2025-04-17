@@ -186,7 +186,7 @@ class SipdDequeue extends EventEmitter {
     genId() {
         return crypto
             .createHash('sha1')
-            .update(new Date().getTime().toString())
+            .update((new Date().getTime() + Math.random()).toString())
             .digest('hex')
             .substring(0, 8);
     }
