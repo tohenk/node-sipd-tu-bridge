@@ -106,10 +106,11 @@ class SipdSppSession extends SipdSession {
             untukSpp: [5, this.COL_SINGLE, true],
             nomSpp: 6,
             statusSpp: [2, this.COL_STATUS],
+            ...(options.columns || {}),
         }
         const tippies = {};
         for (const k in columns) {
-            const v = options.columns && options.columns[k] ? options.columns[k] : columns[k];
+            const v = columns[k];
             const idx = Array.isArray(v) ? v[0] : (typeof v === 'object' ? v.index : v);
             const colType = Array.isArray(v) ? v[1] : (typeof v === 'object' && v.type ? v.type : this.COL_ICON);
             const withTippy = Array.isArray(v) ? v[2] : (typeof v === 'object' && v.tippy ? v.tippy : false);
@@ -161,10 +162,15 @@ class SipdSppSession extends SipdSession {
                         });
                         return res;
                     }
-                    const states = f(
-                        [this.dateSerial(tglSpp), this.dateSerial(tgl)],
+                    const args = [];
+                    if (!options.skipDate) {
+                        args.push([this.dateSerial(tglSpp), this.dateSerial(tgl)]);
+                    }
+                    args.push(
                         [nomSpp, nominal],
-                        [this.getSafeStr(untukSpp), untuk]);
+                        [this.getSafeStr(untukSpp), untuk]
+                    );
+                    const states = f(...args);
                     debug(statusSpp, ...states.info);
                     if (states.okay) {
                         result = el;
@@ -279,11 +285,11 @@ class SipdSppSession extends SipdSession {
         }
         const fTransfered = options.flags === undefined ? true : (options.flags & this.TRANSFERED) === this.TRANSFERED;
         return this.works([
-            [w => this.queryData(queue, {title, columns, jenis: 'Sudah Ditransfer', nomor: 'SP2D'}), w => fTransfered],
+            [w => this.queryData(queue, {title, columns, jenis: 'Sudah Ditransfer', nomor: 'SP2D', skipDate: true}), w => fTransfered],
             [w => new Promise((resolve, reject) => {
                 const res = w.getRes(0);
-                if (res.values && res.values.tglCair) {
-                    res.CAIR = res.values.tglCair;
+                if (queue.values && queue.values.tglCair) {
+                    queue.CAIR = this.getDate(queue.values.tglCair);
                 }
                 resolve(res);
             }), w => w.getRes(0)],
