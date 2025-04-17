@@ -54,23 +54,24 @@ class SipdSppBridge extends SipdBridge {
             ['pa-sp2d', w => w.pa.checkSp2d(queue)],
             // result
             ['res', w => new Promise((resolve, reject) => {
+                let res;
                 if (queue.SPP && queue.callback) {
-                    const data = {id: queue.getMappedData('info.id'), spp: queue.SPP, tglspp: queue.SPP_TGL};
+                    res = {id: queue.getMappedData('info.id'), spp: queue.SPP, tglspp: queue.SPP_TGL};
                     if (queue.SPM) {
-                        data.spm = queue.SPM;
-                        data.tglspm = queue.SPM_TGL;
+                        res.spm = queue.SPM;
+                        res.tglspm = queue.SPM_TGL;
                     }
                     if (queue.SP2D) {
-                        data.sp2d = queue.SP2D;
-                        data.tglsp2d = queue.SP2D_TGL;
+                        res.sp2d = queue.SP2D;
+                        res.tglsp2d = queue.SP2D_TGL;
                     }
                     if (queue.CAIR) {
-                        data.cair = queue.CAIR;
+                        res.cair = queue.CAIR;
                     }
-                    const callbackQueue = SipdQueue.createCallbackQueue(data, queue.callback);
+                    const callbackQueue = SipdQueue.createCallbackQueue(res, queue.callback);
                     SipdQueue.addQueue(callbackQueue);
                 }
-                resolve(queue.SPP ? queue.SPP : false);
+                resolve(res ? res : false);
             })],
         ], (w, err) => {
             return [
