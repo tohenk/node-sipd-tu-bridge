@@ -15,7 +15,7 @@
 		"telepon_perusahaan": "TELEPON",
 		"alamat_perusahaan": "ALAMAT",
 		"~nomor_rekening": "BANK_REK",
-		"nama_rekening": "LEMBAGA",
+		"nama_rekening": "BANK_NAMA",
 		"=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']": "BANK",
 		"cabang_bank": "BANK_CAB"
 	},
