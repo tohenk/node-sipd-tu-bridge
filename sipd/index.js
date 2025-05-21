@@ -90,6 +90,7 @@ class Sipd extends WebRobot {
                 [w => this.waitCaptcha(), w => force || !w.getRes(1)],
                 [w => this.waitLoader(), w => force || !w.getRes(1)],
                 [w => this.waitSidebar()],
+                [w => this.checkMessages()],
                 [w => this.dismissUpdate()],
             ])
             .then(() => resolve())
@@ -113,6 +114,10 @@ class Sipd extends WebRobot {
 
     clearMessages() {
         return this.getDriver().executeScript('clearSipdMessages()');
+    }
+
+    getMessages() {
+        return this.getDriver().executeScript('return getSipdMessages()');
     }
 
     getLastMessage() {
@@ -237,6 +242,22 @@ class Sipd extends WebRobot {
             [w => w.getRes(0).findElement(By.xpath(`.//div[@class="container-txt-account-list"]/h1[text()="${role}"]/../../../button`))],
             [w => w.getRes(1).click()],
             [w => this.waitSpinner(w.getRes(0))],
+        ]);
+    }
+
+    checkMessages() {
+        return this.works([
+            [w => this.getMessages()],
+            [w => new Promise((resolve, reject) => {
+                for (const fail of ['gagal', 'failed']) {
+                    for (const msg of w.getRes(0)) {
+                        if (msg.includes(fail)) {
+                            return reject(`SIPD Penatausahaan mengalami gangguan: ${msg}!`);
+                        }
+                    }
+                }
+                resolve();
+            }), w => w.getRes(0).length],
         ]);
     }
 
