@@ -24,23 +24,12 @@
 
 const path = require('path');
 const Cmd = require('@ntlab/ntlib/cmd');
-
-Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
-Cmd.addVar('mode', 'm', 'Set bridge mode, spp or util', 'bridge-mode');
-Cmd.addVar('config', 'c', 'Set configuration file', 'filename');
-Cmd.addVar('port', 'p', 'Set server port to listen', 'port');
-Cmd.addVar('url', '', 'Set Sipd url', 'url');
-Cmd.addVar('profile', '', 'Use profile for operation', 'profile');
-Cmd.addBool('clean', '', 'Clean profile directory');
-Cmd.addBool('queue', 'q', 'Enable queue saving and loading');
-Cmd.addBool('noop', '', 'Do not process queue');
-Cmd.addVar('count', '', 'Set count of operation such as captcha fetching', 'number');
+const Configuration = require('./configuration');
 
 if (!Cmd.parse() || (Cmd.get('help') && usage())) {
     process.exit();
 }
 
-const fs = require('fs');
 const util = require('util');
 const Work = require('@ntlab/work/work');
 const SipdCmd = require('./cmd');
@@ -56,9 +45,7 @@ class App {
 
     VERSION = 'SIPD-BRIDGE-3.0'
 
-    BRIDGE_SPP = 'spp'
-    BRIDGE_UTIL = 'util'
-
+    /** @type {Configuration} */
     config = {}
     /** @type {SipdBridge[]} */
     bridges = []
@@ -67,141 +54,10 @@ class App {
     sessions = {}
 
     initialize() {
-        // read configuration from command line values
-        let profile, filename = Cmd.get('config') ? Cmd.get('config') : path.join(__dirname, 'config.json');
-        if (fs.existsSync(filename)) {
-            const config = JSON.parse(fs.readFileSync(filename));
-            if (config.global) {
-                this.config = config.global;
-                this.configs = config.bridges;
-            } else {
-                this.config = config;
-            }
-        }
-        for (const c of ['mode', 'url']) {
-            if (Cmd.get(c)) {
-                this.config[c] = Cmd.get(c);
-            }
-        }
-        if (!this.config.mode) {
-            return false;
-        }
-        if (!this.config.workdir) {
-            this.config.workdir = __dirname;
-        }
-        if (fs.existsSync(filename)) {
-            console.log('Configuration loaded from %s', filename);
-        }
-        // load roles
-        filename = path.join(__dirname, 'roles.json');
-        if (fs.existsSync(filename)) {
-            this.config.roles = JSON.parse(fs.readFileSync(filename));
-            console.log('Roles loaded from %s', filename);
-        }
-        // load bridge specific configuration
-        switch (this.config.mode) {
-            case this.BRIDGE_SPP:
-                // load form maps
-                filename = path.join(__dirname, 'maps.json');
-                if (fs.existsSync(filename)) {
-                    this.config.maps = JSON.parse(fs.readFileSync(filename));
-                    console.log('Maps loaded from %s', filename);
-                }
-                // add default bridges
-                if (!this.configs) {
-                    const year = new Date().getFullYear();
-                    this.configs = {[`sipd-${year}`]: {year}};
-                }
-                break;
-        }
-        // load profile
-        this.config.profiles = {};
-        filename = path.join(__dirname, 'profiles.json');
-        if (fs.existsSync(filename)) {
-            const profiles = JSON.parse(fs.readFileSync(filename));
-            if (profiles.profiles) {
-                this.config.profiles = profiles.profiles;
-            }
-            if (profiles.active) {
-                profile = profiles.active;
-            }
-        }
-        if (Cmd.get('profile')) {
-            profile = Cmd.get('profile');
-        }
-        if (profile && this.config.profiles[profile]) {
-            console.log('Using profile %s', profile);
-            const keys = ['timeout', 'wait', 'delay', 'opdelay'];
-            for (const key in this.config.profiles[profile]) {
-                if (keys.indexOf(key) < 0) {
-                    continue;
-                }
-                this.config[key] = this.config.profiles[profile][key];
-            }
-        }
-        // clean profile
-        if (Cmd.get('clean')) {
-            const profiledir = path.join(this.config.workdir, 'profile');
-            if (fs.existsSync(profiledir)) {
-                fs.rmSync(profiledir, {recursive: true, force: true});
-            }
-        }
-        // captcha solver
-        if (this.config.captchaSolver) {
-            // {
-            //     "global": {
-            //         "captchaSolver": {
-            //             "bin": "python",
-            //             "args": ["/path/to/solver.py", "%CAPTCHA%"]
-            //         }
-            //     }
-            // }
-            const cmd = require('@ntlab/ntlib/command')(this.config.captchaSolver, {});
-            this.solver = captcha => {
-                if (captcha) {
-                    return new Promise((resolve, reject) => {
-                        let stdout, stderr;
-                        const p = cmd.exec({CAPTCHA: captcha});
-                        p.stdout.on('data', line => {
-                            if (stdout === undefined) {
-                                stdout = line;
-                            } else {
-                                stdout = Buffer.concat([stdout, line]);
-                            }
-                        });
-                        p.stderr.on('data', line => {
-                            if (stderr === undefined) {
-                                stderr = line;
-                            } else {
-                                stderr = Buffer.concat([stderr, line]);
-                            }
-                        });
-                        p.on('exit', code => {
-                            fs.rmSync(captcha);
-                            const res = stdout.toString().trim();
-                            debug('Resolved captcha', res);
-                            resolve(res);
-                        });
-                        p.on('error', err => {
-                            reject(err);
-                        });
-                    });
-                }
-                return Promise.resolve();
-            }
-            this.config.getPath = function(path) {
-                let rootPath = this.rootPath;
-                if (rootPath) {
-                    if (rootPath.substr(-1) === '/') {
-                        rootPath = rootPath.substr(0, rootPath.length - 1);
-                    }
-                    if (rootPath) {
-                        path = rootPath + path;
-                    }
-                }
-                return path;
-            }
-        }
+        this.config = new Configuration();
+        this.config
+            .applyProfile()
+            .applySolver();
         return true;
     }
 
@@ -267,14 +123,12 @@ class App {
     }
 
     createBridges() {
-        const bridges = Object.keys(this.configs);
         let seq = 0;
-        bridges.forEach(name => {
+        for (const [name, options] of Object.entries(this.config.bridges)) {
             const id = `bridge${++seq}`;
-            const options = this.configs[name];
             const config = Object.assign({}, this.config, options);
             if (config.enabled !== undefined && !config.enabled) {
-                return true;
+                continue;
             }
             const browser = config.browser ? config.browser : 'default';
             if (browser) {
@@ -292,10 +146,10 @@ class App {
             }
             let bridge;
             switch (this.config.mode) {
-                case this.BRIDGE_SPP:
+                case Configuration.BRIDGE_SPP:
                     bridge = new SipdSppBridge(config);
                     break;
-                case this.BRIDGE_UTIL:
+                case Configuration.BRIDGE_UTIL:
                     bridge = new SipdUtilBridge(config);
                     break;
             }
@@ -306,7 +160,7 @@ class App {
                 this.bridges.push(bridge);
                 console.log('Sipd bridge created: %s', name);
             }
-        });
+        }
     }
 
     createServer(serve = true) {
@@ -375,7 +229,7 @@ class App {
     }
 
     registerCommands() {
-        const prefixes = {[this.BRIDGE_SPP]: 'spp', [this.BRIDGE_UTIL]: 'util'};
+        const prefixes = {[Configuration.BRIDGE_SPP]: 'spp', [Configuration.BRIDGE_UTIL]: 'util'};
         SipdCmd.register(this, prefixes[this.config.mode]);
     }
 
@@ -568,7 +422,7 @@ class App {
                 cmd = Cmd.args.shift();
             }
             switch (this.config.mode) {
-                case this.BRIDGE_UTIL:
+                case Configuration.BRIDGE_UTIL:
                     serve = false;
                     let command, data;
                     switch (cmd) {
