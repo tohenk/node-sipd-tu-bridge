@@ -23,24 +23,24 @@
  */
 
 const path = require('path');
+const util = require('util');
 const Cmd = require('@ntlab/ntlib/cmd');
 const Configuration = require('./configuration');
-
-if (!Cmd.parse() || (Cmd.get('help') && usage())) {
-    process.exit();
-}
-
-const util = require('util');
 const Work = require('@ntlab/work/work');
-const SipdCmd = require('./cmd');
+const SipdCmd = require('../cmd');
 const SipdNotifier = require('./notifier');
 const SipdQueue = require('./queue');
-const SipdBridge = require('./bridge');
-const SipdSppBridge = require('./bridge/spp');
-const SipdUtilBridge = require('./bridge/util');
-const debug = require('debug')('sipd:main');
+const SipdBridge = require('../bridge');
+const SipdSppBridge = require('../bridge/spp');
+const SipdUtilBridge = require('../bridge/util');
+const debug = require('debug')('sipd:app');
 const { Socket } = require('socket.io');
 
+/**
+ * Main application entry point.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class App {
 
     VERSION = 'SIPD-BRIDGE-3.0'
@@ -53,13 +53,22 @@ class App {
     sockets = []
     sessions = {}
 
+    /**
+     * Constructor.
+     *
+     * @param {string} rootDir Application configuration root directory
+     */
+    constructor(rootDir) {
+        this.rootDir = rootDir;
+    }
+
     initialize() {
-        this.config = new Configuration();
+        this.config = new Configuration(this.rootDir);
         this.config
             .applyServerKeys()
             .applyProfile()
             .applySolver();
-        return true;
+        return this.config.initialized;
     }
 
     createDequeuer() {
@@ -259,14 +268,14 @@ class App {
 
     handleNotify() {
         let captcha = 0;
-        if (typeof this.solver === 'function') {
+        if (typeof this.config.solver === 'function') {
             for (const bridge of this.bridges) {
                 if (bridge.hasState('captcha')) {
                     captcha++;
                     const f = () => {
                         Work.works([
                             [w => bridge.saveCaptcha('tmp')],
-                            [w => this.solver(w.getRes(0))],
+                            [w => this.config.solver(w.getRes(0))],
                             [w => bridge.solveCaptcha(w.getRes(1)), w => w.getRes(1)],
                         ])
                         .then(res => {
@@ -464,16 +473,4 @@ class App {
     }
 }
 
-(function run() {
-    new App().run();
-})();
-
-function usage() {
-    console.log('Usage:');
-    console.log('  node %s [options]', path.basename(process.argv[1]));
-    console.log('');
-    console.log('Options:');
-    console.log(Cmd.dump());
-    console.log('');
-    return true;
-}
+module.exports = App;

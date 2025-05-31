@@ -22,8 +22,9 @@
  * SOFTWARE.
  */
 
+const util = require('util');
 const Work = require('@ntlab/work/work');
-const SipdQueue = require('../queue');
+const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
 const { SipdAnnouncedError } = require('../sipd');
 

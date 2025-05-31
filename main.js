@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2025 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2022-2025 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -22,15 +22,24 @@
  * SOFTWARE.
  */
 
-const SipdCmd = require('.');
-const SipdQueue = require('../app/queue');
+const path = require('path');
+const App = require('./app');
+const Cmd = require('@ntlab/ntlib/cmd');
 
-class SipdCmdUtilNoop extends SipdCmd {
-
-    consume(payload) {
-        const { data } = payload;
-        return this.dequeue.createQueue({type: SipdQueue.QUEUE_NOOP, data});
-    }
+if (!Cmd.parse() || (Cmd.get('help') && usage())) {
+    process.exit();
 }
 
-module.exports = SipdCmdUtilNoop;
+(function run() {
+    new App(__dirname).run();
+})();
+
+function usage() {
+    console.log('Usage:');
+    console.log('  node %s [options]', path.basename(process.argv[1]));
+    console.log('');
+    console.log('Options:');
+    console.log(Cmd.dump());
+    console.log('');
+    return true;
+}

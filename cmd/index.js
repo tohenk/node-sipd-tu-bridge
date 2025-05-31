@@ -24,9 +24,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const Configuration = require('../configuration');
+const Configuration = require('../app/configuration');
 const { Socket } = require('socket.io');
-const { SipdDequeue } = require('../queue');
+const { SipdDequeue } = require('../app/queue');
 const debug = require('debug')('sipd:cmd');
 
 /**

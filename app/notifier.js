@@ -22,6 +22,11 @@
  * SOFTWARE.
  */
 
+/**
+ * Callback notifier.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdNotifier {
 
     static notify(queue) {

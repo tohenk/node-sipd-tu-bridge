@@ -23,7 +23,7 @@
  */
 
 const SipdCmd = require('.');
-const SipdQueue = require('../queue');
+const SipdQueue = require('../app/queue');
 
 class SipdCmdSppSpp extends SipdCmd {
 

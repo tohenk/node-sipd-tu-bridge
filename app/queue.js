@@ -28,11 +28,16 @@ const path = require('path');
 const util = require('util');
 const EventEmitter = require('events');
 const Queue = require('@ntlab/work/queue');
-const { SipdRetryError } = require('./sipd');
+const { SipdRetryError } = require('../sipd');
 
 /** @type {SipdDequeue} */
 let dequeue;
 
+/**
+ * A queue consumer.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdDequeue extends EventEmitter {
 
     info = {}
@@ -274,6 +279,11 @@ class SipdDequeue extends EventEmitter {
     }
 }
 
+/**
+ * A queue.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdQueue
 {
     constructor() {

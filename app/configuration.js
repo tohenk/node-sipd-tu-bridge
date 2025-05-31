@@ -39,11 +39,21 @@ Cmd.addBool('queue', 'q', 'Enable queue saving and loading');
 Cmd.addBool('noop', '', 'Do not process queue');
 Cmd.addVar('count', '', 'Limit number of operation such as when fetching captcha', 'number');
 
+/**
+ * Application configuration.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class Configuration {
 
-    constructor() {
+    /**
+     * Constructor.
+     *
+     * @param {string} rootDir Configuration directory
+     */
+    constructor(rootDir) {
         // read configuration from command line values
-        let filename = Cmd.get('config') ? Cmd.get('config') : path.join(__dirname, 'config.json');
+        let filename = Cmd.get('config') ? Cmd.get('config') : path.join(rootDir, 'config.json');
         if (fs.existsSync(filename)) {
             let config = JSON.parse(fs.readFileSync(filename));
             if (config.global) {
@@ -57,18 +67,21 @@ class Configuration {
                 this[c] = Cmd.get(c);
             }
         }
-        if (!this.mode) {
-            return false;
-        }
-        if (!this.workdir) {
-            this.workdir = __dirname;
-        }
         if (fs.existsSync(filename)) {
             console.log('Configuration loaded from %s', filename);
         }
+        if (!this.workdir) {
+            this.workdir = rootDir;
+        }
+        if (this.mode) {
+            this.initialize();
+        }
+    }
+
+    initialize() {
         // load profile
         this.profiles = {};
-        filename = path.join(__dirname, 'profiles.json');
+        let filename = path.join(this.workdir, 'profiles.json');
         if (fs.existsSync(filename)) {
             const profiles = JSON.parse(fs.readFileSync(filename));
             if (profiles.profiles) {
@@ -80,14 +93,14 @@ class Configuration {
         }
         // load form maps
         if (this.mode === Configuration.BRIDGE_SPP) {
-            filename = path.join(__dirname, 'maps.json');
+            filename = path.join(this.workdir, 'maps.json');
             if (fs.existsSync(filename)) {
                 this.maps = JSON.parse(fs.readFileSync(filename));
                 console.log('Maps loaded from %s', filename);
             }
         }
         // load roles
-        filename = path.join(__dirname, 'roles.json');
+        filename = path.join(this.workdir, 'roles.json');
         if (fs.existsSync(filename)) {
             this.roles = JSON.parse(fs.readFileSync(filename));
             console.log('Roles loaded from %s', filename);
@@ -97,6 +110,7 @@ class Configuration {
             const year = new Date().getFullYear();
             this.bridges = {[`sipd-${year}`]: {year}};
         }
+        this.initialized = true;
     }
 
     applyServerKeys() {
