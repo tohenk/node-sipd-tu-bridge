@@ -56,6 +56,7 @@ class App {
     initialize() {
         this.config = new Configuration();
         this.config
+            .applyServerKeys()
             .applyProfile()
             .applySolver();
         return true;

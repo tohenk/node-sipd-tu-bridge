@@ -24,6 +24,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const Configuration = require('../configuration');
 const { Socket } = require('socket.io');
 const { SipdDequeue } = require('../queue');
 const debug = require('debug')('sipd:cmd');
@@ -34,6 +35,15 @@ const debug = require('debug')('sipd:cmd');
  * @author Toha <tohenk@yahoo.com>
  */
 class SipdCmd {
+
+    /** @var {string} */
+    name = null
+    /** @var {object} */
+    parent = null
+    /** @var {Configuration} */
+    config = null
+    /** @var {SipdDequeue} */
+    dequeue = null
 
     /**
      * Constructor.
@@ -46,7 +56,7 @@ class SipdCmd {
     constructor(name, options) {
         this.name = name;
         this.parent = options.parent;
-        /** @type {SipdDequeue} */
+        this.config = options.config || this.parent.config;
         this.dequeue = options.dequeue;
         this.initialize();
     }

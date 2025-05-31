@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+const crypto = require('crypto');
 const debug = require('debug')('sipd:config');
 const fs = require('fs');
 const path = require('path');
@@ -98,17 +99,20 @@ class Configuration {
         }
     }
 
-    getPath(path) {
-        let rootPath = this.rootPath;
-        if (rootPath) {
-            if (rootPath.substr(-1) === '/') {
-                rootPath = rootPath.substr(0, rootPath.length - 1);
-            }
-            if (rootPath) {
-                path = rootPath + path;
-            }
+    applyServerKeys() {
+        if (this.privkey && fs.existsSync(this.privkey)) {
+            this.privkey = crypto.createPrivateKey(fs.readFileSync(this.privkey));
         }
-        return path;
+        if (this.pubkey && fs.existsSync(this.pubkey)) {
+            this.pubkey = crypto.createPublicKey(fs.readFileSync(this.pubkey));
+        }
+        if (!this.privkey || !this.pubkey) {
+            console.log('Generating end-to-end encryption key');
+            const key = crypto.generateKeyPairSync('rsa', {modulusLength: 2048});
+            this.privkey = key.privateKey;
+            this.pubkey = key.publicKey;
+        }
+        return this;
     }
 
     applyProfile() {
@@ -182,6 +186,19 @@ class Configuration {
             }
         }
         return this;
+    }
+
+    getPath(path) {
+        let rootPath = this.rootPath;
+        if (rootPath) {
+            if (rootPath.substr(-1) === '/') {
+                rootPath = rootPath.substr(0, rootPath.length - 1);
+            }
+            if (rootPath) {
+                path = rootPath + path;
+            }
+        }
+        return path;
     }
 
     static get BRIDGE_SPP() {

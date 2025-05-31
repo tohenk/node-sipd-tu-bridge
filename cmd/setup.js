@@ -28,12 +28,18 @@ class SipdCmdSetup extends SipdCmd {
 
     consume(payload) {
         const { socket, data } = payload;
+        const res = {};
         if (socket) {
+            res.version = this.parent.VERSION;
             if (data.callback) {
                 socket.callback = data.callback;
             }
+            if (data.key && this.config.pubkey) {
+                const key = this.config.pubkey.export({type: 'spki', format: 'pem'});
+                res.key = Buffer.from(key).toString('base64');
+            }
         }
-        return {version: this.parent.VERSION};
+        return res;
     }
 }
 
