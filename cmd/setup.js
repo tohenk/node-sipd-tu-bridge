@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+const crypto = require('crypto');
 const SipdCmd = require('.');
 
 class SipdCmdSetup extends SipdCmd {
@@ -34,9 +35,17 @@ class SipdCmdSetup extends SipdCmd {
             if (data.callback) {
                 socket.callback = data.callback;
             }
-            if (data.key && this.config.pubkey) {
-                const key = this.config.pubkey.export({type: 'spki', format: 'pem'});
-                res.key = Buffer.from(key).toString('base64');
+            if (data.key) {
+                if (typeof data.key === 'string') {
+                    const buff = Buffer.from(data.key, 'base64');
+                    if (buff.length) {
+                        socket.key = crypto.createPublicKey(buff);
+                    }
+                }
+                if (this.config.pubkey) {
+                    const key = this.config.pubkey.export({type: 'spki', format: 'pem'});
+                    res.key = Buffer.from(key).toString('base64');
+                }
             }
         }
         return res;
