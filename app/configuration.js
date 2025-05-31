@@ -27,6 +27,7 @@ const debug = require('debug')('sipd:config');
 const fs = require('fs');
 const path = require('path');
 const Cmd = require('@ntlab/ntlib/cmd');
+const SipdRole = require('../sipd/role');
 
 Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
 Cmd.addVar('mode', 'm', 'Set bridge mode, spp or util', 'bridge-mode');
@@ -102,7 +103,8 @@ class Configuration {
         // load roles
         filename = path.join(this.workdir, 'roles.json');
         if (fs.existsSync(filename)) {
-            this.roles = JSON.parse(fs.readFileSync(filename));
+            this.roles = SipdRole.load(filename)
+                .roles;
             console.log('Roles loaded from %s', filename);
         }
         // add default bridges
@@ -215,13 +217,8 @@ class Configuration {
         return path;
     }
 
-    static get BRIDGE_SPP() {
-        return 'spp';
-    }
-
-    static get BRIDGE_UTIL() {
-        return 'util';
-    }
+    static get BRIDGE_SPP() { return 'spp' }
+    static get BRIDGE_UTIL() { return 'util' }
 }
 
 module.exports = Configuration;

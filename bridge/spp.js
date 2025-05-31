@@ -25,6 +25,7 @@
 const SipdBridge = require('.');
 const SipdQueue = require('../app/queue');
 const SipdSppSession = require('./session/spp');
+const SipdRole = require('../sipd/role');
 
 class SipdSppBridge extends SipdBridge {
 
@@ -39,16 +40,16 @@ class SipdSppBridge extends SipdBridge {
             // switch role
             ['role', w => this.checkRole(queue)],
             // --- BP ---
-            ['bp', w => this.doAs(this.ROLE_BP)],
+            ['bp', w => this.doAs(SipdRole.BP)],
             ['bp-login', w => w.bp.login()],
             ['bp-rekanan', w => w.bp.checkRekanan(queue, this.alwaysEditRekanan)],
             ['bp-spp', w => w.bp.checkSpp(queue)],
             // --- PPK ---
-            ['ppk', w => this.doAs(this.ROLE_PPK)],
+            ['ppk', w => this.doAs(SipdRole.PPK)],
             ['ppk-login', w => w.ppk.login()],
             ['ppk-verif', w => w.ppk.checkVerifikasiSpp(queue)],
             // --- PA ---
-            ['pa', w => this.doAs(this.ROLE_PA)],
+            ['pa', w => this.doAs(SipdRole.PA)],
             ['pa-login', w => w.pa.login()],
             ['pa-verif', w => w.pa.checkVerifikasiSpm(queue)],
             ['pa-sp2d', w => w.pa.checkSp2d(queue)],

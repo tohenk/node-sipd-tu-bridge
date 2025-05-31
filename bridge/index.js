@@ -26,6 +26,7 @@ const util = require('util');
 const Work = require('@ntlab/work/work');
 const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
+const SipdRole = require('../sipd/role');
 const { SipdAnnouncedError } = require('../sipd');
 
 /**
@@ -48,11 +49,6 @@ class SipdBridge {
     STATE_SELF_TEST = 2
     STATE_OPERATIONAL = 3
 
-    ROLE_BP = 'bp'
-    ROLE_PA = 'pa'
-    ROLE_PPK = 'ppk'
-    ROLE_PPTK = 'pptk'
-
     sessions = {}
 
     constructor(options) {
@@ -70,12 +66,12 @@ class SipdBridge {
             return this.state;
         }
         let role;
-        if (this.options.roles && this.options.roles.roles) {
-            role = Object.keys(this.options.roles.roles)[0];
+        if (this.options.roles) {
+            role = Object.keys(this.options.roles)[0];
         }
         return Work.works([
             ['role', s => Promise.resolve(this.switchRole(role))],
-            ['bp', s => this.doAs(this.ROLE_BP)],
+            ['bp', s => this.doAs(SipdRole.BP)],
             ['done', s => Promise.resolve(f())],
             ['cleanup', s => s.bp.stop()],
         ]);
@@ -99,17 +95,17 @@ class SipdBridge {
     }
 
     switchRole(role) {
-        if (this.options.roles && this.options.roles.roles[role]) {
+        if (this.options.roles && this.options.roles[role]) {
             this.role = role;
-            this.roles = this.options.roles.roles[role];
+            this.roles = this.options.roles[role];
         }
     }
 
     getRoleTitle(role) {
         const roles = {
-            [this.ROLE_BP]: 'Bendahara Pengeluaran',
-            [this.ROLE_PA]: 'Pengguna Anggaran',
-            [this.ROLE_PPK]: 'PPK SKPD',
+            [SipdRole.BP]: 'Bendahara Pengeluaran',
+            [SipdRole.PA]: 'Pengguna Anggaran',
+            [SipdRole.PPK]: 'PPK SKPD',
         }
         return roles[role];
     }
@@ -117,16 +113,11 @@ class SipdBridge {
     getUsers(role) {
         const res = [];
         if (this.options.roles) {
-            const roles = this.options.roles.roles ? this.options.roles.roles : {};
-            const users = this.options.roles.users ? this.options.roles.users : {};
-            for (const k of Object.values(roles)) {
-                for (const r of Object.keys(k)) {
-                    if (!role || r === role) {
-                        const u = k[r];
-                        if (users[u]) {
-                            if (res.indexOf(users[u].username) < 0) {
-                                res.push(users[u].username);
-                            }
+            for (const [rid, rusers] of Object.entries(this.options.roles)) {
+                if (!role || role === rid) {
+                    for (const u of Object.values(rusers)) {
+                        if (u.username && !res.includes(u.username)) {
+                            res.push(u.username);
                         }
                     }
                 }
@@ -136,14 +127,8 @@ class SipdBridge {
     }
 
     getUser(role) {
-        if (this.roles && this.roles[role]) {
-            return this.roles[role];
-        }
-    }
-
-    getCredential(user) {
-        if (this.options.roles && this.options.roles.users) {
-            return this.options.roles.users[user];
+        if (this.roles) {
+            return this.roles.get(role);
         }
     }
 
@@ -266,12 +251,8 @@ class SipdBridge {
         if (!user) {
             return Promise.reject(util.format('Role not found: %s!', role));
         }
-        const cred = this.getCredential(user);
-        if (!cred) {
-            return Promise.reject(util.format('User has no credential: %s!', user));
-        }
-        const session = this.getSession(cred.username);
-        session.cred = {username: cred.username, password: cred.password, role: cred.role || this.getRoleTitle(role)};
+        const session = this.getSession(user.username);
+        session.cred = {username: user.username, password: user.password, role: user.name || this.getRoleTitle(role)};
         return Promise.resolve(session);
     }
 
