@@ -103,7 +103,9 @@ class Configuration {
         // load roles
         filename = path.join(this.workdir, 'roles.json');
         if (fs.existsSync(filename)) {
-            this.roles = SipdRole.load(filename)
+            this.roles = SipdRole
+                .setFilename(filename)
+                .load()
                 .roles;
             console.log('Roles loaded from %s', filename);
         }

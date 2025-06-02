@@ -58,17 +58,28 @@ class SipdRole {
     }
 
     /**
+     * Set role filename.
+     *
+     * @param {string} filename Role filename
+     * @returns {SipdRole}
+     */
+    static setFilename(filename) {
+        this.filename = filename;
+        return this;
+    }
+
+    /**
      * Load roles.
      *
-     * @param {string} filename Roles data
+     * @returns {SipdRole}
      */
-    static load(filename) {
+    static load() {
         if (this.roles === undefined) {
             this.roles = {};
         }
-        if (fs.existsSync(filename)) {
+        if (fs.existsSync(this.filename)) {
             const rolesKey = [this.PA, this.BP, this.PPK, this.PPTK];
-            const roles = JSON.parse(fs.readFileSync(filename));
+            const roles = JSON.parse(fs.readFileSync(this.filename));
             for (const [role, users] of Object.entries(roles.roles)) {
                 let hasRoles = true;
                 const userRoles = Object.keys(users);
@@ -107,7 +118,13 @@ class SipdRole {
         return this;
     }
 
-    static save(filename) {
+    /**
+     * Save roles.
+     *
+     * @returns {SipdRole}
+     */
+    static save() {
+        this.saved = false;
         if (this.roles) {
             const roles = {};
             const users = {};
@@ -134,11 +151,11 @@ class SipdRole {
                     roles[role][urole] = uid;
                 }
             }
-            const data = JSON.stringify({users, roles}, null, 4);
+            let data = JSON.stringify({users, roles}, null, 4);
             if (fs.existsSync(filename)) {
                 const olddata = fs.readFileSync(filename);
                 if (olddata === data) {
-                    return;
+                    data = undefined;
                 } else {
                     const fileext = path.extname(filename);
                     const backupFilename = path.join(path.dirname(filename),
@@ -146,7 +163,10 @@ class SipdRole {
                     fs.renameSync(filename, backupFilename);
                 }
             }
-            fs.writeFileSync(filename, data);
+            if (data) {
+                fs.writeFileSync(this.filename, data);
+                this.saved = true;
+            }
         }
         return this;
     }
