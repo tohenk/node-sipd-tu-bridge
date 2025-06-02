@@ -421,15 +421,30 @@ class SipdSession {
             [w => this.sipd.fillSelect(w.getRes(3), date.getMonth())],
             [w => el.findElements(By.xpath(`.//span[contains(@class,"flatpickr-day") and text()="${date.getDate()}"]`))],
             [w => new Promise((resolve, reject) => {
+                let picked = false;
                 const q = new Queue([...w.getRes(5)], flatpickrDay => {
                     this.works([
                         [x => flatpickrDay.getAttribute('class')],
-                        [x => flatpickrDay.click(), x => x.getRes(0).indexOf('flatpickr-disabled') < 0],
+                        [x => Promise.resolve(x.getRes(0).indexOf('nextMonthDay') < 0 && x.getRes(0).indexOf('prevMonthDay') < 0)],
+                        [x => flatpickrDay.click(), x => x.getRes(1)],
+                        [x => Promise.resolve(picked = true), x => x.getRes(1)],
                     ])
-                    .then(() => q.next())
+                    .then(() => {
+                        if (picked) {
+                            q.done();
+                        } else {
+                            q.next();
+                        }
+                    })
                     .catch(err => reject(err));
                 });
-                q.once('done', () => resolve());
+                q.once('done', () => {
+                    if (!picked) {
+                        reject(`Unable to fill date ${date}!`);
+                    } else {
+                        resolve();
+                    }
+                });
             })],
         ]);
     }
