@@ -64,7 +64,7 @@ class SipdSppSession extends SipdSession {
                     if (values.length > 1 && values[1]) {
                         values[1] = this.pickNumber(values[1]);
                     }
-                    if (values.join('|') === [lembaga, nik].join('|')) {
+                    if (values.join('|').toLowerCase() === [lembaga, nik].join('|').toLowerCase()) {
                         clicker = x.getRes(1);
                         reject(SipdPage.stop());
                     } else {
@@ -77,7 +77,7 @@ class SipdSppSession extends SipdSession {
             [w => this.fillForm(queue, 'rekanan',
                 By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
                 By.xpath('//button[text()="Konfirmasi"]')), w => (!clicker || forceEdit) && allowChange],
-            [w => this.sipd.waitAndClick(By.xpath('//section/footer/button[1]')), w => (!clicker || forceEdit) && allowChange],
+            [w => this.submitForm(By.xpath('//section/footer/button[1]')), w => (!clicker || forceEdit) && allowChange],
             [w => this.sipd.waitLoader(), w => (!clicker || forceEdit) && allowChange],
         ]);
     }
@@ -210,7 +210,7 @@ class SipdSppSession extends SipdSession {
             [w => this.fillForm(queue, 'spp',
                 By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(1) && allowChange],
-            [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(1) && allowChange],
+            [w => this.submitForm(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(1) && allowChange],
             [w => this.sipd.waitLoader(), w => !w.getRes(1) && allowChange],
             [w => this.querySpp(queue, {flags: this.UNVERIFIED}), w => !w.getRes(1) && allowChange],
             [w => Promise.reject(new SipdAnnouncedError(`SPP ${queue.getMappedData('info.nama')} dihapus, diabaikan!`)), w => w.getRes(1) && queue.STATUS === 'Dihapus'],

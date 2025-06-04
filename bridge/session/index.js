@@ -218,7 +218,7 @@ class SipdSession {
                         if (Array.isArray(checked)) {
                             checked = checked.join('|');
                         }
-                        if (expected === checked) {
+                        if (expected.toLowerCase() === checked.toLowerCase()) {
                             clicker = x.getRes(1);
                             reject(SipdPage.stop());
                         } else {
@@ -673,6 +673,17 @@ class SipdSession {
                 options.wait)],
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.waitLoader()],
+        ]);
+    }
+
+    submitForm(clicker) {
+        return this.works([
+            [w => this.sipd.clearMessages()],
+            [w => this.sipd.waitAndClick(clicker)],
+            [w => this.sipd.sleep(this.sipd.opdelay)],
+            [w => this.sipd.getLastMessage()],
+            [w => Promise.resolve(w.getRes(3) === null || w.getRes(3).toLowerCase().includes('berhasil'))],
+            [w => Promise.reject(w.getRes(3)), w => !w.getRes(4)],
         ]);
     }
 
