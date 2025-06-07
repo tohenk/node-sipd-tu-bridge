@@ -43,7 +43,7 @@ const { Socket } = require('socket.io');
  */
 class App {
 
-    VERSION = 'SIPD-BRIDGE-3.0'
+    VERSION = 'SIPD-BRIDGE-4.0'
 
     /** @type {Configuration} */
     config = {}
