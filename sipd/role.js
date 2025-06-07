@@ -69,6 +69,83 @@ class SipdRole {
     }
 
     /**
+     * Load role definition.
+     *
+     * @param {string} role Role id
+     * @param {object} data Role data
+     * @param {object} users Role users
+     * @returns {SipdRole}
+     */
+    static loadRole(role, data, users = null) {
+        if (!this.roles[role]) {
+            this.roles[role] = new this();
+        }
+        /** @var {SipdRole} */
+        const rr = this.roles[role];
+        for (const roleId of this.rolesKey) {
+            // uid can be: reference to the user or the user itself
+            let uid = data[roleId]; 
+            if (roleId === this.PPTK) {
+                if (!this.users[uid]) {
+                    this.users[uid] = new SipdRoleActor(roleId, uid);
+                }
+            } else {
+                let udata;
+                // check if uid is the user itself
+                if (typeof uid === 'object') {
+                    udata = uid;
+                    uid = SipdRoleUser.normalize(SipdEncryptable.decrypt(udata.username));
+                } else {
+                    // set user data from user reference
+                    if (users) {
+                        udata = users[uid];
+                    }
+                }
+                if (udata) {
+                    // add user if not exist
+                    if (!this.users[uid]) {
+                        this.users[uid] = new SipdRoleUser(roleId, udata.role, udata.username, udata.password);
+                    } else {
+                        // try update password
+                        const u = this.users[uid];
+                        if (u.password !== udata.password) {
+                            u._password = udata.password;
+                        }
+                    }
+                }
+            }
+            if (typeof uid === 'string') {
+                if (this.users[uid]) {
+                    rr.set(roleId, this.users[uid]);
+                } else {
+                    console.error(`User ${uid} is not found!`);
+                }
+            } else {
+                console.error(`Unprocessed user data ${uid}!`);
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Check if data contains role definition?
+     *
+     * @param {Array} roles Role data
+     * @returns {boolean}
+     */
+    static isRoles(roles) {
+        let res = true;
+        const userRoles = Object.keys(roles);
+        for (const roleId of this.rolesKey) {
+            if (!userRoles.includes(roleId)) {
+                res = false;
+                break;
+            }
+        }
+        return res;
+    }
+
+    /**
      * Load roles.
      *
      * @returns {SipdRole}
@@ -78,42 +155,33 @@ class SipdRole {
             this.roles = {};
         }
         if (fs.existsSync(this.filename)) {
-            const rolesKey = [this.PA, this.BP, this.PPK, this.PPTK];
-            const roles = JSON.parse(fs.readFileSync(this.filename));
-            for (const [role, users] of Object.entries(roles.roles)) {
-                let hasRoles = true;
-                const userRoles = Object.keys(users);
-                for (const urole of rolesKey) {
-                    if (!userRoles.includes(urole)) {
-                        hasRoles = false;
-                        break;
-                    }
+            this.users = {};
+            const data = JSON.parse(fs.readFileSync(this.filename));
+            for (const [role, roles] of Object.entries(data.roles)) {
+                if (this.isRoles(roles)) {
+                    this.loadRole(role, roles, data.users);
                 }
-                if (hasRoles) {
-                    if (!this.roles[role]) {
-                        this.roles[role] = new this();
-                    }
-                    /** @var {SipdRole} */
-                    const rr = this.roles[role];
-                    for (const urole of rolesKey) {
-                        let actor;
-                        const uid = users[urole]; 
-                        if (urole === this.PPTK) {
-                            actor = new SipdRoleActor(urole, uid);
-                        } else {
-                            const u = roles.users[uid];
-                            if (u) {
-                                actor = new SipdRoleUser(urole, u.role, u.username, u.password);
-                            } else {
-                                console.error(`User ${uid} is not found!`);
-                            }
-                        }
-                        if (actor) {
-                            rr.set(urole, actor);
-                        }
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Update roles.
+     *
+     * @param {Array} roles Roles to update
+     * @returns {SipdRole}
+     */
+    static update(roles) {
+        if (Array.isArray(roles)) {
+            for (const role of roles) {
+                if (role.keg && role.roles) {
+                    if (this.isRoles(role.roles)) {
+                        this.loadRole(role.keg, role.roles);
                     }
                 }
             }
+            this.save();
         }
         return this;
     }
@@ -128,39 +196,38 @@ class SipdRole {
         if (this.roles) {
             const roles = {};
             const users = {};
-            const rolesKey = [this.PA, this.BP, this.PPK, this.PPTK];
             for (const [role, srole] of Object.entries(this.roles)) {
                 if (!roles[role]) {
                     roles[role] = {};
                 }
-                for (const urole of rolesKey) {
+                for (const roleId of this.rolesKey) {
                     let uid;
-                    const u = srole.get(urole);
+                    const u = srole.get(roleId);
                     if (u instanceof SipdRoleUser) {
-                        uid = u.username.replace(/\s/g, '');
+                        uid = SipdRoleUser.normalize(u.username);
                         if (users[uid] === undefined) {
                             users[uid] = {
                                 role: u.name,
-                                username: u._username ? u._username : SipdEncryptable.encrypt(u.username),
-                                password: u._password ? u._password : SipdEncryptable.encrypt(u.password),
+                                username: SipdEncryptable.isDecryptable(u._username) ? u._username : SipdEncryptable.encrypt(u.username),
+                                password: SipdEncryptable.isDecryptable(u._password) ? u._password : SipdEncryptable.encrypt(u.password),
                             }
                         }
                     } else {
                         uid = u.name;
                     }
-                    roles[role][urole] = uid;
+                    roles[role][roleId] = uid;
                 }
             }
             let data = JSON.stringify({users, roles}, null, 4);
-            if (fs.existsSync(filename)) {
-                const olddata = fs.readFileSync(filename);
-                if (olddata === data) {
+            if (fs.existsSync(this.filename)) {
+                const olddata = fs.readFileSync(this.filename);
+                if (olddata.toString() === data) {
                     data = undefined;
                 } else {
-                    const fileext = path.extname(filename);
-                    const backupFilename = path.join(path.dirname(filename),
-                        path.basename(filename, fileext) + '~' + (fileext ? '.' + fileext : ''));
-                    fs.renameSync(filename, backupFilename);
+                    const fileext = path.extname(this.filename);
+                    const backupFilename = path.join(path.dirname(this.filename),
+                        path.basename(this.filename, fileext) + '~' + (fileext ? '.' + fileext : ''));
+                    fs.renameSync(this.filename, backupFilename);
                 }
             }
             if (data) {
@@ -170,6 +237,8 @@ class SipdRole {
         }
         return this;
     }
+
+    static get rolesKey() { return [this.PA, this.BP, this.PPK, this.PPTK] }
 
     static get PA() { return 'pa' }
     static get BP() { return 'bp' }
@@ -183,9 +252,6 @@ class SipdRole {
  * @author Toha <tohenk@yahoo.com>
  */
 class SipdRoleActor {
-
-    id = null
-    name = null
 
     /**
      * Constructor.
@@ -206,9 +272,6 @@ class SipdRoleActor {
  */
 class SipdRoleUser extends SipdRoleActor {
 
-    username = null
-    password = null
-
     /**
      * Constructor.
      *
@@ -219,28 +282,39 @@ class SipdRoleUser extends SipdRoleActor {
      */
     constructor(id, name, username, password) {
         super(id, name);
-        this.setUsername(username);
-        this.setPassword(password);
+        this._username = username;
+        this._password = password;
     }
 
-    setUsername(username) {
-        const _username = SipdEncryptable.decrypt(username);
-        if (_username !== username) {
-            this._username = username;
-            username = _username;
-        }
-        this.username = username;
-        return this;
+    /**
+     * Get username.
+     *
+     * @returns {string}
+     */
+    get username() {
+        return SipdEncryptable.decrypt(this._username);
     }
 
-    setPassword(password) {
-        const _password = SipdEncryptable.decrypt(password);
-        if (_password !== password) {
-            this._password = password;
-            password = _password;
+    /**
+     * Get password.
+     *
+     * @returns {string}
+     */
+    get password() {
+        return SipdEncryptable.decrypt(this._password);
+    }
+
+    /**
+     * Normalize a string.
+     *
+     * @param {string} s String to normalize
+     * @returns {string}
+     */
+    static normalize(s) {
+        if (s) {
+            s = s.replace(/\s/g, '');
         }
-        this.password = password;
-        return this;
+        return s;
     }
 }
 

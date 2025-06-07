@@ -74,7 +74,7 @@ class SipdEncryptable {
      * @returns {string}
      */
     static decrypt(s) {
-        if (s && s.startsWith(this.ENC_IDENTIFIER) && s.includes(this.ENC_DELIMITER)) {
+        if (this.isDecryptable(s)) {
             const key = this.enckey();
             if (key) {
                 const parts = s.substr(1).split(this.ENC_DELIMITER);
@@ -88,6 +88,16 @@ class SipdEncryptable {
             }
         }
         return s;
+    }
+
+    /**
+     * Check if a string is decrytable?
+     *
+     * @param {string} s String to check
+     * @returns {boolean}
+     */
+    static isDecryptable(s) {
+        return s && s.startsWith(this.ENC_IDENTIFIER) && s.includes(this.ENC_DELIMITER);
     }
 
     static get ENC_ALGORITHM() { return 'aes-256-cbc' }

@@ -219,6 +219,60 @@ class Configuration {
         return path;
     }
 
+    obfuscate(data, pubkey, padding = null) {
+        if (data && pubkey) {
+            padding = padding ?? crypto.constants.RSA_PKCS1_OAEP_PADDING;
+            let blockSize = pubkey.asymmetricKeyDetails.modulusLength / 8;
+            switch (padding) {
+                case crypto.constants.RSA_PKCS1_PADDING:
+                    blockSize -= 11;
+                    break;
+                case crypto.constants.RSA_PKCS1_OAEP_PADDING:
+                    blockSize -= 42;
+                    break;
+            }
+            const buff = Buffer.from(JSON.stringify(data));
+            const parts = [];
+            let pos = 0;
+            while (true) {
+                const part = buff.subarray(pos, pos + blockSize);
+                if (!part.length) {
+                    break;
+                }
+                parts.push(crypto.publicEncrypt(pubkey, part));
+                pos += blockSize;
+            }
+            data = Buffer.concat(parts).toString('base64');
+        }
+        return data;
+    }
+
+    unobfuscate(data) {
+        if (data && this.privkey) {
+            const buff = Buffer.from(data, 'base64');
+            if (buff.length) {
+                const blockSize = this.privkey.asymmetricKeyDetails.modulusLength / 8;
+                const parts = [];
+                let pos = 0;
+                while (true) {
+                    const part = buff.subarray(pos, pos + blockSize);
+                    if (!part.length) {
+                        break;
+                    }
+                    parts.push(crypto.privateDecrypt(this.privkey, part));
+                    pos += blockSize;
+                }
+                data = Buffer.concat(parts).toString();
+            }
+        }
+        return data;
+    }
+
+    updateRoles(roles) {
+        SipdRole.update(roles);
+        return SipdRole.saved;
+    }
+
     static get BRIDGE_SPP() { return 'spp' }
     static get BRIDGE_UTIL() { return 'util' }
 }
