@@ -27,8 +27,9 @@ const fs = require('fs');
 const path = require('path');
 const util = require('util');
 const EventEmitter = require('events');
-const Queue = require('@ntlab/work/queue');
+const SipdNotifier = require('./notifier');
 const { SipdRetryError } = require('../sipd');
+const debug = require('debug')('sipd:queue');
 
 /** @type {SipdDequeue} */
 let dequeue;
@@ -46,113 +47,91 @@ class SipdDequeue extends EventEmitter {
         super();
         this.time = new Date();
         this.queues = [];
-        this.queue = new Queue([], queue => this.doQueue(queue), () => this.canProcess());
+        this.processing = [];
+        this.completes = [];
         this.timeout = 10 * 60 * 1000;
         this.retry = 3;
     }
 
-    doQueue(queue) {
-        if (this.consumer) {
-            const success = res => {
-                queue.done(res);
-                this.setLastQueue(queue);
-                if (typeof queue.resolve === 'function') {
-                    queue.resolve(res);
-                }
-                this.emit('queue-done', queue);
-                this.queue.next();
-            }
-            const fail = err => {
-                queue.error(err);
-                this.setLastQueue(queue);
-                if (typeof queue.reject === 'function') {
-                    queue.reject(err);
-                }
-                this.emit('queue-error', queue);
-                this.queue.next();
-            }
-            const retry = err => {
-                queue.retryCount = (queue.retryCount !== undefined ? queue.retryCount : 0) + 1;
-                if (err instanceof SipdRetryError && queue.retry && queue.retryCount <= this.retry) {
-                    console.log('Retrying %s (%d)...', queue.toString(), queue.retryCount);
-                    if (typeof queue.onretry === 'function') {
-                        queue.onretry()
-                            .then(() => doit())
-                            .catch(err => fail(err));
-                    } else {
-                        doit();
-                    }
-                } else {
-                    fail(err);
-                }
-            }
-            const doit = () => {
-                try {
-                    if (queue.status !== SipdQueue.STATUS_SKIPPED) {
-                        queue.start();
-                        this.emit('queue-start', queue);
-                        this.consumer.processQueue(queue)
-                            .then(res => success(res))
-                            .catch(err => retry(err));
-                        // check for next queue
-                        const nextqueue = this.getNext();
-                        if (nextqueue && nextqueue.type !== SipdQueue.QUEUE_CALLBACK) {
-                            if (this.consumer.canHandleNextQueue(nextqueue)) {
-                                this.queue.next();
-                            }
-                        }
-                    } else {
-                        this.queue.next();
-                    }
-                }
-                catch (err) {
-                    console.error('Got an error while processing queue: %s!', err);
-                    this.queue.next();
-                }
-            }
-            doit();
-        }
-    }
-
-    canProcess() {
-        return this.consumer ? this.consumer.canProcessQueue() : false;
-    }
-
     setConsumer(consumer) {
-        this.consumer = consumer;
-        if (this.consumer) {
-            this.queue.on('done', () => {
-                this.emit('queue-idle', this);
-            });
-            const f = () => {
-                // check for timeout
-                const processing = this.queues.filter(queue => queue.status === SipdQueue.STATUS_PROCESSING);
-                if (processing.length) {
-                    const queue = processing[0];
-                    const t = new Date().getTime();
-                    const d = t - queue.time.getTime();
-                    const timeout = queue.data && queue.data.timeout !== undefined ?
-                        queue.data.timeout : this.timeout;
-                    if (timeout > 0 && d > timeout) {
-                        queue.setStatus(SipdQueue.STATUS_TIMED_OUT);
-                        if (typeof queue.ontimeout === 'function') {
-                            queue.ontimeout()
-                                .then(() => this.queue.next())
-                                .catch(() => this.queue.next())
-                            ;
-                        } else {
-                            this.queue.next();
+        this.consumers = Array.isArray(consumer) ? consumer : [consumer];
+        for (consumer of this.consumers) {
+            consumer
+                .on('queue-done', queue => {
+                    this.endQueue(queue);
+                    this.emit('queue-done', queue);
+                })
+                .on('queue-error', queue => {
+                    this.endQueue(queue);
+                    this.emit('queue-error', queue);
+                });
+        }
+        this.processQueue();
+        return this;
+    }
+
+    processQueue() {
+        if (this.consumers) {
+            const queue = this.getNext();
+            if (queue) {
+                // query idle consumer
+                let consumers = this.consumers
+                    .filter(consumer => !consumer.queue && consumer.isAccepted(queue))
+                    .sort((a, b) => a.priority - b.priority);
+                if (consumers.length) {
+                    let idx = 0;
+                    if (consumers.length > 1) {
+                        // get consumers by priority
+                        const priority = consumers[0].priority;
+                        consumers = consumers.filter(consumer => consumer.priority === priority);
+                        if (consumers.length > 1) {
+                            idx = Math.floor(Math.random() * consumers.length);
                         }
                     }
-                } else if (this.queues.length) {
-                    this.queue.next();
+                    const consumer = consumers[idx];
+                    // move queue to processing
+                    this.queues.splice(this.queues.indexOf(queue), 1);
+                    this.processing.push(queue);
+                    // hand the queue to consumer
+                    queue.maxretry = this.retry;
+                    consumer.consume(queue);
                 }
-                // run on next
-                setTimeout(f, 100);
             }
-            f();
+            this.processTimedout();
         }
-        return this;
+    }
+
+    processTimedout() {
+        for (const queue of this.processing) {
+            const t = new Date().getTime();
+            const d = t - queue.time.getTime();
+            const timeout = queue.data && queue.data.timeout !== undefined ?
+                queue.data.timeout : this.timeout;
+            if (timeout > 0 && d > timeout) {
+                queue.setStatus(SipdQueue.STATUS_TIMED_OUT);
+                if (typeof queue.ontimeout === 'function') {
+                    queue.ontimeout()
+                        .then(() => this.endQueue(queue))
+                        .catch(() => this.endQueue(queue))
+                    ;
+                } else {
+                    this.endQueue(queue);
+                }
+            }
+        }
+    }
+
+    endQueue(queue) {
+        this.processing.splice(this.processing.indexOf(queue));
+        this.completes.push(queue);
+        this.setLastQueue(queue);
+        if (queue.consumer) {
+            delete queue.consumer.queue;
+            delete queue.consumer;
+        }
+        if (this.queues.length) {
+            process.nextTick(() => this.processQueue());
+        }
     }
 
     setInfo(info) {
@@ -165,16 +144,13 @@ class SipdDequeue extends EventEmitter {
             queue.setId(this.genId());
         }
         this.queues.push(queue);
-        this.queue.requeue([queue], queue.type === SipdQueue.QUEUE_CALLBACK ? true : false);
+        this.emit('queue', queue);
+        process.nextTick(() => this.processQueue());
         return {status: 'queued', id: queue.id};
     }
 
-    getCurrent() {
-        return this.queue.queue;
-    }
-
     getNext() {
-        return this.queue.queues.length ? this.queue.queues[0] : null;
+        return this.queues.length ? this.queues[0] : null;
     }
 
     getLast() {
@@ -199,12 +175,11 @@ class SipdDequeue extends EventEmitter {
     getStatus() {
         const status = Object.assign({}, this.buildInfo(this.info), {
             time: this.time.toString(),
-            total: this.queues.length,
-            queue: this.queue.queues.length,
+            total: this.completes.length + this.processing.length + this.queues.length,
+            queue: this.queues.length,
         });
-        const processing = this.queues.filter(queue => queue.status === SipdQueue.STATUS_PROCESSING).map(queue => queue.toString());
-        if (processing.length) {
-            status.current = processing.join('<br/>');
+        if (this.processing.length) {
+            status.current = this.processing.map(queue => queue.toString()).join('<br/>');
         }
         const queue = this.getLast();
         if (queue) {
@@ -214,7 +189,8 @@ class SipdDequeue extends EventEmitter {
     }
 
     getLogs(raw = false) {
-        return this.queues.map(queue => queue.getLog(raw));
+        return [...this.completes, ...this.processing, ...this.queues]
+            .map(queue => queue.getLog(raw));
     }
 
     saveLogs() {
@@ -276,6 +252,206 @@ class SipdDequeue extends EventEmitter {
             result[k] = v;
         });
         return result;
+    }
+}
+
+/**
+ * A queue consumer.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdConsumer extends EventEmitter
+{
+    /**
+     * Constructor.
+     *
+     * @param {number} priority The priority
+     */
+    constructor(priority) {
+        super();
+        this.priority = priority;
+        this.initialize();
+    }
+
+    /**
+     * Do initialization.
+     */
+    initialize() {
+    }
+
+    /**
+     * Is queue accepted?
+     *
+     * @param {SipdQueue} queue The queue
+     * @returns {boolean}
+     */
+    canAccept(queue) {
+        return true;
+    }
+
+    /**
+     * Is consumer can accept queue?
+     *
+     * @param {SipdQueue} queue The queue
+     * @returns {boolean}
+     */
+    isAccepted(queue) {
+        let res;
+        // accepts all
+        if (null === this.accepts) {
+            res = true;
+        }
+        // accepts single queue type
+        if (res === undefined && queue.type === this.accepts) {
+            res = true;
+        }
+        // accepts multiple queue type
+        if (res === undefined && Array.isArray(this.accepts) && this.accepts.includes(queue.type)) {
+            res = true;
+        }
+        return res ? this.canAccept(queue) : false;
+    }
+
+    /**
+     * Consume queue.
+     *
+     * @param {SipdQueue} queue The queue
+     */
+    consume(queue) {
+        const success = res => {
+            queue.done(res);
+            if (typeof queue.resolve === 'function') {
+                queue.resolve(res);
+            }
+            this.emit('queue-done', queue);
+        }
+        const fail = err => {
+            queue.error(err);
+            if (typeof queue.reject === 'function') {
+                queue.reject(err);
+            }
+            this.emit('queue-error', queue);
+        }
+        const retry = err => {
+            queue.retryCount = (queue.retryCount !== undefined ? queue.retryCount : 0) + 1;
+            if (err instanceof SipdRetryError && queue.retry && queue.retryCount <= queue.maxretry) {
+                console.log('Retrying %s (%d)...', queue.toString(), queue.retryCount);
+                if (typeof queue.onretry === 'function') {
+                    queue.onretry()
+                        .then(() => doit())
+                        .catch(err => fail(err));
+                } else {
+                    doit();
+                }
+            } else {
+                fail(err);
+            }
+        }
+        const doit = () => {
+            try {
+                queue.start();
+                this.emit('queue-start', queue);
+                this.doConsume(queue)
+                    .then(res => success(res))
+                    .catch(err => retry(err));
+            }
+            catch (err) {
+                console.error('Got an error while processing queue: %s!', err);
+            }
+        }
+        this.queue = queue;
+        this.queue.consumer = this;
+        doit();
+    }
+}
+
+/**
+ * SIPD bridge queue consumer.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdBridgeConsumer extends SipdConsumer
+{
+    constructor(bridge, priority) {
+        super(priority);
+        this.bridge = bridge;
+    }
+
+    initialize() {
+        this.accepts = [
+            SipdQueue.QUEUE_SPP,
+            SipdQueue.QUEUE_QUERY,
+            SipdQueue.QUEUE_CAPTCHA,
+            SipdQueue.QUEUE_NOOP,
+        ];
+    }
+
+    canAccept(queue) {
+        if (!this.bridge.isOperational()) {
+            debug('Not ready: bridge %s is not operational', this.bridge.name);
+            return false;
+        }
+        if (this.bridge.queue && !this.bridge.queue.finished()) {
+            debug('Not ready: bridge %s is processing queue %s', this.bridge.name, this.bridge.queue);
+            return false;
+        }
+        if (this.bridge.accepts && (
+            (Array.isArray(this.bridge.accepts) && !this.bridge.accepts.includes(queue.type)) ||
+            this.bridge.accepts !== queue.type
+        )) {
+            debug('Not ready: bridge %s only accepts %s', this.bridge.name, this.bridge.accepts);
+            return false;
+        }
+        debug('Ready: bridge %s can handle %s:%s', this.bridge.name, queue.type, queue.info);
+        return true;
+    }
+
+    doConsume(queue) {
+        this.bridge.queue = queue;
+        queue.bridge = this.bridge;
+        queue.onretry = () => this.bridge.end();
+        queue.ontimeout = () => this.bridge.end();
+        switch (queue.type) {
+            case SipdQueue.QUEUE_SPP:
+            case SipdQueue.QUEUE_QUERY:
+                return this.bridge.createSpp(queue);
+            case SipdQueue.QUEUE_CAPTCHA:
+                return this.bridge.fetchCaptcha(queue);
+            case SipdQueue.QUEUE_NOOP:
+                return this.bridge.noop();
+        }
+    }
+}
+
+/**
+ * Callback queue consumer.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdCallbackConsumer extends SipdConsumer
+{
+    initialize() {
+        this.accepts = SipdQueue.QUEUE_CALLBACK;
+    }
+
+    doConsume(queue) {
+        return SipdNotifier.notify(queue);
+    }
+}
+
+/**
+ * Blackhole queue consumer.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdBlackholeConsumer extends SipdConsumer
+{
+    initialize() {
+        this.accepts = null;
+    }
+
+    doConsume(queue) {
+        return Promise.reject('ignored!');
     }
 }
 
@@ -520,6 +696,8 @@ class SipdQueue
     static get STATUS_ERROR() { return 'error' }
     static get STATUS_TIMED_OUT() { return 'timeout' }
     static get STATUS_SKIPPED() { return 'skipped' }
+
+    static get CONSUMERS() { return {SipdBridgeConsumer, SipdCallbackConsumer, SipdBlackholeConsumer} }
 }
 
 module.exports = SipdQueue;

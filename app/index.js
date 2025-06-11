@@ -28,13 +28,12 @@ const Cmd = require('@ntlab/ntlib/cmd');
 const Configuration = require('./configuration');
 const Work = require('@ntlab/work/work');
 const SipdCmd = require('../cmd');
-const SipdNotifier = require('./notifier');
 const SipdQueue = require('./queue');
 const SipdBridge = require('../bridge');
 const SipdSppBridge = require('../bridge/spp');
 const SipdUtilBridge = require('../bridge/util');
-const debug = require('debug')('sipd:app');
 const { Socket } = require('socket.io');
+const debug = require('debug')('sipd:app');
 
 /**
  * Main application entry point.
@@ -223,7 +222,7 @@ class App {
                         console.log('Bridge ready, queuing only...');
                     } else {
                         console.log('Queue processing is ready...');
-                        this.dequeue.setConsumer(this);
+                        this.registerConsumers();
                     }
                 })
                 .catch(err => {
@@ -259,6 +258,16 @@ class App {
             }
         }, 1000);
         console.log('Readiness checking has been started...');
+    }
+
+    registerConsumers() {
+        const { SipdBridgeConsumer, SipdCallbackConsumer, SipdBlackholeConsumer } = SipdQueue.CONSUMERS;
+        const consumers = [];
+        this.bridges.forEach(bridge => {
+            consumers.push(new SipdBridgeConsumer(bridge, bridge.accepts ? 10 : 20));
+        });
+        consumers.push(new SipdCallbackConsumer(50));
+        this.dequeue.setConsumer(consumers);
     }
 
     handleConnection(socket) {
@@ -299,40 +308,6 @@ class App {
         }
     }
 
-    isBridgeReady(bridge) {
-        // bridge currently has no queue
-        // or the last queue has been finished
-        if (bridge && (bridge.queue === undefined || bridge.queue.finished())) {
-            debug('Bridge %s is ready, reason %s', bridge.name, bridge.queue === undefined ? 'no queue' : 'queue has finished');
-            return true;
-        }
-        return false;
-    }
-
-    getQueueHandler(queue, ready = true) {
-        const bridges = [];
-        const year = queue.data && queue.data.year ? queue.data.year : null;
-        // get prioritized bridge based on accepts type
-        this.bridges.forEach(b => {
-            if (b.isOperational() && b.year == year && Array.isArray(b.accepts) && b.accepts.indexOf(queue.type) >= 0) {
-                if (!ready || this.isBridgeReady(b)) {
-                    bridges.push(b);
-                }
-            }
-        });
-        // fallback to default bridge
-        if (!bridges.length) {
-            this.bridges.forEach(b => {
-                if (b.isOperational() && b.year == year && b.accepts === undefined) {
-                    if (!ready || this.isBridgeReady(b)) {
-                        bridges.push(b);
-                    }
-                }
-            });
-        }
-        return bridges;
-    }
-
     readyCount() {
         let readyCnt = 0;
         this.bridges.forEach(b => {
@@ -342,76 +317,6 @@ class App {
         });
         return readyCnt;
     }
-
-    isBridgeIdle(queue) {
-        const handlers = this.getQueueHandler(queue, false);
-        if (handlers.length === 0) {
-            debug('No handler', queue);
-            queue.setStatus(SipdQueue.STATUS_SKIPPED);
-        }
-        const bridges = handlers.filter(b => this.isBridgeReady(b));
-        if (bridges.length) {
-            debug('Queue %s can be handled by %s', queue.id, bridges.map(b => b.name).join(', '));
-        }
-        return bridges.length ? true : false;
-    }
-
-    canProcessQueue() {
-        if (this.readyCount() > 0) {
-            if (this.nqueue && this.nqueue.finished()) {
-                delete this.nqueue;
-            }
-            if (!this.nqueue) {
-                this.nqueue = this.dequeue.getNext();
-                if (this.nqueue) {
-                    if (!this.nqueue.logged) {
-                        debug('Next queue', this.nqueue);
-                        this.nqueue.logged = true;
-                    }
-                }
-                return this.nqueue && (
-                    this.nqueue.type === SipdQueue.QUEUE_CALLBACK ||
-                    this.nqueue.status === SipdQueue.STATUS_SKIPPED ||
-                    this.isBridgeIdle(this.nqueue));
-            }
-        }
-        return false;
-    }
-
-    canHandleNextQueue(queue) {
-        return this.isBridgeIdle(queue);
-    }
-
-    processQueue(queue) {
-        if (queue.type === SipdQueue.QUEUE_CALLBACK) {
-            return SipdNotifier.notify(queue);
-        }
-        /** @type {SipdBridge} */
-        let bridge = queue.bridge;
-        if (!bridge) {
-            const bridges = this.getQueueHandler(queue);
-            if (bridges.length) {
-                bridge = bridges[Math.floor(Math.random() * bridges.length)];
-                bridge.queue = queue;
-                queue.bridge = bridge;
-                queue.onretry = () => bridge.end();
-                queue.ontimeout = () => bridge.end();
-            }
-        }
-        if (bridge) {
-            switch (queue.type) {
-                case SipdQueue.QUEUE_SPP:
-                case SipdQueue.QUEUE_QUERY:
-                    return bridge.createSpp(queue);
-                case SipdQueue.QUEUE_CAPTCHA:
-                    return bridge.fetchCaptcha(queue);
-                case SipdQueue.QUEUE_NOOP:
-                    return bridge.noop();
-            }
-        }
-        return Promise.reject(util.format('No bridge can handle %s!', queue.getInfo()));
-    }
-
     getCaptcha() {
         const res = [];
         for (const bridge of this.bridges) {
