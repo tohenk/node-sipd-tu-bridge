@@ -116,7 +116,7 @@ class SipdDequeue extends EventEmitter {
     }
 
     endQueue(queue) {
-        this.processing.splice(this.processing.indexOf(queue));
+        this.processing.splice(this.processing.indexOf(queue), 1);
         this.completes.push(queue);
         this.setLastQueue(queue);
         if (queue.consumer) {
@@ -192,6 +192,7 @@ class SipdDequeue extends EventEmitter {
 
     getLogs(raw = false) {
         return [...this.completes, ...this.processing, ...this.queues]
+            .sort((a, b) => a.cmp(b))
             .map(queue => queue.getLog(raw));
     }
 
@@ -404,7 +405,7 @@ class SipdBridgeConsumer extends SipdConsumer
             debug('Not ready: bridge %s only accepts %s', this.bridge.name, this.bridge.accepts);
             return false;
         }
-        debug('Ready: bridge %s can handle %s:%s', this.bridge.name, queue.type, queue.info);
+        debug('Ready: bridge %s can handle %s', this.bridge.name, queue);
         return true;
     }
 
@@ -627,6 +628,22 @@ class SipdQueue
             info = this.callback;
         }
         return info;
+    }
+
+    cmp(queue) {
+        if (this.time === undefined) {
+            if (queue.time === undefined) {
+                return 0;
+            } else {
+                return 1;
+            }
+        } else {
+            if (queue.time === undefined) {
+                return -1;
+            } else {
+                return this.time - queue.time;
+            }
+        }
     }
 
     toString() {
