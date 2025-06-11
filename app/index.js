@@ -261,12 +261,11 @@ class App {
     }
 
     registerConsumers() {
-        const { SipdBridgeConsumer, SipdCallbackConsumer, SipdBlackholeConsumer } = SipdQueue.CONSUMERS;
-        const consumers = [];
+        const { SipdBridgeConsumer, SipdCallbackConsumer } = SipdQueue.CONSUMERS;
+        const consumers = [new SipdCallbackConsumer(10)];
         this.bridges.forEach(bridge => {
-            consumers.push(new SipdBridgeConsumer(bridge, bridge.accepts ? 10 : 20));
+            consumers.push(new SipdBridgeConsumer(bridge, bridge.accepts ? 20 : 30));
         });
-        consumers.push(new SipdCallbackConsumer(50));
         this.dequeue.setConsumer(consumers);
     }
 

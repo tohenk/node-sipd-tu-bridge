@@ -72,32 +72,26 @@ class SipdDequeue extends EventEmitter {
 
     processQueue() {
         if (this.consumers) {
-            const queue = this.getNext();
-            if (queue) {
+            if (this.queues.length) {
                 // query idle consumer
-                let consumers = this.consumers
-                    .filter(consumer => !consumer.queue && consumer.isAccepted(queue))
+                const consumers = this.consumers
+                    .filter(consumer => !consumer.queue)
                     .sort((a, b) => a.priority - b.priority);
-                if (consumers.length) {
-                    let idx = 0;
-                    if (consumers.length > 1) {
-                        // get consumers by priority
-                        const priority = consumers[0].priority;
-                        consumers = consumers.filter(consumer => consumer.priority === priority);
-                        if (consumers.length > 1) {
-                            idx = Math.floor(Math.random() * consumers.length);
-                        }
+                for (const consumer of consumers) {
+                    const queue = this.pick(consumer);
+                    if (queue) {
+                        // move queue to processing
+                        this.queues.splice(this.queues.indexOf(queue), 1);
+                        this.processing.push(queue);
+                        // hand the queue to consumer
+                        queue.maxretry = this.retry;
+                        consumer.consume(queue);
                     }
-                    const consumer = consumers[idx];
-                    // move queue to processing
-                    this.queues.splice(this.queues.indexOf(queue), 1);
-                    this.processing.push(queue);
-                    // hand the queue to consumer
-                    queue.maxretry = this.retry;
-                    consumer.consume(queue);
                 }
             }
-            this.processTimedout();
+            if (this.processing.length) {
+                this.processTimedout();
+            }
         }
     }
 
@@ -129,7 +123,7 @@ class SipdDequeue extends EventEmitter {
             delete queue.consumer.queue;
             delete queue.consumer;
         }
-        if (this.queues.length) {
+        if (this.queues.length || this.processing.length) {
             process.nextTick(() => this.processQueue());
         }
     }
@@ -147,6 +141,14 @@ class SipdDequeue extends EventEmitter {
         this.emit('queue', queue);
         process.nextTick(() => this.processQueue());
         return {status: 'queued', id: queue.id};
+    }
+
+    pick(consumer) {
+        for (const queue of this.queues) {
+            if (consumer.isAccepted(queue)) {
+                return queue;
+            }
+        }
     }
 
     getNext() {
