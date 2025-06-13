@@ -645,9 +645,10 @@ class SipdSession {
                     }
                 }
                 data.afterfill = el => this.works([
-                    [w => this.getError(el)],
-                    [w => Promise.reject(w.getRes(0)), w => w.getRes(0)],
-                    [w => Promise.resolve(), w => !w.getRes(0)],
+                    [w => this.sipd.isStale(el)],
+                    [w => this.getError(el), w => !w.getRes(0)],
+                    [w => Promise.reject(w.getRes(1)), w => !w.getRes(0) && w.getRes(1)],
+                    [w => Promise.resolve(), w => w.getRes(0) || !w.getRes(1)],
                 ]);
                 if (this.options.clearUsingKey) {
                     data.clearUsingKey = true;
