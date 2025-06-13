@@ -226,7 +226,7 @@ class SipdRole {
                 } else {
                     const fileext = path.extname(this.filename);
                     const backupFilename = path.join(path.dirname(this.filename),
-                        path.basename(this.filename, fileext) + '~' + (fileext ? '.' + fileext : ''));
+                        path.basename(this.filename, fileext) + '~' + (fileext ? fileext : ''));
                     fs.renameSync(this.filename, backupFilename);
                 }
             }
