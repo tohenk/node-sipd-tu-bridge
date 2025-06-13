@@ -644,6 +644,11 @@ class SipdSession {
                         });
                     }
                 }
+                data.afterfill = el => this.works([
+                    [w => this.getError(el)],
+                    [w => Promise.reject(w.getRes(0)), w => w.getRes(0)],
+                    [w => Promise.resolve(), w => !w.getRes(0)],
+                ]);
                 if (this.options.clearUsingKey) {
                     data.clearUsingKey = true;
                 }
@@ -651,6 +656,33 @@ class SipdSession {
             }
         });
         return result;
+    }
+
+    getError(el) {
+        return this.works([
+            [w => el.getAttribute('class')],
+            [w => Promise.resolve(w.getRes(0).includes('has-error-merged'))],
+            [w => Promise.resolve(w.getRes(0).includes('has-error'))],
+            // element is an error container
+            [w => this.getValidationError(el), w => w.getRes(1) || w.getRes(2)],
+            // has-error may not result in error message
+            // so, lookup parent for error
+            // but stop when reach body or head
+            [w => el.getTagName(), w => !w.getRes(3) && !w.getRes(1)],
+            [w => Promise.resolve(['body', 'head'].includes(w.getRes(4).toLowerCase())), w => !w.getRes(3) && !w.getRes(1)],
+            [w => el.findElements(By.xpath('..')), w => !w.getRes(3) && !w.getRes(1) && !w.getRes(5)],
+            [w => this.getError(w.getRes(6)[0]), w => !w.getRes(3) && !w.getRes(1) && !w.getRes(5) && w.getRes(6).length],
+            // no error found
+            [w => Promise.resolve(), w => !w.getRes(3) && !w.getRes(1) && w.getRes(5)],
+        ]);
+    }
+
+    getValidationError(el) {
+        return this.works([
+            [w => el.findElements(By.xpath('./div[contains(@class,"text-danger-500")]'))],
+            [w => w.getRes(0)[0].getAttribute('innerText'), w => w.getRes(0).length],
+            [w => Promise.resolve(), w => !w.getRes(0).length],
+        ]);
     }
 
     fillForm(queue, name, form, submit, options = null) {
