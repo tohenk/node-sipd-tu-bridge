@@ -1,24 +1,27 @@
 {
-	"users": {
-		"bp-user": {
-			"username": "CHANGEME",
-			"password": "CHANGEME"
-		},
-		"pa-user": {
-			"username": "CHANGEME",
-			"password": "CHANGEME"
-		},
-		"ppk-user": {
-			"username": "CHANGEME",
-			"password": "CHANGEME"
-		}
-	},
-	"roles": {
-		"401041010001": {
-			"bp": "bp-user",
-			"pa": "pa-user",
-			"ppk": "ppk-user",
-			"pptk": "CHANGEME"
-		}
-	}
+    "users": {
+        "pa-user": {
+            "role": "Pengguna Anggaran",
+            "username": "CHANGEME",
+            "password": "CHANGEME"
+        },
+        "bp-user": {
+            "role": "Bendahara Pengeluaran",
+            "username": "CHANGEME",
+            "password": "CHANGEME"
+        },
+        "ppk-user": {
+            "role": "PPK Unit SKPD",
+            "username": "CHANGEME",
+            "password": "CHANGEME"
+        }
+    },
+    "roles": {
+        "401041010001": {
+            "bp": "bp-user",
+            "pa": "pa-user",
+            "ppk": "ppk-user",
+            "pptk": "CHANGEME"
+        }
+    }
 }

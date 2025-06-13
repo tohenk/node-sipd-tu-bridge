@@ -1,41 +1,41 @@
 {
-	"info": {
-		"id": "ID",
-		"role": "KEG",
-		"nama": "LEMBAGA",
-		"nik": "NIK",
-		"title": "LEMBAGA"
-	},
-	"rekanan": {
-		"~=.//button[text()='Pilih Perusahaan']": "DO:CLICK",
-		"nama_tujuan": "KETUA",
-		"nik": "NIK",
-		"nama_perusahaan": "LEMBAGA",
-		"npwp": "000000000000000",
-		"telepon_perusahaan": "TELEPON",
-		"alamat_perusahaan": "ALAMAT",
-		"~nomor_rekening": "BANK_REK",
-		"nama_rekening": "BANK_NAMA",
-		"=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']": "BANK",
-		"cabang_bank": "BANK_CAB"
-	},
-	"spp": {
-		"=.//label[text()='Tanggal']/../input": "TGL_SPP",
-		"=.//label[text()='Penandatangan']/../div/button": "ROLE:pptk",
-		"=.//label[text()='Tujuan Pembayaran']/../textarea": "FORMAT:%1% (%2%)|UNTUK|KODE",
-		"+=.//label[text()='Rekanan']/../div/p": "REKANAN:LEMBAGA|NIK",
-		"#nama_tujuan": "NO_KONTRAK",
-		"filepond": "FILE:BUKTI",
-		"=.//p[text()='Pilih Salah Satu Kegiatan Disini']/../../button": "KEG:KEG",
-		"+=.//p/span[text()='Sub Kegiatan']/../../../button": "KEG:KEG",
-		"spp:UNTUK": "FORMAT:%1% (%2%)|UNTUK|KODE",
-		"spp:NO": "NO_SPP",
-		"spp:TGL": "TGL_SPP",
-		"spp:KEG": "KEG",
-		"spp:REK": "REK",
-		"spp:NOMINAL": "AFEKTASI"
-	},
-	"verifikasi-spp": {
-		"=.//label[text()='Tanggal']/../input": "TGL_SPP"
-	}
+    "info": {
+        "id": "ID",
+        "role": "KEG",
+        "nama": "LEMBAGA",
+        "nik": "NIK",
+        "title": "LEMBAGA"
+    },
+    "rekanan": {
+        "~=.//button[text()='Pilih Perusahaan']": "DO:CLICK",
+        "nama_tujuan": "KETUA",
+        "nik": "NIK",
+        "nama_perusahaan": "LEMBAGA",
+        "npwp": "000000000000000",
+        "telepon_perusahaan": "TELEPON",
+        "alamat_perusahaan": "ALAMAT",
+        "~nomor_rekening": "BANK_REK",
+        "nama_rekening": "BANK_NAMA",
+        "=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']": "BANK",
+        "cabang_bank": "BANK_CAB"
+    },
+    "spp": {
+        "=.//label[text()='Tanggal']/../input": "TGL_SPP",
+        "=.//label[text()='Penandatangan']/../div/button": "ROLE:pptk",
+        "=.//label[text()='Tujuan Pembayaran']/../textarea": "FORMAT:%1% (%2%)|UNTUK|KODE",
+        "+=.//label[text()='Rekanan']/../div/p": "REKANAN:LEMBAGA|NIK",
+        "#nama_tujuan": "NO_KONTRAK",
+        "filepond": "FILE:BUKTI",
+        "=.//p[text()='Pilih Salah Satu Kegiatan Disini']/../../button": "KEG:KEG",
+        "+=.//p/span[text()='Sub Kegiatan']/../../../button": "KEG:KEG",
+        "spp:UNTUK": "FORMAT:%1% (%2%)|UNTUK|KODE",
+        "spp:NO": "NO_SPP",
+        "spp:TGL": "TGL_SPP",
+        "spp:KEG": "KEG",
+        "spp:REK": "REK",
+        "spp:NOMINAL": "AFEKTASI"
+    },
+    "verifikasi-spp": {
+        "=.//label[text()='Tanggal']/../input": "TGL_SPP"
+    }
 }
