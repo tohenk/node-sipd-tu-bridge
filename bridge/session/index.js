@@ -122,17 +122,19 @@ class SipdSession {
     }
 
     saveCaptcha(data, dir = 'captcha') {
-        const [mimetype, payload] = data.split(';');
-        const [encoding, content] = payload.split(',');
-        if (content) {
-            const buff = Buffer.from(content, encoding);
-            const shasum = require('crypto')
-                .createHash('md5')
-                .update(buff)
-                .digest('hex');
-            const filename = this.genFilename(dir, shasum + '.' + (mimetype.indexOf('png') > 0 ? 'png' : 'jpg'));
-            this.saveFile(filename, buff);
-            return filename;
+        if (typeof data === 'string') {
+            const [mimetype, payload] = data.split(';');
+            const [encoding, content] = payload.split(',');
+            if (content) {
+                const buff = Buffer.from(content, encoding);
+                const shasum = require('crypto')
+                    .createHash('md5')
+                    .update(buff)
+                    .digest('hex');
+                const filename = this.genFilename(dir, shasum + '.' + (mimetype.indexOf('png') > 0 ? 'png' : 'jpg'));
+                this.saveFile(filename, buff);
+                return filename;
+            }
         }
     }
 
