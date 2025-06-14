@@ -280,23 +280,29 @@ class App {
             for (const bridge of this.bridges) {
                 if (bridge.hasState('captcha')) {
                     captcha++;
-                    const f = () => {
-                        Work.works([
-                            [w => bridge.saveCaptcha('tmp')],
-                            [w => this.config.solver(w.getRes(0))],
-                            [w => bridge.solveCaptcha(w.getRes(1)), w => w.getRes(1)],
-                        ])
-                        .then(res => {
-                            if (!res) {
-                                console.error(`Captcha code is invalid, retrying...`);
-                                f();
-                            }
-                        })
-                        .catch(err => {
-                            console.error(`An error occured while solving captcha: ${err}!`);
-                        });
+                    if (!bridge.captchaSolving) {
+                        bridge.captchaSolving = true;
+                        const f = () => {
+                            Work.works([
+                                [w => bridge.saveCaptcha('tmp')],
+                                [w => this.config.solver(w.getRes(0))],
+                                [w => bridge.solveCaptcha(w.getRes(1)), w => w.getRes(1)],
+                            ])
+                            .then(res => {
+                                if (!res) {
+                                    console.error(`Captcha code is invalid, retrying...`);
+                                    f();
+                                } else {
+                                    delete bridge.captchaSolving;
+                                }
+                            })
+                            .catch(err => {
+                                delete bridge.captchaSolving;
+                                console.error(`An error occured while solving captcha: ${err}!`);
+                            });
+                        }
+                        f();
                     }
-                    f();
                 }
             }
         }
