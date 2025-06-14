@@ -53,7 +53,7 @@ class SipdUtilBridge extends SipdBridge {
             [w => sess.login()],
         ], (w, err) => {
             return [
-                [e => this.end(this.autoClose)],
+                [e => this.end(queue, this.autoClose)],
             ];
         });
     }

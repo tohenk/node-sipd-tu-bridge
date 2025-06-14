@@ -291,23 +291,23 @@ class SipdBridge {
         });
     }
 
-    end(stop = true) {
+    end(queue, stop = true) {
         const works = [];
         for (const session of Object.values(this.sessions)) {
             works.push(
-                [m => session.cleanFiles()],
+                [m => session.cleanFiles(queue)],
                 [m => session.stop(), m => stop],
             );
         }
         return Work.works(works);
     }
 
-    noop() {
+    noop(queue) {
         return this.do([
             [w => this.getSessions()[0].login()],
         ], (w, err) => {
             return [
-                [e => this.end(this.autoClose)],
+                [e => this.end(queue, this.autoClose)],
             ];
         });
     }

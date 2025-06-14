@@ -694,13 +694,13 @@ class SipdSession {
         if (options.dismiss === undefined) {
             options.dismiss = true;
         }
-        if (!this.files) {
-            this.files = [];
+        if (!queue.files) {
+            queue.files = [];
         }
         return this.works([
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.fillInForm(
-                this.handleFormFill(name, queue, this.files),
+                this.handleFormFill(name, queue, queue.files),
                 form,
                 submit,
                 options.wait)],
@@ -720,16 +720,20 @@ class SipdSession {
         ]);
     }
 
-    cleanFiles() {
-        return new Promise((resolve, reject) => {
-            const q = new Queue(this.files, file => {
-                if (fs.existsSync(file)) {
-                    fs.unlinkSync(file);
-                }
-                q.next();
+    cleanFiles(queue) {
+        if (Array.isArray(queue.files) && queue.files.length) {
+            return new Promise((resolve, reject) => {
+                const q = new Queue(queue.files, file => {
+                    if (fs.existsSync(file)) {
+                        fs.unlinkSync(file);
+                    }
+                    q.next();
+                });
+                q.once('done', () => resolve());
             });
-            q.once('done', () => resolve());
-        });
+        } else {
+            return Promise.resolve();
+        }
     }
 
     getDate(date, skipHoliday = false) {

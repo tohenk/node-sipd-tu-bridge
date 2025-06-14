@@ -421,7 +421,7 @@ class SipdBridgeConsumer extends SipdConsumer
             case SipdQueue.QUEUE_CAPTCHA:
                 return this.bridge.fetchCaptcha(queue);
             case SipdQueue.QUEUE_NOOP:
-                return this.bridge.noop();
+                return this.bridge.noop(queue);
         }
     }
 }
