@@ -171,7 +171,7 @@ class Configuration {
             // }
             const cmd = require('@ntlab/ntlib/command')(this.captchaSolver, {});
             this.solver = captcha => {
-                if (captcha) {
+                if (captcha && fs.existsSync(captcha)) {
                     return new Promise((resolve, reject) => {
                         let stdout, stderr;
                         const p = cmd.exec({CAPTCHA: captcha});
@@ -190,7 +190,9 @@ class Configuration {
                             }
                         });
                         p.on('exit', code => {
-                            fs.rmSync(captcha);
+                            if (fs.existsSync(captcha)) {
+                                fs.rmSync(captcha);
+                            }
                             const res = stdout.toString().trim();
                             debug('Resolved captcha', res);
                             resolve(res);
