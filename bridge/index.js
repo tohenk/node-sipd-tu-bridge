@@ -98,6 +98,7 @@ class SipdBridge {
         if (this.options.roles && this.options.roles[role]) {
             this.role = role;
             this.roles = this.options.roles[role];
+            return true;
         }
     }
 
@@ -193,6 +194,7 @@ class SipdBridge {
             [m => Promise.resolve(queue.getMappedData('info.role'))],
             [m => Promise.reject('Invalid queue, no role specified!'), m => !m.getRes(0)],
             [m => Promise.resolve(this.switchRole(m.getRes(0)))],
+            [m => Promise.reject(`Role not found ${m.getRes(0)}!`), m => !m.getRes(2)],
         ]);
     }
 
