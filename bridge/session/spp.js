@@ -44,7 +44,7 @@ class SipdSppSession extends SipdSession {
         return !queue.readonly;
     }
 
-    checkRekanan(queue, forceEdit = false) {
+    createRekanan(queue, forceEdit = false) {
         let clicker;
         const lembaga = this.getSafeStr(queue.getMappedData('info.nama'));
         const nik = queue.getMappedData('info.nik');
@@ -199,39 +199,44 @@ class SipdSppSession extends SipdSession {
         ]);
     }
 
-    checkSpp(queue) {
-        const allowChange = this.queueAllowChange(queue);
+    checkSpp(queue, options = null) {
         return this.works([
             [w => this.sipd.navigate('Pengeluaran', 'SPP', 'LS')],
-            [w => this.querySpp(queue)],
-            [w => this.sipd.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w =>!w.getRes(1) && allowChange],
-            [w => this.sipd.waitAndClick(By.xpath('//a/span/p[text()="Barang dan Jasa"]/../..')), w => !w.getRes(1) && allowChange],
-            [w => Promise.resolve(this.spp = {}), w => !w.getRes(1) && allowChange],
-            [w => this.fillForm(queue, 'spp',
-                By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
-                By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(1) && allowChange],
-            [w => this.submitForm(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(1) && allowChange],
-            [w => this.sipd.waitLoader(), w => !w.getRes(1) && allowChange],
-            [w => this.querySpp(queue, {flags: this.UNVERIFIED}), w => !w.getRes(1) && allowChange],
+            [w => this.querySpp(queue, options)],
             [w => Promise.reject(new SipdAnnouncedError(`SPP ${queue.getMappedData('info.nama')} dihapus, diabaikan!`)), w => w.getRes(1) && queue.STATUS === 'Dihapus'],
         ]);
     }
 
-    checkVerifikasiSpp(queue, status = 'Belum Diverifikasi') {
+    createSpp(queue) {
+        const allowChange = this.queueAllowChange(queue);
+        return this.works([
+            [w => this.checkSpp(queue)],
+            [w => this.sipd.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w =>!w.getRes(0) && allowChange],
+            [w => this.sipd.waitAndClick(By.xpath('//a/span/p[text()="Barang dan Jasa"]/../..')), w => !w.getRes(0) && allowChange],
+            [w => Promise.resolve(this.spp = {}), w => !w.getRes(0) && allowChange],
+            [w => this.fillForm(queue, 'spp',
+                By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
+                By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],
+            [w => this.submitForm(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(0) && allowChange],
+            [w => this.sipd.waitLoader(), w => !w.getRes(0) && allowChange],
+            [w => this.querySpp(queue, {flags: this.UNVERIFIED}), w => !w.getRes(0) && allowChange],
+        ]);
+    }
+
+    verifikasiSpp(queue, status = 'Belum Diverifikasi') {
         const allowChange = this.queueAllowChange(queue);
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
-            [w => this.sipd.navigate('Pengeluaran', 'SPP', 'LS')],
-            [w => this.querySpp(queue, {flags: this.VERIFIED | this.UNVERIFIED})],
-            [w => w.getRes(2).findElement(By.xpath('./td[7]/div/button')), w => w.getRes(2) && queue.STATUS === status && allowChange],
-            [w => w.getRes(3).click(), w => w.getRes(2) && queue.STATUS === status && allowChange],
-            [w => w.getRes(3).findElement(By.xpath('../div/div/button/span/p[text()="Verifikasi"]/../..')), w => w.getRes(2) && queue.STATUS === status && allowChange],
-            [w => w.getRes(5).click(), w => w.getRes(2) && queue.STATUS === status && allowChange],
+            [w => this.checkSpp(queue, {flags: this.VERIFIED | this.UNVERIFIED})],
+            [w => w.getRes(1).findElement(By.xpath('./td[7]/div/button')), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => w.getRes(2).click(), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => w.getRes(2).findElement(By.xpath('../div/div/button/span/p[text()="Verifikasi"]/../..')), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => w.getRes(4).click(), w => w.getRes(1) && queue.STATUS === status && allowChange],
             [w => this.fillForm(queue, 'verifikasi-spp',
                 By.xpath('//header[contains(text(),"Konfirmasi")]/../div[contains(@class,"chakra-modal__body")]'),
-                By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(2) && queue.STATUS === status && allowChange],
-            [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(2) && queue.STATUS === status && allowChange],
-            [w => this.querySpp(queue, {flags: this.VERIFIED}), w => w.getRes(2) && queue.STATUS === status && allowChange],
+                By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => this.querySpp(queue, {flags: this.VERIFIED}), w => w.getRes(1) && queue.STATUS === status && allowChange],
         ]);
     }
 
@@ -253,22 +258,28 @@ class SipdSppSession extends SipdSession {
         ]);
     }
 
-    checkVerifikasiSpm(queue, status = 'Belum Disetujui') {
-        const allowChange = this.queueAllowChange(queue);
+    checkSpm(queue) {
         return this.works([
-            [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.sipd.navigate('Pengeluaran', 'SPM', 'Pembuatan')],
             [w => this.sipd.waitLoader()],
             [w => this.sipd.waitAndClick(By.xpath('//button/p[text()="LS"]/..'))],
-            [w => this.sipd.waitSpinner(w.getRes(3))],
+            [w => this.sipd.waitSpinner(w.getRes(2))],
             [w => this.querySpm(queue)],
-            [w => w.getRes(5).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(5) && queue.STATUS === status && allowChange],
-            [w => w.getRes(6).click(), w => w.getRes(5) && queue.STATUS === status && allowChange],
-            [w => w.getRes(6).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(5) && queue.STATUS === status && allowChange],
-            [w => w.getRes(8).click(), w => w.getRes(5) && queue.STATUS === status && allowChange],
-            [w => this.sipd.waitAndClick(By.xpath('//header[contains(text(),"Persetujuan SPM")]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(5) && queue.STATUS === status && allowChange],
-            [w => this.sipd.waitLoader(), w => w.getRes(5) && queue.STATUS === status && allowChange],
-            [w => this.querySpm(queue, this.VERIFIED), w => w.getRes(5) && queue.STATUS === status && allowChange],
+        ]);
+    }
+
+    verifikasiSpm(queue, status = 'Belum Disetujui') {
+        const allowChange = this.queueAllowChange(queue);
+        return this.works([
+            [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
+            [w => this.checkSpm(queue)],
+            [w => w.getRes(1).findElement(By.xpath('./td[9]/div/button')), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => w.getRes(2).click(), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => w.getRes(2).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => w.getRes(4).click(), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => this.sipd.waitAndClick(By.xpath('//header[contains(text(),"Persetujuan SPM")]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => this.sipd.waitLoader(), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => this.querySpm(queue, this.VERIFIED), w => w.getRes(1) && queue.STATUS === status && allowChange],
         ]);
     }
 

@@ -35,24 +35,12 @@ class SipdSppBridge extends SipdBridge {
         return new SipdSppSession(options);
     }
 
-    createSpp(queue) {
+    processSpp({queue, works}) {
         return this.do([
             // switch role
             ['role', w => this.checkRole(queue)],
-            // --- BP ---
-            ['bp', w => this.doAs(SipdRole.BP)],
-            ['bp-login', w => w.bp.login()],
-            ['bp-rekanan', w => w.bp.checkRekanan(queue, this.alwaysEditRekanan)],
-            ['bp-spp', w => w.bp.checkSpp(queue)],
-            // --- PPK ---
-            ['ppk', w => this.doAs(SipdRole.PPK)],
-            ['ppk-login', w => w.ppk.login()],
-            ['ppk-verif', w => w.ppk.checkVerifikasiSpp(queue)],
-            // --- PA ---
-            ['pa', w => this.doAs(SipdRole.PA)],
-            ['pa-login', w => w.pa.login()],
-            ['pa-verif', w => w.pa.checkVerifikasiSpm(queue)],
-            ['pa-sp2d', w => w.pa.checkSp2d(queue)],
+            // works
+            ...works,
             // result
             ['res', w => new Promise((resolve, reject) => {
                 let res;
@@ -78,6 +66,41 @@ class SipdSppBridge extends SipdBridge {
             return [
                 [e => this.end(queue, this.autoClose)],
             ];
+        });
+    }
+
+    createSpp(queue) {
+        return this.processSpp({
+            queue,
+            works: [
+                // --- BP ---
+                ['bp', w => this.doAs(SipdRole.BP)],
+                ['bp-login', w => w.bp.login()],
+                ['bp-rekanan', w => w.bp.createRekanan(queue, this.alwaysEditRekanan)],
+                ['bp-spp', w => w.bp.createSpp(queue)],
+                // --- PPK ---
+                ['ppk', w => this.doAs(SipdRole.PPK)],
+                ['ppk-login', w => w.ppk.login()],
+                ['ppk-verif', w => w.ppk.verifikasiSpp(queue)],
+                // --- PA ---
+                ['pa', w => this.doAs(SipdRole.PA)],
+                ['pa-login', w => w.pa.login()],
+                ['pa-verif', w => w.pa.verifikasiSpm(queue)],
+                ['pa-sp2d', w => w.pa.checkSp2d(queue)],
+            ],
+        });
+    }
+
+    querySpp(queue) {
+        return this.processSpp({
+            queue,
+            works: [
+                ['bp', w => this.doAs(SipdRole.BP)],
+                ['bp-login', w => w.bp.login()],
+                ['bp-spp', w => w.bp.checkSpp(queue)],
+                ['bp-spm', w => w.bp.checkSpm(queue)],
+                ['bp-sp2d', w => w.bp.checkSp2d(queue)],
+            ],
         });
     }
 }

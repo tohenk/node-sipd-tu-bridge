@@ -416,8 +416,9 @@ class SipdBridgeConsumer extends SipdConsumer
         queue.ontimeout = () => this.bridge.end();
         switch (queue.type) {
             case SipdQueue.QUEUE_SPP:
-            case SipdQueue.QUEUE_QUERY:
                 return this.bridge.createSpp(queue);
+            case SipdQueue.QUEUE_QUERY:
+                return this.bridge.querySpp(queue);
             case SipdQueue.QUEUE_CAPTCHA:
                 return this.bridge.fetchCaptcha(queue);
             case SipdQueue.QUEUE_NOOP:
