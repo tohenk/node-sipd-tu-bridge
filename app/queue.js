@@ -412,8 +412,8 @@ class SipdBridgeConsumer extends SipdConsumer
     doConsume(queue) {
         this.bridge.queue = queue;
         queue.bridge = this.bridge;
-        queue.onretry = () => this.bridge.end();
-        queue.ontimeout = () => this.bridge.end();
+        queue.onretry = () => this.bridge.end(queue);
+        queue.ontimeout = () => this.bridge.end(queue);
         switch (queue.type) {
             case SipdQueue.QUEUE_SPP:
                 return this.bridge.createSpp(queue);
