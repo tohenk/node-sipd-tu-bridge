@@ -635,7 +635,7 @@ class SipdSession {
                     // add waiting
                     case f.flags.indexOf('+') >= 0:
                         data.done = (d, next) => {
-                            this.sipd.waitLoader()
+                            this.sipd.sleep(this.sipd.delay)
                                 .then(() => next())
                                 .catch(err => {
                                     throw err;
@@ -728,6 +728,7 @@ class SipdSession {
                 options.wait)],
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.waitLoader()],
+            [w => Promise.resolve(w.getRes(1))],
         ]);
     }
 
@@ -738,7 +739,7 @@ class SipdSession {
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.getLastMessage()],
             [w => Promise.resolve(debug('Form submit return:', w.getRes(3))), w => w.getRes(3)],
-            [w => Promise.resolve(w.getRes(3) === null || w.getRes(3).toLowerCase().includes('berhasil'))],
+            [w => Promise.resolve(w.getRes(1)), w => w.getRes(3) === null || w.getRes(3).toLowerCase().includes('berhasil')],
             [w => Promise.reject(w.getRes(3)), w => !w.getRes(5)],
         ]);
     }

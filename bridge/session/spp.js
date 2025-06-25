@@ -78,7 +78,7 @@ class SipdSppSession extends SipdSession {
                 By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
                 By.xpath('//button[text()="Konfirmasi"]')), w => (!clicker || forceEdit) && allowChange],
             [w => this.submitForm(By.xpath('//section/footer/button[1]')), w => (!clicker || forceEdit) && allowChange],
-            [w => this.sipd.waitLoader(), w => (!clicker || forceEdit) && allowChange],
+            [w => this.sipd.waitSpinner(w.getRes(8)), w => (!clicker || forceEdit) && allowChange],
         ]);
     }
 
@@ -218,7 +218,7 @@ class SipdSppSession extends SipdSession {
                 By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],
             [w => this.submitForm(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(0) && allowChange],
-            [w => this.sipd.waitLoader(), w => !w.getRes(0) && allowChange],
+            [w => this.sipd.waitSpinner(w.getRes(5)), w => !w.getRes(0) && allowChange],
             [w => this.querySpp(queue, {flags: this.UNVERIFIED}), w => !w.getRes(0) && allowChange],
         ]);
     }
@@ -235,6 +235,7 @@ class SipdSppSession extends SipdSession {
             [w => this.fillForm(queue, 'verifikasi-spp',
                 By.xpath('//header[contains(text(),"Konfirmasi")]/../div[contains(@class,"chakra-modal__body")]'),
                 By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => this.sipd.waitSpinner(w.getRes(6)), w => w.getRes(1) && queue.STATUS === status && allowChange],
             [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(1) && queue.STATUS === status && allowChange],
             [w => this.querySpp(queue, {flags: this.VERIFIED}), w => w.getRes(1) && queue.STATUS === status && allowChange],
         ]);
@@ -278,7 +279,7 @@ class SipdSppSession extends SipdSession {
             [w => w.getRes(2).findElement(By.xpath('../div/div/button/span/p[text()="Persetujuan"]/../..')), w => w.getRes(1) && queue.STATUS === status && allowChange],
             [w => w.getRes(4).click(), w => w.getRes(1) && queue.STATUS === status && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//header[contains(text(),"Persetujuan SPM")]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(1) && queue.STATUS === status && allowChange],
-            [w => this.sipd.waitLoader(), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => this.sipd.waitSpinner(w.getRes(6)), w => w.getRes(1) && queue.STATUS === status && allowChange],
             [w => this.querySpm(queue, this.VERIFIED), w => w.getRes(1) && queue.STATUS === status && allowChange],
         ]);
     }
