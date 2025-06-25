@@ -274,9 +274,9 @@ class SipdSession {
             [w => this.flatpickrGet()],
             [w => this.flatpickrPick(w.getRes(3), value)],
             [w => el.sendKeys(Key.TAB), w => w.getRes(2)],
-            [w => el.getAttribute('value'), w => !w.getRes(2)],
-            [w => Promise.resolve(this.getDate(w.getRes(6))), w => !w.getRes(2)],
-            [w => Promise.reject(`Date ${w.getRes(7)} is not expected of ${value}!`), w => !w.getRes(2) && this.dateSerial(value) != this.dateSerial(w.getRes(7))],
+            [w => el.getAttribute('value')],
+            [w => Promise.resolve(this.getDate(w.getRes(6)))],
+            [w => Promise.reject(`Date ${w.getRes(7)} is not expected of ${value}!`), w => this.dateSerial(value) != this.dateSerial(w.getRes(7))],
         ]);
     }
 
@@ -420,35 +420,55 @@ class SipdSession {
             [w => w.getRes(0).getAttribute('value')],
             [w => this.sipd.fillInput(w.getRes(0), date.getFullYear()), w => w.getRes(1) != date.getFullYear()],
             [w => el.findElement(By.xpath('.//select[@aria-label="Month"]'))],
-            [w => this.sipd.fillSelect(w.getRes(3), date.getMonth())],
-            [w => el.findElements(By.xpath(`.//span[contains(@class,"flatpickr-day") and text()="${date.getDate()}"]`))],
-            [w => new Promise((resolve, reject) => {
-                let picked = false;
-                const q = new Queue([...w.getRes(5)], flatpickrDay => {
-                    this.works([
-                        [x => flatpickrDay.getAttribute('class')],
-                        [x => Promise.resolve(x.getRes(0).indexOf('nextMonthDay') < 0 && x.getRes(0).indexOf('prevMonthDay') < 0)],
-                        [x => flatpickrDay.click(), x => x.getRes(1)],
-                        [x => Promise.resolve(picked = true), x => x.getRes(1)],
-                    ])
-                    .then(() => {
-                        if (picked) {
-                            q.done();
-                        } else {
-                            q.next();
-                        }
-                    })
-                    .catch(err => reject(err));
-                });
-                q.once('done', () => {
-                    if (!picked) {
-                        reject(`Unable to fill date ${date}!`);
-                    } else {
-                        resolve();
-                    }
-                });
-            })],
+            [w => w.getRes(3).getAttribute('value')],
+            [w => this.sipd.fillSelect(w.getRes(3), date.getMonth()), w => w.getRes(4) != date.getMonth()],
+            [w => el.findElements(By.xpath(`.//div[@class="dayContainer"]/span[contains(@class,"flatpickr-day") and text()="${date.getDate()}"]`))],
+            [w => this.flatpickrDay(w.getRes(6), date)],
         ]);
+    }
+
+    flatpickrDay(days, date) {
+        return new Promise((resolve, reject) => {
+            let picked = false;
+            const dayOkay = s => {
+                if (s) {
+                    for (const state of ['flatpickr-disabled', 'nextMonthDay', 'prevMonthDay']) {
+                        if (s.includes(state)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            }
+            const q = new Queue([...days], flatpickrDay => {
+                let dayel;
+                this.works([
+                    [w => flatpickrDay.getAttribute('outerHTML')],
+                    [w => Promise.resolve(dayel = w.getRes(0))],
+                    [w => flatpickrDay.getAttribute('class')],
+                    [w => Promise.resolve(dayOkay(w.getRes(2)))],
+                    [w => flatpickrDay.click(), w => w.getRes(3)],
+                    [w => Promise.resolve(picked = true), w => w.getRes(3)],
+                ])
+                .then(() => {
+                    if (picked) {
+                        debug('Picked day', dayel);
+                        q.done();
+                    } else {
+                        debug('Skipped day', dayel);
+                        q.next();
+                    }
+                })
+                .catch(err => reject(err));
+            });
+            q.once('done', () => {
+                if (!picked) {
+                    reject(`Unable to fill date ${date}!`);
+                } else {
+                    resolve();
+                }
+            });
+        });
     }
 
     handleFormFill(name, queue, files) {
@@ -704,7 +724,7 @@ class SipdSession {
             [w => this.sipd.fillInForm(
                 this.handleFormFill(name, queue, queue.files),
                 form,
-                submit,
+                () => this.submitForm(submit),
                 options.wait)],
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.waitLoader()],
@@ -717,8 +737,9 @@ class SipdSession {
             [w => this.sipd.waitAndClick(clicker)],
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.getLastMessage()],
+            [w => Promise.resolve(debug('Form submit return:', w.getRes(3))), w => w.getRes(3)],
             [w => Promise.resolve(w.getRes(3) === null || w.getRes(3).toLowerCase().includes('berhasil'))],
-            [w => Promise.reject(w.getRes(3)), w => !w.getRes(4)],
+            [w => Promise.reject(w.getRes(3)), w => !w.getRes(5)],
         ]);
     }
 
@@ -752,20 +773,7 @@ class SipdSession {
                                 d = parseInt(part);
                             }
                         } else {
-                            m = [
-                                'Januari',
-                                'Februari',
-                                'Maret',
-                                'April',
-                                'Mei',
-                                'Juni',
-                                'Juli',
-                                'Agustus',
-                                'September',
-                                'Oktober',
-                                'November',
-                                'Desember',
-                            ].indexOf(part) + 1;
+                            m = this.getMonth(part) + 1;
                         }
                     }
                     if (d !== undefined && m !== undefined && y !== undefined) {
