@@ -762,6 +762,10 @@ class SipdSession {
     getDate(date, skipHoliday = false) {
         if (date && (!isNaN(date) || typeof date === 'string')) {
             if (typeof date === 'string' && date.indexOf(' ') > 0) {
+                // 25 June 2025 - 12:00 PM
+                if (date.endsWith('AM') || date.endsWith('PM')) {
+                    date = date.substr(0, date.indexOf('-')).trim();
+                }
                 const dt = date.split(' ');
                 if (dt.length === 3) {
                     let d, m, y;
