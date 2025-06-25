@@ -86,7 +86,7 @@ class Sipd extends WebRobot {
                     ],
                     By.xpath(this.LOGIN_FORM),
                     By.xpath('//button[@type="submit"]')), w => force || !w.getRes(1)],
-                [w => this.waitForProcessing(w.getRes(4), By.xpath('.//svg')), w => force || !w.getRes(1)],
+                [w => this.waitSpinner(w.getRes(4), By.xpath('.//svg')), w => force || !w.getRes(1)],
                 [w => this.selectAccount(role), w => force || !w.getRes(1)],
                 [w => this.waitCaptcha(), w => force || !w.getRes(1)],
                 [w => this.waitLoader(), w => force || !w.getRes(1)],
@@ -330,12 +330,8 @@ class Sipd extends WebRobot {
         return this.waitForPresence(By.xpath('//div[@class="container-rendering"]'), false, 0);
     }
 
-    waitSpinner(el) {
-        return this.waitForProcessing(el, By.xpath('.//div[contains(@class,"chakra-spinner")]'));
-    }
-
-    waitForProcessing(el, data) {
-        return this.waitForPresence({el: el, data: data});
+    waitSpinner(el, spinner = null) {
+        return this.waitForPresence({el, data: spinner ?? By.xpath('.//div[contains(@class,"chakra-spinner")]')}, false, 0);
     }
 
     /**
@@ -353,13 +349,14 @@ class Sipd extends WebRobot {
             time = this.wait;
         }
         return new Promise((resolve, reject) => {
-            let res;
+            let res, sres;
             const t = Date.now();
             const f = () => {
                 this.works([
+                    [w => this.sleep(this.loopdelay)],
                     [w => this.isStale(data.el), w => data.el],
-                    [w => Promise.resolve(false), w => data.el && w.getRes(0)],
-                    [w => this.findElements(data), w => !w.getRes(0)],
+                    [w => Promise.resolve(false), w => data.el && w.getRes(1)],
+                    [w => this.findElements(data), w => !w.getRes(1)],
                     [w => new Promise((resolve, reject) => {
                         let wait = presence ? w.res.length === 0 : w.res.length > 0;
                         // is it timed out?
@@ -369,13 +366,31 @@ class Sipd extends WebRobot {
                         if (w.res.length) {
                             res = w.res[0];
                         }
-                        resolve(wait);
-                    }), w => !w.getRes(0)],
+                        if (res) {
+                            res.getAttribute('outerHTML')
+                                .then(html => {
+                                    sres = html.length > 100 ? html.substr(0, 100) + '...' : html;
+                                    resolve(wait);
+                                })
+                                .catch(() => resolve(wait));
+                        } else {
+                            resolve(wait);
+                        }
+                    }), w => !w.getRes(1)],
                 ])
                 .then(result => {
                     if (result) {
                         setTimeout(f, this.loopdelay);
                     } else {
+                        let target;
+                        if (data.data instanceof By) {
+                            target = data.data.value;
+                        } else if (data instanceof By) {
+                            target = data.value;
+                        } else {
+                            target = data;
+                        }
+                        debug(presence ? 'Wait for present' : 'Wait for gone', target, 'resolved with', sres ?? res, 'in', Date.now() - t, 'ms');
                         resolve(res);
                     }
                 })
