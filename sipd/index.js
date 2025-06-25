@@ -225,7 +225,7 @@ class Sipd extends WebRobot {
             }), w => w.getRes(1)],
             [w => this.getDriver().switchTo().window(w.getRes(7)), w => w.getRes(1)],
             [w => this.getDriver().executeScript(this.getHelperScript()), w => w.getRes(1)],
-            [w => this.waitPage(), w => w.getRes(1)],
+            [w => this.waitPage()],
         ]);
     }
 
@@ -319,7 +319,7 @@ class Sipd extends WebRobot {
     }
 
     waitPage() {
-        return this.waitForPresence(By.id('cw-wwwig-gw'));
+        return this.waitForPresence(By.id('cw-wwwig-gw'), false, 0);
     }
 
     waitSidebar() {
@@ -327,7 +327,7 @@ class Sipd extends WebRobot {
     }
 
     waitLoader() {
-        return this.waitForPresence(By.xpath('//div[@class="container-rendering"]'));
+        return this.waitForPresence(By.xpath('//div[@class="container-rendering"]'), false, 0);
     }
 
     waitSpinner(el) {
