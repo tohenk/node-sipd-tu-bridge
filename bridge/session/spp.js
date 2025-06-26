@@ -167,7 +167,7 @@ class SipdSppSession extends SipdSession {
                         args.push([this.dateSerial(tglSpp), this.dateSerial(tgl)]);
                     }
                     args.push(
-                        [nomSpp, nominal],
+                        [this.fmtCurr(nomSpp), this.fmtCurr(nominal)],
                         [this.getSafeStr(untukSpp), untuk]
                     );
                     const states = f(...args);
@@ -264,7 +264,6 @@ class SipdSppSession extends SipdSession {
             [w => this.sipd.navigate('Pengeluaran', 'SPM', 'Pembuatan')],
             [w => this.sipd.waitLoader()],
             [w => this.sipd.waitAndClick(By.xpath('//button/p[text()="LS"]/..'))],
-            [w => this.sipd.waitSpinner(w.getRes(2))],
             [w => this.querySpm(queue)],
         ]);
     }

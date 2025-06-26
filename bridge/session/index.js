@@ -347,52 +347,68 @@ class SipdSession {
         ]);
     }
 
-    fillAfektasi(el, value, rekening) {
-        let allocated = false;
+    fillAfektasi(el, value, data) {
         return this.works([
-            [w => this.sipd.waitForPresence({el, data: By.xpath('.//div/div/div[@class="animate-pulse"]')}, false, 0)],
+            [w => this.sipd.waitForPresence({el, data: By.xpath('.//div/div/div[@class="animate-pulse"]')}, {presence: false, timeout: 0})],
             [w => this.sipd.sleep(this.sipd.opdelay)],
-            [w => this.sipd.findElements(By.xpath('//div/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
+            [w => this.sipd.findElements(By.xpath('//div[@class="css-kw-3t-2fa3"]/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
+            [w => this.fillAccount(w.getRes(2), value, data)],
+            [w => Promise.reject(`Tidak dapat mengalokasikan ${this.fmtCurr(value)} ke ${data.subkeg}-${data.rekening}, sisa anggaran ${this.fmtCurr(data.sisa)}!`), w => !w.getRes(3)],
+        ]);
+    }
+
+    fillAccount(accounts, value, data) {
+        return new Promise((resolve, reject) => {
+            let result = false;
+            const q = new Queue(accounts, el => {
+                this.works([
+                    [w => this.isAccount(el, data.rekening)],
+                    [w => this.canFillAccount(el, value, data), w => w.getRes(0)],
+                ])
+                .then(res => {
+                    if (res) {
+                        result = true;
+                        q.done();
+                    } else {
+                        q.next();
+                    }
+                })
+                .catch(err => reject(err));
+            });
+            q.once('done', () => resolve(result));
+        });
+    }
+
+    isAccount(el, rekening) {
+        return this.works([
+            [w => el.getAttribute('innerText')],
+            [w => Promise.resolve(this.pickCurr(w.getRes(0)) === rekening)],
+        ]);
+    }
+
+    canFillAccount(el, value, data) {
+        return this.works([
+            [w => el.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/div/input'))],
+            [w => el.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/p[2]'))],
+            [w => Promise.resolve(w.getRes(1).getAttribute('innerText'))],
+            [w => Promise.resolve(data.sisa = parseFloat(this.pickCurr(w.getRes(2))))],
+            [w => this.sipd.fillInput(w.getRes(0), null, this.options.clearUsingKey), w => data.sisa >= value],
             [w => new Promise((resolve, reject) => {
-                const items = w.getRes(2);
-                const q = new Queue(items, item => {
-                    this.works([
-                        [x => item.getAttribute('innerText')],
-                        [x => Promise.resolve(this.pickCurr(x.getRes(0)))],
-                        [x => item.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/div/input')), x => x.getRes(1) === rekening],
-                        [x => item.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/p[2]')), x => x.getRes(1) === rekening],
-                        [x => Promise.resolve(x.getRes(3).getAttribute('innerText')), x => x.getRes(1) === rekening],
-                        [x => Promise.resolve(parseFloat(this.pickCurr(x.getRes(4)))), x => x.getRes(1) === rekening],
-                        [x => this.sipd.fillInput(x.getRes(2), null, this.options.clearUsingKey), x => x.getRes(1) === rekening && x.getRes(5) >= value],
-                        [x => new Promise((resolve, reject) => {
-                            const input = x.getRes(2);
-                            const chars = value.toString().split('');
-                            const f = () => {
-                                if (chars.length) {
-                                    const x = chars.shift();
-                                    input.sendKeys(x)
-                                        .then(() => setTimeout(f, 10))
-                                        .catch(err => reject(err));
-                                } else {
-                                    resolve();
-                                }
-                            }
-                            f();
-                        }), x => x.getRes(1) === rekening && x.getRes(5) >= value],
-                        [x => Promise.resolve(allocated = true), x => x.getRes(1) === rekening && x.getRes(5) >= value],
-                    ])
-                    .then(() => {
-                        if (allocated) {
-                            q.done();
-                        } else {
-                            q.next();
-                        }
-                    })
-                    .catch(err => reject(err));
-                });
-                q.once('done', () => resolve());
-            })],
-            [w => Promise.reject(`Tidak dapat mengalokasikan ${value} pada rekening ${rekening}!`), w => !allocated],
+                const input = w.getRes(0);
+                const chars = value.toString().split('');
+                const f = () => {
+                    if (chars.length) {
+                        const x = chars.shift();
+                        input.sendKeys(x)
+                            .then(() => setTimeout(f, this.sipd.typedelay))
+                            .catch(err => reject(err));
+                    } else {
+                        resolve(true);
+                    }
+                }
+                f();
+            }), w => data.sisa >= value],
+            [w => Promise.resolve(false), w => data.sisa < value],
         ]);
     }
 
@@ -566,7 +582,7 @@ class SipdSession {
                         data = {
                             target: By.xpath('.//p[contains(@class,"form-label") and text()="Belanja"]/../div[2]'),
                             value: this.spp.nominal,
-                            onfill: (el, value) => this.fillAfektasi(el, value, this.spp.rek),
+                            onfill: (el, value) => this.fillAfektasi(el, value, {subkeg: this.spp.keg, rekening: this.spp.rek}),
                         }
                     } else {
                         data = null;
@@ -635,7 +651,7 @@ class SipdSession {
                     // add waiting
                     case f.flags.indexOf('+') >= 0:
                         data.done = (d, next) => {
-                            this.sipd.sleep(this.sipd.delay)
+                            this.sipd.sleep(this.sipd.opdelay)
                                 .then(() => next())
                                 .catch(err => {
                                     throw err;
@@ -727,7 +743,6 @@ class SipdSession {
                 () => this.submitForm(submit),
                 options.wait)],
             [w => this.sipd.sleep(this.sipd.opdelay)],
-            [w => this.sipd.waitLoader()],
             [w => Promise.resolve(w.getRes(1))],
         ]);
     }
@@ -861,6 +876,21 @@ class SipdSession {
                 return this.pickNumber(matches[0]);
             }
         }
+    }
+
+    fmtCurr(value) {
+        if (value !== undefined && value !== null) {
+            let s = value.toString();
+            value = '';
+            while (s.length) {
+                if (value.length) {
+                    value = '.' + value;
+                }
+                value = s.substr(-3) + value;
+                s = s.substr(0, s.length - 3);
+            }
+        }
+        return value;
     }
 
     getSafeStr(s) {

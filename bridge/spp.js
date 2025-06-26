@@ -44,7 +44,7 @@ class SipdSppBridge extends SipdBridge {
             // result
             ['res', w => new Promise((resolve, reject) => {
                 let res;
-                if (queue.SPP && queue.callback) {
+                if (queue.SPP && queue.SPP !== 'DRAFT' && queue.callback) {
                     res = {queue: queue.id, id: queue.getMappedData('info.id'), spp: queue.SPP, tglspp: queue.SPP_TGL};
                     if (queue.SPM) {
                         res.spm = queue.SPM;

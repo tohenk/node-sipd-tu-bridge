@@ -125,6 +125,10 @@ class Sipd extends WebRobot {
         return this.getDriver().executeScript('return getSipdLastMessage()');
     }
 
+    getHtml(el) {
+        return this.getDriver().executeScript('return arguments[0].outerHTML', el);
+    }
+
     waitCaptcha() {
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
@@ -136,7 +140,7 @@ class Sipd extends WebRobot {
         return this.works([
             [w => Promise.resolve(console.log('Awaiting captcha to be solved...'))],
             [w => Promise.resolve(this.setState({captcha: true}))],
-            [w => this.waitForPresence(By.xpath(this.CAPTCHA_MODAL), false, 0)],
+            [w => this.waitForPresence(By.xpath(this.CAPTCHA_MODAL), {presence: false, timeout: 0})],
             [w => this.waitSpinner(w.getRes(2))],
             [w => Promise.resolve(this.setState({captcha: false}))],
         ]);
@@ -319,19 +323,19 @@ class Sipd extends WebRobot {
     }
 
     waitPage() {
-        return this.waitForPresence(By.id('cw-wwwig-gw'), false, 0);
+        return this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0});
     }
 
     waitSidebar() {
-        return this.waitForPresence(By.xpath('//div[@class="simplebar-content"]/ul/div/div[contains(@class,"animate-pulse")]'), false, 0);
+        return this.waitForPresence(By.xpath('//div[@class="simplebar-content"]/ul/div/div[contains(@class,"animate-pulse")]'), {presence: false, timeout: 0});
     }
 
     waitLoader() {
-        return this.waitForPresence(By.xpath('//div[@class="container-rendering"]'), false, 0);
+        return this.waitForPresence(By.xpath('//div[@class="container-rendering"]'), {presence: false, timeout: 0});
     }
 
     waitSpinner(el, spinner = null) {
-        return this.waitForPresence({el, data: spinner ?? By.xpath('.//div[contains(@class,"chakra-spinner")]')}, false, 0);
+        return this.waitForPresence({el, data: spinner ?? By.xpath('.//div[contains(@class,"chakra-spinner")]')}, {presence: false, timeout: 0});
     }
 
     /**
@@ -340,34 +344,47 @@ class Sipd extends WebRobot {
      * @param {object|By} data Element to wait for
      * @param {WebElement} data.el Parent element
      * @param {By} data.data Element selector
-     * @param {boolean} presence Presence state
-     * @param {number} time Wait time
+     * @param {object} options The options
+     * @param {boolean} options.presence Presence state
+     * @param {number} options.timeout Wait time out
      * @returns {Promise<WebElement>}
      */
-    waitForPresence(data, presence = true, time = null) {
-        if (null === time) {
-            time = this.wait;
+    waitForPresence(data, options = null) {
+        options = options || {};
+        if (options.presence === undefined) {
+            options.presence = true;
+        }
+        if (options.timeout === undefined || options.timeout === null) {
+            options.timeout = this.wait;
+        }
+        let target;
+        if (data.data instanceof By) {
+            target = data.data.value;
+        } else if (data instanceof By) {
+            target = data.value;
+        } else {
+            target = data;
         }
         return new Promise((resolve, reject) => {
-            let res, sres;
+            let res, sres, observed;
             const t = Date.now();
             const f = () => {
                 this.works([
-                    [w => this.sleep(this.loopdelay)],
                     [w => this.isStale(data.el), w => data.el],
-                    [w => Promise.resolve(false), w => data.el && w.getRes(1)],
-                    [w => this.findElements(data), w => !w.getRes(1)],
+                    [w => this.getDriver().executeScript('_xchildObserve(arguments[0])', data.el), w => !w.getRes(0) && data.el && !observed],
+                    [w => Promise.resolve(observed = true), w => !w.getRes(0) && data.el && !observed],
+                    [w => this.findElements(data), w => !w.getRes(0)],
                     [w => new Promise((resolve, reject) => {
-                        let wait = presence ? w.res.length === 0 : w.res.length > 0;
+                        let wait = options.presence ? w.res.length === 0 : w.res.length > 0;
                         // is it timed out?
-                        if (wait && time > 0 && Date.now() - t > time) {
+                        if (wait && options.timeout > 0 && Date.now() - t > options.timeout) {
                             wait = false;
                         }
                         if (w.res.length) {
                             res = w.res[0];
                         }
                         if (res) {
-                            res.getAttribute('outerHTML')
+                            this.getHtml(res)
                                 .then(html => {
                                     sres = html.length > 100 ? html.substr(0, 100) + '...' : html;
                                     resolve(wait);
@@ -376,21 +393,22 @@ class Sipd extends WebRobot {
                         } else {
                             resolve(wait);
                         }
-                    }), w => !w.getRes(1)],
+                    }), w => !w.getRes(0)],
+                    [w => this.getDriver().executeScript('return getObservedChildren()'), w => !w.getRes(0) && data.el],
+                    [w => Promise.resolve(debug('Children', target, w.getRes(5))), w => !w.getRes(0) && data.el && Object.keys(w.getRes(5)).length],
+                    [w => this.sleep(this.loopdelay), w => !w.getRes(0)],
+                    [w => Promise.resolve(w.getRes(0) ? false : w.getRes(4))],
                 ])
                 .then(result => {
+                    const delta = Date.now() - t;
+                    // wait a minimum of delay before resolving on wait for gone
+                    if (!result && !options.presence && res === undefined && delta < this.opdelay) {
+                        result = true;
+                    }
                     if (result) {
                         setTimeout(f, this.loopdelay);
                     } else {
-                        let target;
-                        if (data.data instanceof By) {
-                            target = data.data.value;
-                        } else if (data instanceof By) {
-                            target = data.value;
-                        } else {
-                            target = data;
-                        }
-                        debug(presence ? 'Wait for present' : 'Wait for gone', target, 'resolved with', sres ?? res, 'in', Date.now() - t, 'ms');
+                        debug(options.presence ? 'Wait for present' : 'Wait for gone', target, 'resolved with', sres ?? res, 'in', delta, 'ms');
                         resolve(res);
                     }
                 })
@@ -444,7 +462,7 @@ class Sipd extends WebRobot {
                             [w => parent.findElements(By.xpath(root)), w => level === 3],
                             [w => Promise.resolve(--n), w => level === 3 && w.getRes(0).length === 1],
                             [w => Promise.resolve(selector = `/a/${dep('*', n)}[text()="${menu}"]`)],
-                            [w => Promise.resolve(debug(`Menu: ${level} ${root + selector}`))],
+                            [w => Promise.resolve(debug(`Menu level ${level} ${root + selector}`))],
                             [w => parent.findElement(By.xpath(root + selector))],
                             [w => w.getRes(4).findElement(By.xpath(dep('..', n)))],
                             [w => w.getRes(4).getAttribute('class')],
@@ -539,6 +557,29 @@ class Sipd extends WebRobot {
                         });
                     }
                 }
+                window._xchildObserve = el => {
+                    if (el) {
+                        window._xobserves = {};
+                        const observer = window._xobserve(el, mutation => {
+                            if (!window._xobserves.added) {
+                                window._xobserves.added = [];
+                            }
+                            for (const node of mutation.addedNodes) {
+                                if (!window._xobserves.added.includes(node.outerHTML)) {
+                                    window._xobserves.added.push(node.outerHTML);
+                                }
+                            }
+                            if (!window._xobserves.removed) {
+                                window._xobserves.removed = [];
+                            }
+                            for (const node of mutation.removedNodes) {
+                                if (!window._xobserves.removed.includes(node.outerHTML)) {
+                                    window._xobserves.removed.push(node.outerHTML);
+                                }
+                            }
+                        });
+                    }
+                }
                 window._xinit = () => {
                     const z = document.getElementById('ZEUS');
                     const o = window._xobserve(z, () => {
@@ -577,6 +618,9 @@ class Sipd extends WebRobot {
                 }
                 window.clearSipdMessages = () => {
                     window._xlogs = [];
+                }
+                window.getObservedChildren = () => {
+                    return window._xobserves ?? {};
                 }
                 addEventListener('load', e => window._xinit());
             }`;
