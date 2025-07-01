@@ -23,7 +23,6 @@
  */
 
 const crypto = require('crypto');
-const debug = require('debug')('sipd:config');
 const fs = require('fs');
 const path = require('path');
 const Cmd = require('@ntlab/ntlib/cmd');
@@ -170,8 +169,9 @@ class Configuration {
             //     }
             // }
             const cmd = require('@ntlab/ntlib/command')(this.captchaSolver, {});
-            this.solver = captcha => {
+            this.solver = (captcha, options) => {
                 if (captcha && fs.existsSync(captcha)) {
+                    const debug = require('debug')([options && options.tag ? options.tag : 'sipd', 'config'].join(':'));
                     debug('Resolving captcha', captcha);
                     return new Promise((resolve, reject) => {
                         let stdout, stderr;

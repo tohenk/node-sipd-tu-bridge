@@ -28,7 +28,8 @@ const Queue = require('@ntlab/work/queue');
 const { Sipd, SipdAnnouncedError } = require('../../sipd');
 const SipdPage = require('../../sipd/page');
 const { By, Key } = require('selenium-webdriver');
-const debug = require('debug')('sipd:session');
+
+const dtag = 'session';
 
 class SipdSession {
 
@@ -41,7 +42,7 @@ class SipdSession {
     constructor(options) {
         this.options = options;
         this.bridge = options.bridge;
-        this.sipd = new Sipd(options);
+        this.sipd = new Sipd({...options, tag: this.bridge.name});
         this.works = this.sipd.works;
         const ctx = this.sipd;
         for (const fn of this.fn) {
@@ -49,6 +50,10 @@ class SipdSession {
                 return this.sipd[fn].apply(ctx, args);
             }
         }
+    }
+
+    debug(tag) {
+        return require('debug')([this.bridge.name, tag].join(':'));
     }
 
     onStateChange(handler) {
@@ -92,7 +97,7 @@ class SipdSession {
             return Promise.resolve();
         }
         return new Promise((resolve, reject) => {
-            debug('Startup', this.options.startup);
+            this.debug(dtag)('Startup', this.options.startup);
             const exec = require('child_process').exec;
             exec(this.options.startup, (err, stdout, stderr) => {
                 resolve(err);
@@ -468,10 +473,10 @@ class SipdSession {
                 ])
                 .then(() => {
                     if (picked) {
-                        debug('Picked day', dayel);
+                        this.debug(dtag)('Picked day', dayel);
                         q.done();
                     } else {
-                        debug('Skipped day', dayel);
+                        this.debug(dtag)('Skipped day', dayel);
                         q.next();
                     }
                 })
@@ -514,7 +519,7 @@ class SipdSession {
                     break;
             }
             let value = queue.getMappedData([name, k]);
-            debug(`Mapped value ${name + '->' + key} = ${trunc(value)}`);
+            this.debug(dtag)(`Mapped value ${name + '->' + key} = ${trunc(value)}`);
             // fall back to non mapped value if undefined
             if (value === undefined) {
                 if (f.flags.indexOf('*') >= 0) {
@@ -543,7 +548,7 @@ class SipdSession {
                 } else {
                     value = v;
                 }
-                debug(`Special TYPE:value ${name + '->' + key} = ${trunc(value)}`);
+                this.debug(dtag)(`Special TYPE:value ${name + '->' + key} = ${trunc(value)}`);
             }
             // check for safe string
             if (typeof value === 'string' && value.length) {
@@ -753,7 +758,7 @@ class SipdSession {
             [w => this.sipd.waitAndClick(clicker)],
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.getLastMessage()],
-            [w => Promise.resolve(debug('Form submit return:', w.getRes(3))), w => w.getRes(3)],
+            [w => Promise.resolve(this.debug(dtag)('Form submit return:', w.getRes(3))), w => w.getRes(3)],
             [w => Promise.resolve(w.getRes(1)), w => w.getRes(3) === null || w.getRes(3).toLowerCase().includes('berhasil')],
             [w => Promise.reject(w.getRes(3)), w => !w.getRes(5)],
         ]);

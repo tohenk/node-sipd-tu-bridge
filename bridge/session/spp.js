@@ -26,7 +26,8 @@ const SipdSession = require('.');
 const SipdPage = require('../../sipd/page');
 const { SipdAnnouncedError } = require('../../sipd');
 const { By } = require('selenium-webdriver');
-const debug = require('debug')('sipd:spp');
+
+const dtag = 'spp';
 
 class SipdSppSession extends SipdSession {
 
@@ -171,7 +172,7 @@ class SipdSppSession extends SipdSession {
                         [this.getSafeStr(untukSpp), untuk]
                     );
                     const states = f(...args);
-                    debug(statusSpp, ...states.info);
+                    this.debug(dtag)(statusSpp, ...states.info);
                     if (states.okay) {
                         result = el;
                         queue[nomor] = noSpp;

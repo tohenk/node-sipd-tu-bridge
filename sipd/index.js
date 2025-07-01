@@ -26,7 +26,8 @@ const util = require('util');
 const Queue = require('@ntlab/work/queue');
 const WebRobot = require('@ntlab/webrobot');
 const { By, error } = require('selenium-webdriver');
-const debug = require('debug')('sipd:core');
+
+const dtag = 'core';
 
 class Sipd extends WebRobot {
 
@@ -45,6 +46,10 @@ class Sipd extends WebRobot {
         super.constructor.expectErr(error.StaleElementReferenceError);
         super.constructor.expectErr(SipdAnnouncedError);
         super.constructor.expectErr(SipdRetryError);
+    }
+
+    debug(tag) {
+        return require('debug')([this.options.tag ?? 'sipd', tag].join(':'));
     }
 
     setState(states) {
@@ -395,7 +400,7 @@ class Sipd extends WebRobot {
                         }
                     }), w => !w.getRes(0)],
                     [w => this.getDriver().executeScript('return getObservedChildren()'), w => !w.getRes(0) && data.el],
-                    [w => Promise.resolve(debug('Children', target, w.getRes(5))), w => !w.getRes(0) && data.el && Object.keys(w.getRes(5)).length],
+                    [w => Promise.resolve(this.debug(dtag)('Children', target, w.getRes(5))), w => !w.getRes(0) && data.el && Object.keys(w.getRes(5)).length],
                     [w => this.sleep(this.loopdelay), w => !w.getRes(0)],
                     [w => Promise.resolve(w.getRes(0) ? false : w.getRes(4))],
                 ])
@@ -408,7 +413,7 @@ class Sipd extends WebRobot {
                     if (result) {
                         setTimeout(f, this.loopdelay);
                     } else {
-                        debug(options.presence ? 'Wait for present' : 'Wait for gone', target, 'resolved with', sres ?? res, 'in', delta, 'ms');
+                        this.debug(dtag)(options.presence ? 'Wait for present' : 'Wait for gone', target, 'resolved with', sres ?? res, 'in', delta, 'ms');
                         resolve(res);
                     }
                 })
@@ -462,7 +467,7 @@ class Sipd extends WebRobot {
                             [w => parent.findElements(By.xpath(root)), w => level === 3],
                             [w => Promise.resolve(--n), w => level === 3 && w.getRes(0).length === 1],
                             [w => Promise.resolve(selector = `/a/${dep('*', n)}[text()="${menu}"]`)],
-                            [w => Promise.resolve(debug(`Menu level ${level} ${root + selector}`))],
+                            [w => Promise.resolve(this.debug(dtag)(`Menu level ${level} ${root + selector}`))],
                             [w => parent.findElement(By.xpath(root + selector))],
                             [w => w.getRes(4).findElement(By.xpath(dep('..', n)))],
                             [w => w.getRes(4).getAttribute('class')],

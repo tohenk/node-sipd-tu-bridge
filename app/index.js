@@ -284,7 +284,7 @@ class App {
                         const f = () => {
                             Work.works([
                                 [w => bridge.saveCaptcha('tmp')],
-                                [w => this.config.solver(w.getRes(0)), w => w.getRes(0)],
+                                [w => this.config.solver(w.getRes(0), {tag: bridge.name}), w => w.getRes(0)],
                                 [w => bridge.solveCaptcha(w.getRes(1)), w => w.getRes(1)],
                             ])
                             .then(res => {
