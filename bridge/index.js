@@ -51,7 +51,8 @@ class SipdBridge {
 
     sessions = {}
 
-    constructor(options) {
+    constructor(name, options) {
+        this.name = name;
         this.options = options;
         this.state = this.STATE_NONE;
         this.autoClose = this.options.autoClose !== undefined ? this.options.autoClose : true;

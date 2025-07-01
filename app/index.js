@@ -156,14 +156,13 @@ class App {
             let bridge;
             switch (this.config.mode) {
                 case Configuration.BRIDGE_SPP:
-                    bridge = new SipdSppBridge(config);
+                    bridge = new SipdSppBridge(name, config);
                     break;
                 case Configuration.BRIDGE_UTIL:
-                    bridge = new SipdUtilBridge(config);
+                    bridge = new SipdUtilBridge(name, config);
                     break;
             }
             if (bridge) {
-                bridge.name = name;
                 bridge.year = config.year;
                 bridge.onState = () => this.handleNotify();
                 this.bridges.push(bridge);
