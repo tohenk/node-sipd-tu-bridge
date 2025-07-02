@@ -360,7 +360,7 @@ class Sipd extends WebRobot {
             options.presence = true;
         }
         if (options.timeout === undefined || options.timeout === null) {
-            options.timeout = this.wait;
+            options.timeout = this.timeout;
         }
         let target;
         if (data.data instanceof By) {
