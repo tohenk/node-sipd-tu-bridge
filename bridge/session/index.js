@@ -745,22 +745,24 @@ class SipdSession {
             [w => this.sipd.fillInForm(
                 this.handleFormFill(name, queue, queue.files),
                 form,
-                () => this.submitForm(submit),
+                () => this.submitForm(submit, options),
                 options.wait)],
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => Promise.resolve(w.getRes(1))],
         ]);
     }
 
-    submitForm(clicker) {
+    submitForm(clicker, options = null) {
+        options = options || {};
         return this.works([
             [w => this.sipd.clearMessages()],
             [w => this.sipd.waitAndClick(clicker)],
+            [w => this.sipd.waitSpinner(w.getRes(1), typeof options.spinner === 'string' ? options.spinner : null), w => options.spinner],
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.getLastMessage()],
-            [w => Promise.resolve(this.debug(dtag)('Form submit return:', w.getRes(3))), w => w.getRes(3)],
-            [w => Promise.resolve(w.getRes(1)), w => w.getRes(3) === null || w.getRes(3).toLowerCase().includes('berhasil')],
-            [w => Promise.reject(w.getRes(3)), w => !w.getRes(5)],
+            [w => Promise.resolve(this.debug(dtag)('Form submit return:', w.getRes(4))), w => w.getRes(4)],
+            [w => Promise.resolve(w.getRes(1)), w => w.getRes(4) === null || w.getRes(4).toLowerCase().includes('berhasil')],
+            [w => Promise.reject(w.getRes(4)), w => !w.getRes(6)],
         ]);
     }
 

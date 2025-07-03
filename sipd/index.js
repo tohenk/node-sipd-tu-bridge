@@ -34,6 +34,9 @@ class Sipd extends WebRobot {
     LOGIN_FORM = '//div[contains(@class,"auth-box")]/form'
     CAPTCHA_MODAL = '//div[contains(@class,"chakra-modal__body")]/h4[contains(text(),"CAPTCHA")]/..'
 
+    SPINNER_CHAKRA = 'chakra-spinner'
+    SPINNER_ANIMATE = 'animate-spin'
+
     state = {}
 
     initialize() {
@@ -91,7 +94,7 @@ class Sipd extends WebRobot {
                     ],
                     By.xpath(this.LOGIN_FORM),
                     By.xpath('//button[@type="submit"]')), w => force || !w.getRes(1)],
-                [w => this.waitSpinner(w.getRes(4), By.xpath('.//svg')), w => force || !w.getRes(1)],
+                [w => this.waitSpinner(w.getRes(4)), w => force || !w.getRes(1)],
                 [w => this.selectAccount(role), w => force || !w.getRes(1)],
                 [w => this.waitCaptcha(), w => force || !w.getRes(1)],
                 [w => this.waitLoader(), w => force || !w.getRes(1)],
@@ -340,7 +343,7 @@ class Sipd extends WebRobot {
     }
 
     waitSpinner(el, spinner = null) {
-        return this.waitForPresence({el, data: spinner ?? By.xpath('.//div[contains(@class,"chakra-spinner")]')}, {presence: false, timeout: 0});
+        return this.waitForPresence({el, data: spinner ?? this.SPINNER_ANIMATE}, {presence: false, timeout: 0});
     }
 
     /**
@@ -362,6 +365,11 @@ class Sipd extends WebRobot {
         if (options.timeout === undefined || options.timeout === null) {
             options.timeout = this.timeout;
         }
+        // allows to wait for classname
+        if (data.el && data.data && typeof data.data === 'string') {
+            options.classname = data.data;
+            data.data = By.xpath(`.//*[contains(@class,"${options.classname}")]`);
+        }
         let target;
         if (data.data instanceof By) {
             target = data.data.value;
@@ -371,55 +379,34 @@ class Sipd extends WebRobot {
             target = data;
         }
         return new Promise((resolve, reject) => {
-            let res, sres, observed;
-            const t = Date.now();
+            this.debug(dtag)(options.presence ? 'Wait for present for' : 'Wait for gone for', target, 'in', options.timeout, 'ms');
+            options.t = Date.now();
             const f = () => {
                 this.works([
                     [w => this.isStale(data.el), w => data.el],
-                    [w => this.getDriver().executeScript('_xchildObserve(arguments[0])', data.el), w => !w.getRes(0) && data.el && !observed],
-                    [w => Promise.resolve(observed = true), w => !w.getRes(0) && data.el && !observed],
-                    [w => this.findElements(data), w => !w.getRes(0)],
-                    [w => new Promise((resolve, reject) => {
-                        let wait = options.presence ? w.res.length === 0 : w.res.length > 0;
-                        // is it timed out?
-                        if (wait && options.timeout > 0 && Date.now() - t > options.timeout) {
-                            wait = false;
-                        }
-                        if (w.res.length) {
-                            res = w.res[0];
-                        }
-                        if (res) {
-                            this.getHtml(res)
-                                .then(html => {
-                                    sres = html.length > 100 ? html.substr(0, 100) + '...' : html;
-                                    resolve(wait);
-                                })
-                                .catch(() => resolve(wait));
-                        } else {
-                            resolve(wait);
-                        }
-                    }), w => !w.getRes(0)],
-                    [w => this.getDriver().executeScript('return getObservedChildren()'), w => !w.getRes(0) && data.el],
-                    [w => Promise.resolve(this.debug(dtag)('Children', target, w.getRes(5))), w => !w.getRes(0) && data.el && Object.keys(w.getRes(5)).length],
+                    [w => this.observeChildren({data, target, options}), w => !w.getRes(0)],
+                    [w => this.isWaiting({data, options}), w => !w.getRes(0)],
                     [w => this.sleep(this.loopdelay), w => !w.getRes(0)],
-                    [w => Promise.resolve(w.getRes(0) ? false : w.getRes(4))],
+                    [w => this.getObservedChildren({target, options}), w => !w.getRes(0)],
+                    [w => Promise.resolve(w.getRes(0) ? false : (w.getRes(4) !== undefined ? w.getRes(4) : w.getRes(2)))],
                 ])
                 .then(result => {
-                    const delta = Date.now() - t;
+                    const delta = Date.now() - options.t;
                     // wait a minimum of delay before resolving on wait for gone
-                    if (!result && !options.presence && res === undefined && delta < this.opdelay) {
+                    if (!result && !options.presence && options.res === undefined && delta < this.opdelay) {
                         result = true;
                     }
                     if (result) {
                         setTimeout(f, this.loopdelay);
                     } else {
-                        this.debug(dtag)(options.presence ? 'Wait for present' : 'Wait for gone', target, 'resolved with', sres ?? res, 'in', delta, 'ms');
-                        resolve(res);
+                        this.debug(dtag)(options.presence ? 'Wait for present' : 'Wait for gone', target, 'resolved with', options.sres ?? options.res, 'in', delta, 'ms');
+                        resolve(options.res);
                     }
                 })
                 .catch(err => {
                     if (err instanceof error.StaleElementReferenceError) {
-                        resolve(res);
+                        this.debug(dtag)(options.presence ? 'Wait for present' : 'Wait for gone', target, 'is now stale');
+                        resolve(options.res);
                     } else {
                         reject(err);
                     }
@@ -427,6 +414,54 @@ class Sipd extends WebRobot {
             }
             f();
         });
+    }
+
+    isWaiting({data, options}) {
+        return this.works([
+            [w => this.findElements(data)],
+            [w => new Promise((resolve, reject) => {
+                let wait = options.presence ? w.res.length === 0 : w.res.length > 0;
+                // is it timed out?
+                if (wait && options.timeout > 0 && Date.now() - options.t > options.timeout) {
+                    wait = false;
+                }
+                if (w.res.length) {
+                    options.res = w.res[0];
+                }
+                if (options.res) {
+                    this.getHtml(options.res)
+                        .then(html => {
+                            options.sres = html.length > 100 ? html.substr(0, 100) + '...' : html;
+                            resolve(wait);
+                        })
+                        .catch(() => resolve(wait));
+                } else {
+                    resolve(wait);
+                }
+            })],
+        ]);
+    }
+
+    observeChildren({data, options}) {
+        if (!options.observed && data.el) {
+            options.observed = true;
+            return this.getDriver().executeScript('_xchildObserve(arguments[0], arguments[1])', data.el, options.classname);
+        } else {
+            return Promise.resolve();
+        }
+    }
+
+    getObservedChildren({target, options}) {
+        if (options.observed && options.classname) {
+            return this.works([
+                [w => this.getDriver().executeScript('return getObservedChildren()')],
+                [w => Promise.resolve(w.getRes(0).state && w.getRes(0).state[options.classname])],
+                [w => Promise.resolve(this.debug(dtag)(options.presence ? 'Wait for present' : 'Wait for gone', target, 'is now fulfilled')), w => w.getRes(1)],
+                [w => Promise.resolve(w.getRes(1) ? false : undefined)],
+            ]);
+        } else {
+            return Promise.resolve();
+        }
     }
 
     /**
@@ -562,16 +597,22 @@ class Sipd extends WebRobot {
                         });
                     }
                 }
-                window._xchildObserve = el => {
+                window._xchildObserve = (el, classname) => {
                     if (el) {
                         window._xobserves = {};
                         const observer = window._xobserve(el, mutation => {
+                            if (!window._xobserves.state) {
+                                window._xobserves.state = {};
+                            }
                             if (!window._xobserves.added) {
                                 window._xobserves.added = [];
                             }
                             for (const node of mutation.addedNodes) {
                                 if (!window._xobserves.added.includes(node.outerHTML)) {
                                     window._xobserves.added.push(node.outerHTML);
+                                }
+                                if (classname && node.classList.includes(classname)) {
+                                    window._xobserves.state[classname] = 'added';
                                 }
                             }
                             if (!window._xobserves.removed) {
@@ -580,6 +621,9 @@ class Sipd extends WebRobot {
                             for (const node of mutation.removedNodes) {
                                 if (!window._xobserves.removed.includes(node.outerHTML)) {
                                     window._xobserves.removed.push(node.outerHTML);
+                                }
+                                if (classname && node.classList.includes(classname)) {
+                                    window._xobserves.state[classname] = 'removed';
                                 }
                             }
                         });

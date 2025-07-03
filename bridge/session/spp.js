@@ -78,8 +78,7 @@ class SipdSppSession extends SipdSession {
             [w => this.fillForm(queue, 'rekanan',
                 By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
                 By.xpath('//button[text()="Konfirmasi"]')), w => (!clicker || forceEdit) && allowChange],
-            [w => this.submitForm(By.xpath('//section/footer/button[1]')), w => (!clicker || forceEdit) && allowChange],
-            [w => this.sipd.waitSpinner(w.getRes(8)), w => (!clicker || forceEdit) && allowChange],
+            [w => this.submitForm(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!clicker || forceEdit) && allowChange],
         ]);
     }
 
@@ -125,7 +124,7 @@ class SipdSppSession extends SipdSession {
             [w => this.sipd.waitLoader()],
             [w => page.setup()],
             [w => this.sipd.waitAndClick(By.xpath(`//button/p[text()="${jenis}"]/..`))],
-            [w => this.sipd.waitSpinner(w.getRes(2))],
+            [w => this.sipd.waitSpinner(w.getRes(2), this.sipd.SPINNER_CHAKRA)],
             [w => page.search(untuk, 'Keterangan')],
             [w => page.each({filtered: true}, el => [
                 [x => this.sipd.getText(tvalues, el)],
@@ -218,8 +217,7 @@ class SipdSppSession extends SipdSession {
             [w => this.fillForm(queue, 'spp',
                 By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],
-            [w => this.submitForm(By.xpath('//button[text()="Tambah Sekarang"]')), w => !w.getRes(0) && allowChange],
-            [w => this.sipd.waitSpinner(w.getRes(5)), w => !w.getRes(0) && allowChange],
+            [w => this.submitForm(By.xpath('//button[text()="Tambah Sekarang"]'), {spinner: true}), w => !w.getRes(0) && allowChange],
             [w => this.querySpp(queue, {flags: this.UNVERIFIED}), w => !w.getRes(0) && allowChange],
         ]);
     }
