@@ -379,7 +379,8 @@ class Sipd extends WebRobot {
             target = data;
         }
         return new Promise((resolve, reject) => {
-            this.debug(dtag)(options.presence ? 'Wait for present for' : 'Wait for gone for', target, 'in', options.timeout, 'ms');
+            const log = `${options.presence ? 'Wait for present' : 'Wait for gone'} ${target}`;
+            this.debug(dtag)(log, 'in', options.timeout, 'ms');
             options.t = Date.now();
             const f = () => {
                 this.works([
@@ -399,13 +400,13 @@ class Sipd extends WebRobot {
                     if (result) {
                         setTimeout(f, this.loopdelay);
                     } else {
-                        this.debug(dtag)(options.presence ? 'Wait for present' : 'Wait for gone', target, 'resolved with', options.sres ?? options.res, 'in', delta, 'ms');
+                        this.debug(dtag)(log, 'resolved with', options.sres ?? options.res, 'in', delta, 'ms');
                         resolve(options.res);
                     }
                 })
                 .catch(err => {
                     if (err instanceof error.StaleElementReferenceError) {
-                        this.debug(dtag)(options.presence ? 'Wait for present' : 'Wait for gone', target, 'is now stale');
+                        this.debug(dtag)(log, 'is now stale');
                         resolve(options.res);
                     } else {
                         reject(err);
@@ -417,28 +418,40 @@ class Sipd extends WebRobot {
     }
 
     isWaiting({data, options}) {
+        let res;
+        const maxlen = options.maxlen || 100;
         return this.works([
             [w => this.findElements(data)],
             [w => new Promise((resolve, reject) => {
-                let wait = options.presence ? w.res.length === 0 : w.res.length > 0;
+                res = options.presence ? w.res.length === 0 : w.res.length > 0;
                 // is it timed out?
-                if (wait && options.timeout > 0 && Date.now() - options.t > options.timeout) {
-                    wait = false;
+                if (res && options.timeout > 0 && Date.now() - options.t > options.timeout) {
+                    res = false;
                 }
                 if (w.res.length) {
                     options.res = w.res[0];
                 }
-                if (options.res) {
-                    this.getHtml(options.res)
-                        .then(html => {
-                            options.sres = html.length > 100 ? html.substr(0, 100) + '...' : html;
-                            resolve(wait);
-                        })
-                        .catch(() => resolve(wait));
-                } else {
-                    resolve(wait);
-                }
+                resolve();
             })],
+            [w => new Promise((resolve, reject) => {
+                this.getHtml(options.res)
+                    .then(html => {
+                        options.res = html;
+                        resolve();
+                    })
+                    .catch(() => resolve(true));
+            }), w => options.res],
+            [w => new Promise((resolve, reject) => {
+                options.res.getId()
+                    .then(id => {
+                        options.res = `${options.res.constructor.name} (${id})`;
+                        resolve();
+                    })
+                    .catch(() => resolve());
+            }), w => w.getRes(2) === true],
+            [w => Promise.resolve(options.sres = options.res.length > maxlen ? options.res.substr(0, maxlen) + '...' : options.res),
+                w => typeof options.res === 'string'],
+            [w => Promise.resolve(res)],
         ]);
     }
 
