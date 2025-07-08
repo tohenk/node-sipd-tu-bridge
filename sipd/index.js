@@ -149,7 +149,6 @@ class Sipd extends WebRobot {
             [w => Promise.resolve(console.log('Awaiting captcha to be solved...'))],
             [w => Promise.resolve(this.setState({captcha: true}))],
             [w => this.waitForPresence(By.xpath(this.CAPTCHA_MODAL), {presence: false, timeout: 0})],
-            [w => this.waitSpinner(w.getRes(2))],
             [w => Promise.resolve(this.setState({captcha: false}))],
         ]);
     }
