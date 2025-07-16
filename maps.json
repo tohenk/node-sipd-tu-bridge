@@ -4,7 +4,8 @@
         "role": "KEG",
         "nama": "LEMBAGA",
         "nik": "NIK",
-        "title": "FORMAT:%1% (%2%)|LEMBAGA|ID"
+        "title": "FORMAT:%1% (%2%)|LEMBAGA|ID",
+        "check": "SPP"
     },
     "rekanan": {
         "~=.//button[text()='Pilih Perusahaan']": "DO:CLICK",

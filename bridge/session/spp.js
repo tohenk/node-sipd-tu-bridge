@@ -84,12 +84,28 @@ class SipdSppSession extends SipdSession {
 
     queryData(queue, options) {
         let result;
-        const tgl = this.getDate(queue.getMappedData('spp.spp:TGL'));
-        const nominal = queue.getMappedData('spp.spp:NOMINAL');
-        const untuk = this.getSafeStr(queue.getMappedData('spp.spp:UNTUK'));
         const title = options.title;
         const jenis = options.jenis;
         const nomor = options.nomor || 'SPP';
+        const search = [];
+        let sppno, tgl, nominal, untuk;
+        if (nomor === 'SPP') {
+            sppno = queue.getMappedData('info.check');
+        }
+        if (sppno) {
+            search.push(sppno, 'Nomor');
+        } else {
+            if (nomor !== 'SPP') {
+                tgl = queue.SPP_TGL;
+                nominal = queue.SPP_NOM;
+                untuk = queue.SPP_UNTUK;
+            } else {
+                tgl = this.getDate(queue.getMappedData('spp.spp:TGL'));
+                nominal = queue.getMappedData('spp.spp:NOMINAL');
+                untuk = this.getSafeStr(queue.getMappedData('spp.spp:UNTUK'));
+            }
+            search.push(untuk, 'Keterangan');
+        }
         const page = this.createPage(this.PAGE_SPP, title);
         const tvalues = {};
         const tselectors = {
@@ -125,7 +141,7 @@ class SipdSppSession extends SipdSession {
             [w => page.setup()],
             [w => this.sipd.waitAndClick(By.xpath(`//button/p[text()="${jenis}"]/..`))],
             [w => this.sipd.waitSpinner(w.getRes(2), this.sipd.SPINNER_CHAKRA)],
-            [w => page.search(untuk, 'Keterangan')],
+            [w => page.search(search[0], search[1])],
             [w => page.each({filtered: true}, el => [
                 [x => this.sipd.getText(tvalues, el)],
                 [x => this.getTippyText(tippies, el), x => Object.keys(tippies).length],
@@ -163,19 +179,25 @@ class SipdSppSession extends SipdSession {
                         return res;
                     }
                     const args = [];
-                    if (!options.skipDate) {
-                        args.push([this.dateSerial(tglSpp), this.dateSerial(tgl)]);
+                    if (sppno) {
+                        args.push([noSpp, sppno]);
+                    } else {
+                        if (!options.skipDate) {
+                            args.push([this.dateSerial(tglSpp), this.dateSerial(tgl)]);
+                        }
+                        args.push(
+                            [this.fmtCurr(nomSpp), this.fmtCurr(nominal)],
+                            [this.getSafeStr(untukSpp), untuk]
+                        );
                     }
-                    args.push(
-                        [this.fmtCurr(nomSpp), this.fmtCurr(nominal)],
-                        [this.getSafeStr(untukSpp), untuk]
-                    );
                     const states = f(...args);
                     this.debug(dtag)(statusSpp, ...states.info);
                     if (states.okay) {
                         result = el;
                         queue[nomor] = noSpp;
                         queue[nomor + '_TGL'] = tglSpp;
+                        queue[nomor + '_UNTUK'] = untukSpp;
+                        queue[nomor + '_NOM'] = nomSpp;
                         queue.STATUS = statusSpp;
                         queue.values = {...values, ...tippyValues};
                         reject(SipdPage.stop());
