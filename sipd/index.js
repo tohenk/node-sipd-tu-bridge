@@ -40,7 +40,6 @@ class Sipd extends WebRobot {
     state = {}
 
     initialize() {
-        this.safeTextArea = false;
         this.year = this.options.year || new Date().getFullYear();
         this.delay = this.options.delay || 500;
         this.opdelay = this.options.opdelay || 400;
