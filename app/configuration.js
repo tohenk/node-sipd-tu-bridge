@@ -92,8 +92,11 @@ class Configuration {
             }
         }
         // load form maps
-        if (this.mode === Configuration.BRIDGE_SPP) {
-            filename = path.join(this.workdir, 'maps.json');
+        const mappings = {
+            [Configuration.BRIDGE_SPP]: 'spp.json'
+        }
+        if (mappings[this.mode] !== undefined) {
+            filename = path.join(this.workdir, 'mappings', mappings[this.mode]);
             if (fs.existsSync(filename)) {
                 this.maps = JSON.parse(fs.readFileSync(filename));
                 console.log('Maps loaded from %s', filename);
