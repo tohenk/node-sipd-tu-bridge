@@ -39,7 +39,7 @@ class SipdRole {
      * Get role actor.
      *
      * @param {string} roleId Role id
-     * @returns {SipdRoleActor|SipdRoleUser}
+     * @returns {SipdRoleUser}
      */
     get(roleId) {
         return this.actors[roleId];
@@ -49,7 +49,7 @@ class SipdRole {
      * Set role actor.
      *
      * @param {string} roleId Role id
-     * @param {SipdRoleActor|SipdRoleUser} actor Actor
+     * @param {SipdRoleUser} actor Actor
      * @returns {SipdRole}
      */
     set(roleId, actor) {
@@ -84,33 +84,26 @@ class SipdRole {
         const rr = this.roles[role];
         for (const roleId of this.rolesKey) {
             // uid can be: reference to the user or the user itself
-            let uid = data[roleId]; 
-            if (roleId === this.PPTK) {
-                if (!this.users[uid]) {
-                    this.users[uid] = new SipdRoleActor(roleId, uid);
-                }
+            let uid = data[roleId], udata; 
+            // check if uid is the user itself
+            if (typeof uid === 'object') {
+                udata = uid;
+                uid = this.genUid(SipdRoleUser.normalize(SipdEncryptable.decrypt(udata.username)));
             } else {
-                let udata;
-                // check if uid is the user itself
-                if (typeof uid === 'object') {
-                    udata = uid;
-                    uid = SipdRoleUser.normalize(SipdEncryptable.decrypt(udata.username));
-                } else {
-                    // set user data from user reference
-                    if (users) {
-                        udata = users[uid];
-                    }
+                // set user data from user reference
+                if (users) {
+                    udata = users[uid];
                 }
-                if (udata) {
-                    // add user if not exist
-                    if (!this.users[uid]) {
-                        this.users[uid] = new SipdRoleUser(roleId, udata.role, udata.username, udata.password);
-                    } else {
-                        // try update password
-                        const u = this.users[uid];
-                        if (u.password !== udata.password) {
-                            u._password = udata.password;
-                        }
+            }
+            if (udata) {
+                // add user if not exist
+                if (!this.users[uid]) {
+                    this.users[uid] = new SipdRoleUser(roleId, udata.role, udata.name, udata.username, udata.password);
+                } else {
+                    // try update password
+                    const u = this.users[uid];
+                    if (u.password !== udata.password) {
+                        u._password = udata.password;
                     }
                 }
             }
@@ -157,9 +150,11 @@ class SipdRole {
         if (fs.existsSync(this.filename)) {
             this.users = {};
             const data = JSON.parse(fs.readFileSync(this.filename));
-            for (const [role, roles] of Object.entries(data.roles)) {
-                if (this.isRoles(roles)) {
-                    this.loadRole(role, roles, data.users);
+            if (data.roles) {
+                for (const [role, roles] of Object.entries(data.roles)) {
+                    if (this.isRoles(roles)) {
+                        this.loadRole(role, roles, data.users);
+                    }
                 }
             }
         }
@@ -201,21 +196,19 @@ class SipdRole {
                     roles[role] = {};
                 }
                 for (const roleId of this.rolesKey) {
-                    let uid;
                     const u = srole.get(roleId);
                     if (u instanceof SipdRoleUser) {
-                        uid = SipdRoleUser.normalize(u.username);
+                        const uid = this.genUid(SipdRoleUser.normalize(u.username));
                         if (users[uid] === undefined) {
                             users[uid] = {
-                                role: u.name,
+                                role: u.role,
+                                name: SipdEncryptable.isDecryptable(u._name) ? u._name : SipdEncryptable.encrypt(u.name),
                                 username: SipdEncryptable.isDecryptable(u._username) ? u._username : SipdEncryptable.encrypt(u.username),
                                 password: SipdEncryptable.isDecryptable(u._password) ? u._password : SipdEncryptable.encrypt(u.password),
                             }
                         }
-                    } else {
-                        uid = u.name;
+                        roles[role][roleId] = uid;
                     }
-                    roles[role][roleId] = uid;
                 }
             }
             let data = JSON.stringify({users, roles}, null, 4);
@@ -238,6 +231,14 @@ class SipdRole {
         return this;
     }
 
+    static genUid(username) {
+        return require('crypto')
+            .createHash('sha1')
+            .update(username)
+            .digest('hex')
+            .substring(0, 8);
+    }
+
     static get rolesKey() { return [this.PA, this.BP, this.PPK, this.PPTK] }
 
     static get PA() { return 'pa' }
@@ -247,43 +248,36 @@ class SipdRole {
 }
 
 /**
- * Role for actor.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdRoleActor {
-
-    /**
-     * Constructor.
-     *
-     * @param {string} id Role id
-     * @param {string} name Role title
-     */
-    constructor(id, name) {
-        this.id = id;
-        this.name = name;
-    }
-}
-
-/**
  * Role for user.
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdRoleUser extends SipdRoleActor {
+class SipdRoleUser {
 
     /**
      * Constructor.
      *
      * @param {string} id Role id
-     * @param {string} name Role title
+     * @param {string} role Role name
+     * @param {string} name Person name
      * @param {string} username Username
      * @param {string} password Password
      */
-    constructor(id, name, username, password) {
-        super(id, name);
+    constructor(id, role, name, username, password) {
+        this.id = id;
+        this.role = role;
+        this._name = name;
         this._username = username;
         this._password = password;
+    }
+
+    /**
+     * Get person name.
+     *
+     * @returns {string}
+     */
+    get name() {
+        return SipdEncryptable.decrypt(this._name);
     }
 
     /**

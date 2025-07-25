@@ -24,7 +24,7 @@
 
 const SipdCmd = require('.');
 
-class SipdCmdSppData extends SipdCmd {
+class SipdCmdXData extends SipdCmd {
 
     consume(payload) {
         const { socket, data } = payload;
@@ -39,4 +39,4 @@ class SipdCmdSppData extends SipdCmd {
     }
 }
 
-module.exports = SipdCmdSppData;
+module.exports = SipdCmdXData;

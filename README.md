@@ -25,3 +25,46 @@ The field map is using the following convention:
 | prefix   | Prefix determine how to treat selector:                  |
 |          | `#`   Field selector is using id                         |
 |          | `=`   Field selector is using xpath                      |
+
+## Roles
+
+`roles.json` holds users and budgeting activities.
+
+```json
+{
+    "users": {
+        "kpa": {
+            "role": "Kuasa Pengguna Anggaran",
+            "name": "CHANGEME",
+            "username": "CHANGEME",
+            "password": "CHANGEME"
+        },
+        "bpp": {
+            "role": "Bendahara Pengeluaran Pembantu",
+            "name": "CHANGEME",
+            "username": "CHANGEME",
+            "password": "CHANGEME"
+        },
+        "ppk": {
+            "role": "PPK Unit SKPD",
+            "name": "CHANGEME",
+            "username": "CHANGEME",
+            "password": "CHANGEME"
+        },
+        "pptk": {
+            "role": "PPTK",
+            "name": "CHANGEME",
+            "username": "CHANGEME",
+            "password": "CHANGEME"
+        }
+    },
+    "roles": {
+        "401041010001": {
+            "bpp": "bpp",
+            "kpa": "kpa",
+            "ppk": "ppk",
+            "pptk": "pptk"
+        }
+    }
+}
+```

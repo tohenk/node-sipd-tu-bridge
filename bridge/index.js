@@ -70,12 +70,16 @@ class SipdBridge {
         if (this.options.roles) {
             role = Object.keys(this.options.roles)[0];
         }
-        return Work.works([
-            ['role', s => Promise.resolve(this.switchRole(role))],
-            ['bp', s => this.doAs(SipdRole.BP)],
-            ['done', s => Promise.resolve(f())],
-            ['cleanup', s => s.bp.stop()],
-        ]);
+        if (role) {
+            return Work.works([
+                ['role', s => Promise.resolve(this.switchRole(role))],
+                ['bp', s => this.doAs(SipdRole.BP)],
+                ['done', s => Promise.resolve(f())],
+                ['cleanup', s => s.bp.stop()],
+            ]);
+        } else {
+            return Promise.resolve();
+        }
     }
 
     isOperational() {
@@ -255,7 +259,7 @@ class SipdBridge {
             return Promise.reject(util.format('Role not found: %s!', role));
         }
         const session = this.getSession(user.username);
-        session.cred = {username: user.username, password: user.password, role: user.name || this.getRoleTitle(role)};
+        session.cred = {username: user.username, password: user.password, role: user.role || this.getRoleTitle(role)};
         return Promise.resolve(session);
     }
 
