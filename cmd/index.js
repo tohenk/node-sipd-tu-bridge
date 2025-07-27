@@ -106,15 +106,21 @@ class SipdCmd {
      * @param {object} owner Owner
      * @param {string} prefix Command prefix
      * @param {string|undefined} dir The directory
+     * @param {string[]|undefined} ns The namespaces
      */
-    static register(owner, prefix, dir) {
+    static register(owner, prefix, dir, ns) {
         dir = dir || __dirname;
-        const files = fs.readdirSync(dir);
-        files.forEach(file => {
-            if (file.endsWith('.js')) {
-                const cmd = file.substr(0, file.length - 3);
+        const f = entry => entry.isFile() ? 0 : 1;
+        const entries = fs.readdirSync(dir, {withFileTypes: true})
+            .sort((a, b) => f(a) - f(b));
+        ns = (Array.isArray(ns) ? ns : [ns]).filter(Boolean);
+        for (const entry of entries) {
+            if (entry.isDirectory()) {
+                this.register(owner, prefix, path.join(dir, entry.name), [...ns, entry.name]);
+            } else if (entry.name.endsWith('.js')) {
+                const cmd = entry.name.substr(0, entry.name.length - 3);
                 if (cmd !== 'index') {
-                    const name = cmd.replace('-', ':');
+                    const name = [...ns, cmd].join(':');
                     if (!this.get(name)) {
                         if (!prefix || name.indexOf(':') < 0 || (prefix && name.startsWith(prefix + ':'))) {
                             const CmdClass = require(path.join(dir, cmd));
@@ -127,7 +133,7 @@ class SipdCmd {
                     }
                 }
             }
-        });
+        }
     }
 
     /**

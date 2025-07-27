@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2025 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2022-2025 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -22,15 +22,33 @@
  * SOFTWARE.
  */
 
-const SipdCmd = require('.');
-const SipdQueue = require('../app/queue');
+const SipdCmd = require('..');
+const SipdQueue = require('../../app/queue');
 
-class SipdCmdUtilNoop extends SipdCmd {
+class SipdCmdSppCreate extends SipdCmd {
 
     consume(payload) {
-        const { data } = payload;
-        return this.dequeue.createQueue({type: SipdQueue.QUEUE_NOOP, data});
+        let result;
+        const { socket, data } = payload;
+        const batch = Array.isArray(data.items);
+        const items = batch ? data.items : [data];
+        let cnt = 0;
+        items.forEach(spp => {
+            const res = this.dequeue.createQueue({
+                type: SipdQueue.QUEUE_SPP,
+                data: spp,
+                callback: socket.callback,
+            });
+            cnt++;
+            if (!batch) {
+                result = res;
+            }
+        });
+        if (batch) {
+            result = {count: cnt, message: 'SPP is being queued'};
+        }
+        return result;
     }
 }
 
-module.exports = SipdCmdUtilNoop;
+module.exports = SipdCmdSppCreate;
