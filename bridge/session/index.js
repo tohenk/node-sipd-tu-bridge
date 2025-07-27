@@ -25,17 +25,21 @@
 const fs = require('fs');
 const path = require('path');
 const Queue = require('@ntlab/work/queue');
-const { Sipd, SipdAnnouncedError } = require('../../sipd');
 const SipdPage = require('../../sipd/page');
-const { By, Key } = require('selenium-webdriver');
+const SipdUtil = require('../../sipd/util');
+const { Sipd, SipdAnnouncedError } = require('../../sipd');
+const { SipdColumnQuery } = require('../../sipd/query');
+const { SipdQueryBase, SipdVoterPegawai, SipdVoterRekanan, SipdQueryRekanan } = require('./pages');
+const { By, Key, WebElement } = require('selenium-webdriver');
 
 const dtag = 'session';
 
+/**
+ * Provides base functionality to work with SIPD feature.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdSession {
-
-    PAGE_REKANAN = 1
-    PAGE_REKANAN_ALT = 2
-    PAGE_SPP = 3
 
     fn = ['stop', 'sleep', 'captchaImage', 'solveCaptcha', 'reloadCaptcha', 'cancelCaptcha']
 
@@ -44,10 +48,36 @@ class SipdSession {
         this.bridge = options.bridge;
         this.sipd = new Sipd({...options, tag: this.bridge.name});
         this.works = this.sipd.works;
+        this.initialize();
+    }
+
+    initialize() {
         const ctx = this.sipd;
         for (const fn of this.fn) {
             this[fn] = function(...args) {
                 return this.sipd[fn].apply(ctx, args);
+            }
+        }
+        const normalizers = {
+            tgl: value => SipdUtil.getDate(value),
+            num: value => parseInt(SipdUtil.pickNumber(value)),
+            nom: value => parseFloat(SipdUtil.pickCurr(value)),
+            nr: value => SipdUtil.pickNumber(value),
+            default: value => typeof value === 'string' ? SipdUtil.getSafeStr(value) : value,
+        }
+        const stringables = {
+            tgl: value => SipdUtil.dateSerial(value),
+            nom: value => SipdUtil.fmtCurr(value),
+            default: value => value.toString(),
+        }
+        for (const [normalizer, fn] of Object.entries(normalizers)) {
+            if (SipdColumnQuery.normalizers[normalizer] === undefined) {
+                SipdColumnQuery.normalizers[normalizer] = fn;
+            }
+        }
+        for (const [stringable, fn] of Object.entries(stringables)) {
+            if (SipdColumnQuery.stringables[stringable] === undefined) {
+                SipdColumnQuery.stringables[stringable] = fn;
             }
         }
     }
@@ -68,48 +98,6 @@ class SipdSession {
 
     ready() {
         return this.sipd.ready;
-    }
-
-    start() {
-        return this.works([
-            [w => this.waitUntilReady(), w => !this.sipd.ready],
-            [w => this.doStartup(), w => this.options.startup],
-            [w => this.sipd.handlePageLoad()],
-            [w => this.sipd.open()],
-        ]);
-    }
-
-    waitUntilReady() {
-        return new Promise((resolve, reject) => {
-            const f = () => {
-                if (this.ready()) {
-                    resolve();
-                } else {
-                    setTimeout(f, 100);
-                }
-            }
-            f();
-        });
-    }
-
-    doStartup() {
-        if (!this.options.startup) {
-            return Promise.resolve();
-        }
-        return new Promise((resolve, reject) => {
-            this.debug(dtag)('Startup', this.options.startup);
-            const exec = require('child_process').exec;
-            exec(this.options.startup, (err, stdout, stderr) => {
-                resolve(err);
-            });
-        });
-    }
-
-    login() {
-        return this.works([
-            [w => this.start()],
-            [w => this.sipd.login(this.cred.username, this.cred.password, this.cred.role)],
-        ]);
     }
 
     genFilename(dir, filename) {
@@ -143,6 +131,153 @@ class SipdSession {
         }
     }
 
+    /**
+     * Get flag modifiers for input string.
+     *
+     * @param {string} flags Flag modifiers
+     * @param {string} s The input string
+     * @param {boolean} multiple True to allows multiple modifier
+     * @returns {string[]}
+     */
+    getFlags(flags, s, multiple = false) {
+        const res = [];
+        if (typeof flags === 'string') {
+            flags = flags.split('');
+        }
+        if (!Array.isArray(flags)) {
+            flags = [flags];
+        }
+        while (true) {
+            if (flags.indexOf(s.substr(0, 1)) >= 0) {
+                res.push(s.substr(0, 1));
+                s = s.substr(1);
+                if (multiple) {
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            break;
+        }
+        return res;
+    }
+
+    /**
+     * Get form key data which includes element selector, modifiers, and
+     * selector modifiers.
+     *
+     * @param {string} key Form field key
+     * @returns {object}
+     */
+    getFormKey(key) {
+        const res = {};
+        // flags:
+        // + add wait
+        // ? perform read operatiron
+        // * required
+        // ~ optional
+        // $ set value using javascript
+        // - ignored, used to duplicate selector
+        // & advance date to skip holiday
+        res.flags = this.getFlags('+?*~$-&', key, true);
+        if (res.flags.length) {
+            key = key.substr(res.flags.length);
+        }
+        // check parent
+        if (key.indexOf('!') > 1) {
+            const part = key.split('!');
+            res.parent = part[0];
+            key = part[1];
+        }
+        // selector flags:
+        // # id selector
+        // = xpath selector
+        res.sflags = this.getFlags('#=', key);
+        if (res.sflags.length) {
+            key = key.substr(res.sflags.length);
+        }
+        res.selector = key;
+        return res;
+    }
+
+    /**
+     * Is queue editable?
+     *
+     * @param {object} queue The queue
+     * @returns {boolean}
+     */
+    isEditable(queue) {
+        return !queue.readonly;
+    }
+
+    /**
+     * Wait for state to be ready.
+     *
+     * @returns {Promise<any>}
+     */
+    waitUntilReady() {
+        return new Promise((resolve, reject) => {
+            const f = () => {
+                if (this.ready()) {
+                    resolve();
+                } else {
+                    setTimeout(f, 100);
+                }
+            }
+            f();
+        });
+    }
+
+    /**
+     * Execute startup command.
+     *
+     * @returns {Promise<any>}
+     */
+    doStartup() {
+        if (!this.options.startup) {
+            return Promise.resolve();
+        }
+        return new Promise((resolve, reject) => {
+            this.debug(dtag)('Startup', this.options.startup);
+            const exec = require('child_process').exec;
+            exec(this.options.startup, (err, stdout, stderr) => {
+                resolve(err);
+            });
+        });
+    }
+
+    /**
+     * Do start of work.
+     *
+     * @returns {Promise<any>}
+     */
+    start() {
+        return this.works([
+            [w => this.waitUntilReady(), w => !this.sipd.ready],
+            [w => this.doStartup(), w => this.options.startup],
+            [w => this.sipd.handlePageLoad()],
+            [w => this.sipd.open()],
+        ]);
+    }
+
+    /**
+     * Login to SIPD Penatausahaan.
+     *
+     * @returns {Promise<any>}
+     */
+    login() {
+        return this.works([
+            [w => this.start()],
+            [w => this.sipd.login(this.cred.username, this.cred.password, this.cred.role)],
+        ]);
+    }
+
+    /**
+     * Get tippy text content.
+     *
+     * @param {WebElement} el Tippy element
+     * @returns {Promise<string>}
+     */
     getTippy(el) {
         return this.sipd.getDriver().executeScript(
             function(el) {
@@ -152,93 +287,114 @@ class SipdSession {
             }, el);
     }
 
-    getTippyText(items, el) {
+    /**
+     * Get row data for data paging colums.
+     *
+     * @param {SipdColumnQuery[]} columns Columns data
+     * @param {WebElement} el The Element
+     * @returns {Promise<object>}
+     */
+    getRowData(columns, el) {
         return new Promise((resolve, reject) => {
             const res = {};
-            const q = new Queue(Object.keys(items), tippy => {
+            const q = new Queue([...columns], col => {
+                const isValue = col.type !== SipdColumnQuery.COL_ACTION;
+                const tippy = col.tippyXpath;
                 this.works([
-                    [w => el.findElements(items[tippy])],
-                    [w => this.getTippy(w.getRes(0)[0]), w => w.getRes(0).length],
-                    [w => Promise.resolve(res[tippy] = w.getRes(1)), w => w.getRes(0).length],
+                    [w => el.findElements(tippy), w => tippy],
+                    [w => this.getTippy(w.getRes(0)[0]), w => tippy && w.getRes(0).length],
+                    [w => this.sipd.getText([col.xpath], el), w => !tippy && isValue],
+                    [w => Promise.resolve(res[col.name] = col.normalize(tippy ? w.getRes(1) : w.getRes(2)[0])), w => isValue],
+                    [w => this.sipd.findElement({el, data: col.xpath}), w => !isValue],
+                    [w => Promise.resolve(res[col.name] = w.getRes(4)), w => !isValue],
                 ])
-                .then(res => q.next())
+                .then(() => q.next())
                 .catch(err => reject(err));
             });
             q.once('done', () => resolve(res));
         });
     }
 
-    getPageOptions(page, title) {
-        const res = {title};
-        switch (page) {
-            case this.PAGE_REKANAN:
-            case this.PAGE_REKANAN_ALT:
-                const placeholder = page === this.PAGE_REKANAN ? 'perusahaan' : 'nik';
-                res.selector = '//h1[contains(@class,"card-title")]/h1[text()="%TITLE%"]/../../../..';
-                res.search = {
-                    input: By.xpath(`//input[contains(@placeholder,"Cari ${placeholder}")]`),
-                    submit: By.xpath('//button[text()="Cari Sekarang"]'),
-                    toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
-                }
-                break;
-            case this.PAGE_SPP:
-                res.search = {
-                    filter: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[1]/div/button'),
-                    input: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[2]/div/input'),
-                    submit: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[3]/div/div'),
-                }
-                break;
-        }
-        return res;
-    }
-
-    createPage(page, title) {
-        return new SipdPage(this.sipd, this.getPageOptions(page, title));
-    }
-
-    doChoose(title, value, values, options, callback = null) {
-        return new Promise((resolve, reject) => {
-            if (typeof options === 'function') {
-                callback = options;
-                options = undefined;
-            }
-            options = options || {};
-            const pageOptions = Object.assign({
-                title: title,
-                selector: '//header[text()="%TITLE%"]/../div[contains(@class,"chakra-modal__body")]',
-                tableSelector: './/table/..',
-                pageSelector: 'li/a[text()="%PAGE%"]',
-            }, options.page ? this.getPageOptions(options.page, title) : {});
-            const searchIdx = options.searchIdx !== undefined ? options.searchIdx : 0;
-            const page = new SipdPage(this.sipd, pageOptions);
-            let clicker;
-            this.works([
-                [w => page.setup()],
-                [w => page.search(Array.isArray(value) ? value[searchIdx] : value), w => page._search],
-                [w => page.each(el => [
-                    [x => this.sipd.getText([...values], el)],
-                    [x => el.findElement(By.xpath('.//button'))],
-                    [x => new Promise((resolve, reject) => {
-                        const v = x.getRes(0);
-                        const expected = Array.isArray(value) ? value.join('|') : value;
-                        let checked = typeof callback === 'function' ? callback(v) : v;
-                        if (Array.isArray(checked)) {
-                            checked = checked.join('|');
+    /**
+     * Perform data query match operation.
+     *
+     * @param {SipdQueryBase} query Query data
+     * @returns {Promise<WebElement|undefined>}
+     */
+    doQuery(query) {
+        let result, clicker, statusCol, actionCol, expectedValue;
+        return this.works([
+            [w => this.sipd.navigate(...query.navigates), w => query.navigates],
+            [w => this.sipd.waitLoader()],
+            [w => this.sipd.subPageNav(...(Array.isArray(query.group) ? query.group : [query.group])), w => query.group],
+            [w => query.page.setup()],
+            [w => query.page.search(...(Array.isArray(query.search) ? query.search : [query.search])), w => query.search],
+            [w => query.page.each({filtered: query.search ? true : false}, el => [
+                [x => this.getRowData(query.columns, el)],
+                [x => new Promise((resolve, reject) => {
+                    const values = x.getRes(0);
+                    const dbg = (l, s) => `${l} (${s ? 'v' : 'x'})`;
+                    const f = (...args) => {
+                        const res = {
+                            states: [],
+                            info: [],
                         }
-                        if (expected.toLowerCase() === checked.toLowerCase()) {
-                            clicker = x.getRes(1);
-                            reject(SipdPage.stop());
-                        } else {
-                            resolve();
+                        for (const arg of args) {
+                            const okay = arg[0] == arg[1];
+                            res.states.push(okay);
+                            res.info.push(dbg(arg[0], okay));
                         }
-                    })],
-                ])],
-                [w => clicker.click(), w => clicker],
-                [w => Promise.reject(new SipdAnnouncedError(`${title}: ${value} tidak ada!`)), w => !clicker],
-            ])
-            .then(() => resolve())
-            .catch(err => reject(err));
-        });
+                        res.okay = true;
+                        res.states.forEach(state => {
+                            if (!state) {
+                                res.okay = false;
+                                return true;
+                            }
+                        });
+                        return res;
+                    }
+                    const compares = [];
+                    for (const [col, value] of query.diffs) {
+                        const column = query.columns.find(column => column.name === col);
+                        if (column) {
+                            compares.push([column.asString(value), column.asString(values[col])]);
+                        }
+                    }
+                    expectedValue = compares.map(v => v[0]).join('-');
+                    statusCol = query.columns.find(column => column.type === SipdColumnQuery.COL_STATUS);
+                    actionCol = query.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
+                    let status;
+                    if (statusCol) {
+                        status = values[statusCol.name];
+                    }
+                    const states = f(...compares);
+                    if (status !== undefined) {
+                        this.debug(dtag)('Row state:', status, ...states.info);
+                    } else {
+                        this.debug(dtag)('Row state:', ...states.info);
+                    }
+                    if (states.okay) {
+                        result = el;
+                        if (actionCol) {
+                            clicker = values[actionCol.name];
+                        }
+                        if (status !== undefined) {
+                            query.data.STATUS = status;
+                        }
+                        query.data.values = values;
+                        if (typeof query.onResult === 'function') {
+                            query.onResult();
+                        }
+                        reject(SipdPage.stop());
+                    } else {
+                        resolve();
+                    }
+                })],
+            ])],
+            [w => Promise.resolve(result), w => !actionCol],
+            [w => clicker.click(), w => query.isActionEnabled() && clicker],
+            [w => Promise.reject(new SipdAnnouncedError(`${query.options.title}: ${expectedValue} tidak ditemukan!`)), w => query.isActionEnabled() && actionCol && !clicker],
+        ]);
     }
 
     dismissModal(title) {
@@ -280,8 +436,8 @@ class SipdSession {
             [w => this.flatpickrPick(w.getRes(3), value)],
             [w => el.sendKeys(Key.TAB), w => w.getRes(2)],
             [w => el.getAttribute('value')],
-            [w => Promise.resolve(this.getDate(w.getRes(6)))],
-            [w => Promise.reject(`Date ${w.getRes(7)} is not expected of ${value}!`), w => this.dateSerial(value) != this.dateSerial(w.getRes(7))],
+            [w => Promise.resolve(SipdUtil.getDate(w.getRes(6)))],
+            [w => Promise.reject(`Date ${w.getRes(7)} is not expected of ${value}!`), w => SipdUtil.dateSerial(value) != SipdUtil.dateSerial(w.getRes(7))],
         ]);
     }
 
@@ -295,29 +451,22 @@ class SipdSession {
                         return el._flatpickr.selectedDates[el._flatpickr.selectedDates.length - 1].toString();
                     }
                 }, el, value)],
-            [w => Promise.resolve(this.getDate(w.getRes(1)))],
-            [w => Promise.reject(`Date ${w.getRes(2)} is not expected of ${value}!`), w => this.dateSerial(value) != this.dateSerial(w.getRes(2))],
+            [w => Promise.resolve(SipdUtil.getDate(w.getRes(1)))],
+            [w => Promise.reject(`Date ${w.getRes(2)} is not expected of ${value}!`), w => SipdUtil.dateSerial(value) != SipdUtil.dateSerial(w.getRes(2))],
         ]);
     }
 
     fillRole(el, value) {
         return this.works([
             [w => el.click()],
-            [w => this.doChoose('Pilih Pegawai', value, [By.xpath('./td[1]/div/span/div/span[1]')])],
+            [w => this.doQuery(new SipdVoterPegawai(this.sipd, {value}))],
         ]);
     }
 
     fillRekanan(el, value) {
-        const alt = (Array.isArray(value) ? value[0] : value).indexOf('\'') >= 0;
         return this.works([
             [w => el.click()],
-            [w => this.doChoose('Daftar Rekanan', value, [By.xpath('./td[2]/div/div/div[2]/span[1]'), By.xpath('./td[1]/div/div/div[2]/span[2]')], {page: alt ? this.PAGE_REKANAN_ALT : this.PAGE_REKANAN, searchIdx: alt ? 1 : 0}, values => {
-                // clean nik
-                if (values.length > 1 && values[1]) {
-                    values[1] = this.pickNumber(values[1]);
-                }
-                return values;
-            })],
+            [w => this.doQuery(new SipdVoterRekanan(this.sipd, {value}))],
         ]);
     }
 
@@ -332,7 +481,7 @@ class SipdSession {
                 const q = new Queue(items, item => {
                     this.works([
                         [x => item.getAttribute('innerText')],
-                        [x => Promise.resolve(this.pickNumber(x.getRes(0)))],
+                        [x => Promise.resolve(SipdUtil.pickNumber(x.getRes(0)))],
                         [x => item.findElement(By.xpath('../../../../div[2]/button')), x => value.startsWith(x.getRes(1))],
                         [x => x.getRes(2).click(), x => value.startsWith(x.getRes(1))],
                         [x => Promise.resolve(done = true), x => value.startsWith(x.getRes(1))],
@@ -358,7 +507,7 @@ class SipdSession {
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.findElements(By.xpath('//div[@class="css-kw-3t-2fa3"]/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
             [w => this.fillAccount(w.getRes(2), value, data)],
-            [w => Promise.reject(`Tidak dapat mengalokasikan ${this.fmtCurr(value)} ke ${data.subkeg}-${data.rekening}, sisa anggaran ${this.fmtCurr(data.sisa)}!`), w => !w.getRes(3)],
+            [w => Promise.reject(`Tidak dapat mengalokasikan ${SipdUtil.fmtCurr(value)} ke ${data.subkeg}-${data.rekening}, sisa anggaran ${SipdUtil.fmtCurr(data.sisa)}!`), w => !w.getRes(3)],
         ]);
     }
 
@@ -387,7 +536,7 @@ class SipdSession {
     isAccount(el, rekening) {
         return this.works([
             [w => el.getAttribute('innerText')],
-            [w => Promise.resolve(this.pickCurr(w.getRes(0)) === rekening)],
+            [w => Promise.resolve(SipdUtil.pickCurr(w.getRes(0)) === rekening)],
         ]);
     }
 
@@ -396,7 +545,7 @@ class SipdSession {
             [w => el.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/div/input'))],
             [w => el.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/p[2]'))],
             [w => Promise.resolve(w.getRes(1).getAttribute('innerText'))],
-            [w => Promise.resolve(data.sisa = parseFloat(this.pickCurr(w.getRes(2))))],
+            [w => Promise.resolve(data.sisa = parseFloat(SipdUtil.pickCurr(w.getRes(2))))],
             [w => this.sipd.fillInput(w.getRes(0), null, this.options.clearUsingKey), w => data.sisa >= value],
             [w => new Promise((resolve, reject) => {
                 const input = w.getRes(0);
@@ -552,7 +701,7 @@ class SipdSession {
             }
             // check for safe string
             if (typeof value === 'string' && value.length) {
-                value = this.getSafeStr(value);
+                value = SipdUtil.getSafeStr(value);
             }
             // handle special key
             if (key.indexOf(':') > 0) {
@@ -672,7 +821,7 @@ class SipdSession {
                 if (!data.onfill) {
                     // date time picker
                     if (key.toLowerCase().indexOf('tanggal') >= 0) {
-                        data.onfill = (el, value) => this.fillDatePicker(el, this.getDate(value, f.flags.indexOf('&') >= 0));
+                        data.onfill = (el, value) => this.fillDatePicker(el, SipdUtil.getDate(value, f.flags.indexOf('&') >= 0));
                     }
                     data.canfill = (tag, el, value) => {
                         return new Promise((resolve, reject) => {
@@ -782,182 +931,17 @@ class SipdSession {
         }
     }
 
-    getDate(date, skipHoliday = false) {
-        if (date && (!isNaN(date) || typeof date === 'string')) {
-            if (typeof date === 'string' && date.indexOf(' ') > 0) {
-                // 25 June 2025 - 12:00 PM
-                if (date.endsWith('AM') || date.endsWith('PM')) {
-                    date = date.substr(0, date.indexOf('-')).trim();
-                }
-                const dt = date.split(' ');
-                if (dt.length === 3) {
-                    let d, m, y;
-                    for (const part of dt) {
-                        if (!isNaN(part)) {
-                            if (part.length === 4) {
-                                y = parseInt(part);
-                            } else {
-                                d = parseInt(part);
-                            }
-                        } else {
-                            m = this.getMonth(part) + 1;
-                        }
-                    }
-                    if (d !== undefined && m !== undefined && y !== undefined) {
-                        date = [y.toString(), m.toString().padStart(2, '0'), d.toString().padStart(2, '0')].join('-');
-                    }
-                } else if (dt[1] === '00:00:00') {
-                    date = dt[0];
-                }
-            }
-            if (typeof date === 'string' && date.indexOf('/') > 0) {
-                const dtpart = date.split('/');
-                if (dtpart.length === 3) {
-                    date = Date.UTC(parseInt(dtpart[2]), parseInt(dtpart[1]) - 1, parseInt(dtpart[0]));
-                }
-            }
-            date = new Date(date);
-        }
-        if (date && skipHoliday) {
-            while (true) {
-                if ([0, 6].indexOf(date.getDay()) < 0) {
-                    break;
-                }
-                date.setDate(date.getDate() + 1);
-            }
-        }
-        return date;
-    }
-
-    getMonth(s) {
-        if (typeof s === 'string') {
-            s = s.substring(0, 3);
-            const month = ['Jan', 'Feb', 'Mar', 'Apr', ['May', 'Mei'], 'Jun', 'Jul', ['Aug', 'Agu'], 'Sep', ['Oct', 'Okt'], ['Nov', 'Nop'], ['Dec', 'Des']];
-            month.forEach((m, i) => {
-                const mm = Array.isArray(m) ? m : [m];
-                mm.forEach(x => {
-                    if (s === x) {
-                        s = i;
-                        return true;
-                    }
-                });
-                if (s == i) {
-                    return true;
-                }
-            });
-        }
-        return s;
-    }
-
-    dateSerial(date) {
-        if (date) {
-            return (date.getFullYear() * 10000) + ((date.getMonth() + 1) * 100) + date.getDate();
-        }
-    }
-
-    dateCreate(s) {
-        const x = s.split(' ');
-        return new Date(Date.UTC(parseInt(x[1]), this.getMonth(x[0]), 1));
-    }
-
-    dateDiffMonth(dt1, dt2) {
-        const d1 = (dt1.getFullYear() * 12) + dt1.getMonth() + 1;
-        const d2 = (dt2.getFullYear() * 12) + dt2.getMonth() + 1;
-        return d1 - d2;
-    }
-
-    pickNumber(s) {
-        let result = '';
-        for (let i = 0; i < s.length; i++) {
-            if (!isNaN(s.charAt(i))) {
-                result += s.charAt(i);
-            }
-        }
-        return result.trim();
-    }
-
-    pickCurr(s) {
-        if (s) {
-            const matches = s.match(/([0-9\.]+)/);
-            if (matches) {
-                return this.pickNumber(matches[0]);
-            }
-        }
-    }
-
-    fmtCurr(value) {
-        if (value !== undefined && value !== null) {
-            let s = value.toString();
-            value = '';
-            while (s.length) {
-                if (value.length) {
-                    value = '.' + value;
-                }
-                value = s.substr(-3) + value;
-                s = s.substr(0, s.length - 3);
-            }
-        }
-        return value;
-    }
-
-    getSafeStr(s) {
-        if (s) {
-            return s.replace(/\s{2,}/g, ' ').trim();
-        }
-    }
-
-    getFlags(flags, s, multiple = false) {
-        const res = [];
-        if (typeof flags === 'string') {
-            flags = flags.split('');
-        }
-        if (!Array.isArray(flags)) {
-            flags = [flags];
-        }
-        while (true) {
-            if (flags.indexOf(s.substr(0, 1)) >= 0) {
-                res.push(s.substr(0, 1));
-                s = s.substr(1);
-                if (multiple) {
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            break;
-        }
-        return res;
-    }
-
-    getFormKey(key) {
-        const res = {};
-        // flags:
-        // + add wait
-        // ? perform read operatiron
-        // * required
-        // ~ optional
-        // $ set value using javascript
-        // - ignored, used to duplicate selector
-        // & advance date to skip holiday
-        res.flags = this.getFlags('+?*~$-&', key, true);
-        if (res.flags.length) {
-            key = key.substr(res.flags.length);
-        }
-        // check parent
-        if (key.indexOf('!') > 1) {
-            const part = key.split('!');
-            res.parent = part[0];
-            key = part[1];
-        }
-        // selector flags:
-        // # id selector
-        // = xpath selector
-        res.sflags = this.getFlags('#=', key);
-        if (res.sflags.length) {
-            key = key.substr(res.sflags.length);
-        }
-        res.selector = key;
-        return res;
+    createRekanan(queue, forceEdit = false) {
+        const allowChange = this.isEditable(queue);
+        return this.works([
+            [w => this.doQuery(new SipdQueryRekanan(this.sipd, queue, {navigates: ['Pengeluaran', 'Daftar Rekanan']}))],
+            [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Rekanan"]')), w => !w.getRes(0) && allowChange],
+            [w => queue.values.action.click(), w => w.getRes(0) && forceEdit && allowChange],
+            [w => this.fillForm(queue, 'rekanan',
+                By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
+                By.xpath('//button[text()="Konfirmasi"]')), w => (!w.getRes(0) || forceEdit) && allowChange],
+            [w => this.submitForm(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!w.getRes(0) || forceEdit) && allowChange],
+        ]);
     }
 }
 

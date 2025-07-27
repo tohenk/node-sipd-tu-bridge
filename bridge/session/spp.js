@@ -23,11 +23,11 @@
  */
 
 const SipdSession = require('.');
-const SipdPage = require('../../sipd/page');
+const SipdUtil = require('../../sipd/util');
+const { SipdColumnQuery } = require('../../sipd/query');
 const { SipdAnnouncedError } = require('../../sipd');
+const { SipdQuerySpp } = require('./pages');
 const { By } = require('selenium-webdriver');
-
-const dtag = 'spp';
 
 class SipdSppSession extends SipdSession {
 
@@ -35,202 +35,28 @@ class SipdSppSession extends SipdSession {
     UNVERIFIED = 2
     TRANSFERED = 4
 
-    COL_ICON = 1
-    COL_STATUS = 2
-    COL_SINGLE = 3
-    COL_TIPPY = 4
-    COL_TWOLINE2 = 5
-
-    queueAllowChange(queue) {
-        return !queue.readonly;
-    }
-
-    createRekanan(queue, forceEdit = false) {
-        let clicker;
-        const lembaga = this.getSafeStr(queue.getMappedData('info.nama'));
-        const nik = queue.getMappedData('info.nik');
-        const alt = lembaga.indexOf('\'') >= 0;
-        const page = this.createPage(alt ? this.PAGE_REKANAN_ALT : this.PAGE_REKANAN, 'Daftar Rekanan');
-        const allowChange = this.queueAllowChange(queue);
-        return this.works([
-            [w => this.sipd.navigate('Pengeluaran', 'Daftar Rekanan')],
-            [w => this.sipd.waitLoader()],
-            [w => page.setup()],
-            [w => page.search(alt ? nik : lembaga)],
-            [w => page.each({filtered: true}, el => [
-                [x => this.sipd.getText([By.xpath('./td[2]/div/div/div[2]/span[1]'), By.xpath('./td[1]/div/div/div[2]/span[2]')], el)],
-                [x => el.findElement(By.xpath('./td[4]/a'))],
-                [x => new Promise((resolve, reject) => {
-                    const values = x.getRes(0);
-                    if (values.length > 1 && values[1]) {
-                        values[1] = this.pickNumber(values[1]);
-                    }
-                    if (values.join('|').toLowerCase() === [lembaga, nik].join('|').toLowerCase()) {
-                        clicker = x.getRes(1);
-                        reject(SipdPage.stop());
-                    } else {
-                        resolve();
-                    }
-                })],
-            ])],
-            [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Rekanan"]')), w => !clicker && allowChange],
-            [w => clicker.click(), w => clicker && forceEdit && allowChange],
-            [w => this.fillForm(queue, 'rekanan',
-                By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
-                By.xpath('//button[text()="Konfirmasi"]')), w => (!clicker || forceEdit) && allowChange],
-            [w => this.submitForm(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!clicker || forceEdit) && allowChange],
-        ]);
-    }
-
-    queryData(queue, options) {
-        let result;
-        const title = options.title;
-        const jenis = options.jenis;
-        const nomor = options.nomor || 'SPP';
-        const search = [];
-        let sppno, tgl, nominal, untuk;
-        if (nomor === 'SPP') {
-            sppno = queue.getMappedData('info.check');
-        }
-        if (sppno) {
-            search.push(sppno, 'Nomor');
-        } else {
-            if (nomor !== 'SPP') {
-                tgl = queue.SPP_TGL;
-                nominal = queue.SPP_NOM;
-                untuk = queue.SPP_UNTUK;
-            } else {
-                tgl = this.getDate(queue.getMappedData('spp.spp:TGL'));
-                nominal = queue.getMappedData('spp.spp:NOMINAL');
-                untuk = this.getSafeStr(queue.getMappedData('spp.spp:UNTUK'));
-            }
-            search.push(untuk, 'Keterangan');
-        }
-        const page = this.createPage(this.PAGE_SPP, title);
-        const tvalues = {};
-        const tselectors = {
-            [this.COL_ICON]: '*/*/*[2]/*[1]',
-            [this.COL_STATUS]: '*/*/*/p',
-            [this.COL_SINGLE]: '*/*/span',
-            [this.COL_TIPPY]: 'div[@class="custom-tippy"]/div/div/div/div[2]/span[1]',
-            [this.COL_TWOLINE2]: 'span[2]',
-        }
-        // index, withIcon, withTippy
-        const columns = {
-            noSpp: 1,
-            tglSpp: 4,
-            untukSpp: [5, this.COL_SINGLE, true],
-            nomSpp: 6,
-            statusSpp: [2, this.COL_STATUS],
-            ...(options.columns || {}),
-        }
-        const tippies = {};
-        for (const k in columns) {
-            const v = columns[k];
-            const idx = Array.isArray(v) ? v[0] : (typeof v === 'object' ? v.index : v);
-            const colType = Array.isArray(v) ? v[1] : (typeof v === 'object' && v.type ? v.type : this.COL_ICON);
-            const withTippy = Array.isArray(v) ? v[2] : (typeof v === 'object' && v.tippy ? v.tippy : false);
-            const selector = typeof v === 'object' && v.selector ? v.selector : tselectors[colType];
-            tvalues[k] = By.xpath(`./td[${idx}]/${selector}`);
-            if (withTippy) {
-                tippies[k] = By.xpath(`./td[${idx}]/div[@class="custom-tippy"]/div`);
-            }
-        }
-        return this.works([
-            [w => this.sipd.waitLoader()],
-            [w => page.setup()],
-            [w => this.sipd.waitAndClick(By.xpath(`//button/p[text()="${jenis}"]/..`))],
-            [w => this.sipd.waitSpinner(w.getRes(2), this.sipd.SPINNER_CHAKRA)],
-            [w => page.search(search[0], search[1])],
-            [w => page.each({filtered: true}, el => [
-                [x => this.sipd.getText(tvalues, el)],
-                [x => this.getTippyText(tippies, el), x => Object.keys(tippies).length],
-                [x => new Promise((resolve, reject) => {
-                    const values = x.getRes(0);
-                    const tippyValues = Object.keys(tippies).length ? x.getRes(1) : {};
-                    // convert dates
-                    for (const k of Object.keys(values)) {
-                        if (k.includes('tgl') && values[k] && !values[k] instanceof Date) {
-                            values[k] = this.getDate(values[k]);
-                        }
-                    }
-                    const noSpp = values.noSpp;
-                    const tglSpp = this.getDate(values.tglSpp);
-                    const untukSpp = tippyValues.untukSpp ? tippyValues.untukSpp.trim() : values.untukSpp;
-                    const nomSpp = parseFloat(this.pickCurr(values.nomSpp));
-                    const statusSpp = values.statusSpp;
-                    const dbg = (l, s) => `${l} (${s ? 'v' : 'x'})`;
-                    const f = (...args) => {
-                        const res = {
-                            states: [],
-                            info: [],
-                        }
-                        for (const arg of args) {
-                            res.states.push(arg[0] == arg[1]);
-                            res.info.push(dbg(arg[0], arg[0] == arg[1]));
-                        }
-                        res.okay = true;
-                        res.states.forEach(state => {
-                            if (!state) {
-                                res.okay = false;
-                                return true;
-                            }
-                        });
-                        return res;
-                    }
-                    const args = [];
-                    if (sppno) {
-                        args.push([noSpp, sppno]);
-                    } else {
-                        if (!options.skipDate) {
-                            args.push([this.dateSerial(tglSpp), this.dateSerial(tgl)]);
-                        }
-                        args.push(
-                            [this.fmtCurr(nomSpp), this.fmtCurr(nominal)],
-                            [this.getSafeStr(untukSpp), untuk]
-                        );
-                    }
-                    const states = f(...args);
-                    this.debug(dtag)(statusSpp, ...states.info);
-                    if (states.okay) {
-                        result = el;
-                        queue[nomor] = noSpp;
-                        queue[nomor + '_TGL'] = tglSpp;
-                        queue[nomor + '_UNTUK'] = untukSpp;
-                        queue[nomor + '_NOM'] = nomSpp;
-                        queue.STATUS = statusSpp;
-                        queue.values = {...values, ...tippyValues};
-                        reject(SipdPage.stop());
-                    } else {
-                        resolve();
-                    }
-                })],
-            ])],
-            [w => Promise.resolve(result)],
-        ]);
-    }
-
     querySpp(queue, options) {
-        options = options || {};
-        const title = options.title || 'Surat Permintaan Pembayaran (SPP) | LS';
+        options = {
+            title: 'Surat Permintaan Pembayaran (SPP) | LS',
+            ...(options || {}),
+        }
         const fVerified = options.flags === undefined ? true : (options.flags & this.VERIFIED) === this.VERIFIED;
         const fUnverified = options.flags === undefined ? true : (options.flags & this.UNVERIFIED) === this.UNVERIFIED;
         return this.works([
-            [w => this.queryData(queue, {title, jenis: 'Sudah Diverifikasi'}), w => fVerified],
-            [w => this.queryData(queue, {title, jenis: 'Belum Diverifikasi'}), w => fUnverified && !w.getRes(0)],
+            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: 'Sudah Diverifikasi'})), w => fVerified],
+            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: 'Belum Diverifikasi'})), w => fUnverified && !w.getRes(0)],
         ]);
     }
 
     checkSpp(queue, options = null) {
         return this.works([
-            [w => this.sipd.navigate('Pengeluaran', 'SPP', 'LS')],
-            [w => this.querySpp(queue, options)],
-            [w => Promise.reject(new SipdAnnouncedError(`SPP ${queue.getMappedData('info.nama')} dihapus, diabaikan!`)), w => w.getRes(1) && queue.STATUS === 'Dihapus'],
+            [w => this.querySpp(queue, {navigates: ['Pengeluaran', 'SPP', 'LS'], ...(options || {})})],
+            [w => Promise.reject(new SipdAnnouncedError(`SPP ${queue.getMappedData('info.nama')} dihapus, diabaikan!`)), w => w.getRes(0) && queue.STATUS === 'Dihapus'],
         ]);
     }
 
     createSpp(queue) {
-        const allowChange = this.queueAllowChange(queue);
+        const allowChange = this.isEditable(queue);
         return this.works([
             [w => this.checkSpp(queue)],
             [w => this.sipd.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w =>!w.getRes(0) && allowChange],
@@ -245,7 +71,7 @@ class SipdSppSession extends SipdSession {
     }
 
     verifikasiSpp(queue, status = 'Belum Diverifikasi') {
-        const allowChange = this.queueAllowChange(queue);
+        const allowChange = this.isEditable(queue);
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.checkSpp(queue, {flags: this.VERIFIED | this.UNVERIFIED})],
@@ -263,34 +89,32 @@ class SipdSppSession extends SipdSession {
     }
 
     querySpm(queue, options) {
-        options = options || {};
-        const title = options.title || 'Pengeluaran';
-        const columns = options.columns || {
-            noSpp: [1, this.COL_TIPPY],
-            tglSpp: 3,
-            untukSpp: [6, this.COL_SINGLE, true],
-            nomSpp: 7,
-            statusSpp: {index: 4, type: this.COL_STATUS, selector: '*/*/p'},
+        options = {
+            title: 'Pengeluaran',
+            nomor: SipdQuerySpp.SPM,
+            columns: {
+                no: [1, SipdColumnQuery.COL_TIPPY],
+                tgl: 3,
+                untuk: [6, SipdColumnQuery.COL_SINGLE, true],
+                nom: 7,
+                status: {index: 4, type: SipdColumnQuery.COL_STATUS, selector: '*/*/p'},
+            },
+            ...(options || {}),
         }
         const fVerified = options.flags === undefined ? true : (options.flags & this.VERIFIED) === this.VERIFIED;
         const fUnverified = options.flags === undefined ? true : (options.flags & this.UNVERIFIED) === this.UNVERIFIED;
         return this.works([
-            [w => this.queryData(queue, {title, columns, jenis: 'Sudah Diverifikasi', nomor: 'SPM'}), w => fVerified],
-            [w => this.queryData(queue, {title, columns, jenis: 'Belum Diverifikasi', nomor: 'SPM'}), w => fUnverified && !w.getRes(0)],
+            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: ['LS', 'Sudah Diverifikasi']})), w => fVerified],
+            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: ['LS', 'Belum Diverifikasi']})), w => fUnverified && !w.getRes(0)],
         ]);
     }
 
     checkSpm(queue) {
-        return this.works([
-            [w => this.sipd.navigate('Pengeluaran', 'SPM', 'Pembuatan')],
-            [w => this.sipd.waitLoader()],
-            [w => this.sipd.waitAndClick(By.xpath('//button/p[text()="LS"]/..'))],
-            [w => this.querySpm(queue)],
-        ]);
+        return this.querySpm(queue, {navigates: ['Pengeluaran', 'SPM', 'Pembuatan']});
     }
 
     verifikasiSpm(queue, status = 'Belum Disetujui') {
-        const allowChange = this.queueAllowChange(queue);
+        const allowChange = this.isEditable(queue);
         return this.works([
             [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
             [w => this.checkSpm(queue)],
@@ -300,28 +124,32 @@ class SipdSppSession extends SipdSession {
             [w => w.getRes(4).click(), w => w.getRes(1) && queue.STATUS === status && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//header[contains(text(),"Persetujuan SPM")]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(1) && queue.STATUS === status && allowChange],
             [w => this.sipd.waitSpinner(w.getRes(6)), w => w.getRes(1) && queue.STATUS === status && allowChange],
-            [w => this.querySpm(queue, this.VERIFIED), w => w.getRes(1) && queue.STATUS === status && allowChange],
+            [w => this.querySpm(queue, {flags: this.VERIFIED}), w => w.getRes(1) && queue.STATUS === status && allowChange],
         ]);
     }
 
     querySp2d(queue, options) {
-        options = options || {};
-        const title = options.title || 'Surat Perintah Pencairan Dana | Pencairan';
-        const columns = options.columns || {
-            noSpp: [1, this.COL_TIPPY],
-            tglSpp: 3,
-            untukSpp: [9, this.COL_SINGLE, true],
-            nomSpp: 10,
-            tglCair: 7,
-            statusSpp: {index: 6, type: this.COL_STATUS, selector: '*/*/p'},
+        options = {
+            title: 'Surat Perintah Pencairan Dana | Pencairan',
+            nomor: SipdQuerySpp.SP2D,
+            columns: {
+                no: [1, SipdColumnQuery.COL_TIPPY],
+                tgl: 3,
+                untuk: [9, SipdColumnQuery.COL_SINGLE, true],
+                nom: 10,
+                tglCair: 7,
+                status: {index: 6, type: SipdColumnQuery.COL_STATUS, selector: '*/*/p'},
+            },
+            skipDate: true,
+            ...(options || {}),
         }
         const fTransfered = options.flags === undefined ? true : (options.flags & this.TRANSFERED) === this.TRANSFERED;
         return this.works([
-            [w => this.queryData(queue, {title, columns, jenis: 'Sudah Ditransfer', nomor: 'SP2D', skipDate: true}), w => fTransfered],
+            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: 'Sudah Ditransfer'})), w => fTransfered],
             [w => new Promise((resolve, reject) => {
                 const res = w.getRes(0);
                 if (queue.values && queue.values.tglCair) {
-                    queue.CAIR = this.getDate(queue.values.tglCair);
+                    queue.CAIR = SipdUtil.getDate(queue.values.tglCair);
                 }
                 resolve(res);
             }), w => w.getRes(0)],
@@ -329,10 +157,7 @@ class SipdSppSession extends SipdSession {
     }
 
     checkSp2d(queue) {
-        return this.works([
-            [w => this.sipd.navigate('Pengeluaran', 'SP2D', 'Pencairan')],
-            [w => this.querySp2d(queue)],
-        ]);
+        return this.querySp2d(queue, {navigates: ['Pengeluaran', 'SP2D', 'Pencairan']});
     }
 }
 

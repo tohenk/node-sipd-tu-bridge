@@ -25,10 +25,15 @@
 const util = require('util');
 const Queue = require('@ntlab/work/queue');
 const WebRobot = require('@ntlab/webrobot');
-const { By, error } = require('selenium-webdriver');
+const { By, error, WebElement } = require('selenium-webdriver');
 
 const dtag = 'core';
 
+/**
+ * An SIPD automation using Selenium.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class Sipd extends WebRobot {
 
     LOGIN_FORM = '//div[contains(@class,"auth-box")]/form'
@@ -50,10 +55,21 @@ class Sipd extends WebRobot {
         super.constructor.expectErr(SipdRetryError);
     }
 
+    /**
+     * Create debugger.
+     *
+     * @param {string} tag Debug tag
+     * @returns {Function}
+     */
     debug(tag) {
         return require('debug')([this.options.tag ?? 'sipd', tag].join(':'));
     }
 
+    /**
+     * Set states.
+     *
+     * @param {object} states The states
+     */
     setState(states) {
         let updated = false;
         Object.keys(states).forEach(s => {
@@ -71,6 +87,11 @@ class Sipd extends WebRobot {
         }
     }
 
+    /**
+     * Stop the work.
+     *
+     * @returns {Promise<any>}
+     */
     stop() {
         return this.works([
             [w => this.close()],
@@ -79,6 +100,15 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Login to SIPD Penatausahaan.
+     *
+     * @param {string} username Username
+     * @param {string} password Password
+     * @param {string} role User role
+     * @param {boolean} force True to force re-login
+     * @returns {Promise<any>}
+     */
     login(username, password, role, force = false) {
         return new Promise((resolve, reject) => {
             this.works([
@@ -106,6 +136,11 @@ class Sipd extends WebRobot {
         });
     }
 
+    /**
+     * Logout from SIPD Penatausahaan.
+     *
+     * @returns {Promise<any>}
+     */
     logout() {
         return this.works([
             [w => this.getDriver().getCurrentUrl()],
@@ -114,28 +149,59 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Load additional script on every page load.
+     *
+     * @returns {Promise<any>}
+     */
     handlePageLoad() {
         return this.getDriver().sendDevToolsCommand('Page.addScriptToEvaluateOnNewDocument', {
             source: this.getHelperScript(),
         });
     }
 
+    /**
+     * Clear SIPD messages.
+     *
+     * @returns {Promise<any>}
+     */
     clearMessages() {
         return this.getDriver().executeScript('clearSipdMessages()');
     }
 
+    /**
+     * Get SIPD messages.
+     *
+     * @returns {Promise<string[]>}
+     */
     getMessages() {
         return this.getDriver().executeScript('return getSipdMessages()');
     }
 
+    /**
+     * Get SIPD last message.
+     *
+     * @returns {Promise<string>}
+     */
     getLastMessage() {
         return this.getDriver().executeScript('return getSipdLastMessage()');
     }
 
+    /**
+     * Get HTML representation on an element.
+     *
+     * @param {WebElement} el The element
+     * @returns {Promise<string>}
+     */
     getHtml(el) {
         return this.getDriver().executeScript('return arguments[0].outerHTML', el);
     }
 
+    /**
+     * Wait for captcha until it solved.
+     *
+     * @returns {Promise<any>}
+     */
     waitCaptcha() {
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
@@ -143,15 +209,25 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Wait for captcha to be solved.
+     *
+     * @returns {Promise<any>}
+     */
     waitSolvedCaptcha() {
         return this.works([
-            [w => Promise.resolve(console.log('Awaiting captcha to be solved...'))],
+            [w => Promise.resolve(this.debug(dtag)('Awaiting captcha to be solved...'))],
             [w => Promise.resolve(this.setState({captcha: true}))],
             [w => this.waitForPresence(By.xpath(this.CAPTCHA_MODAL), {presence: false, timeout: 0})],
             [w => Promise.resolve(this.setState({captcha: false}))],
         ]);
     }
 
+    /**
+     * Get captcha image data.
+     *
+     * @returns {Promise<string>}
+     */
     captchaImage() {
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
@@ -173,6 +249,12 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Solve the captcha.
+     *
+     * @param {string} code Resolved captcha code
+     * @returns {Promise<boolean>}
+     */
     solveCaptcha(code) {
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
@@ -196,6 +278,11 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Reload captcha.
+     *
+     * @returns {Promise<WebElement>}
+     */
     reloadCaptcha() {
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
@@ -204,6 +291,11 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Dismiss captcha.
+     *
+     * @returns {Promise<any>}
+     */
     cancelCaptcha() {
         if (this.state.captcha) {
             return this.waitAndClick(By.xpath('//footer/button[2]/span/span[text()="Batalkan"]/../..'));
@@ -212,6 +304,11 @@ class Sipd extends WebRobot {
         }
     }
 
+    /**
+     * Navigate to SIPD Penatausahaan main page.
+     *
+     * @returns {Promise<any>}
+     */
     gotoPenatausahaan() {
         return this.works([
             [w => this.getDriver().getCurrentUrl()],
@@ -239,6 +336,11 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Is user currently logged in?
+     *
+     * @returns {Promise<boolean>}
+     */
     isLoggedIn() {
         return this.works([
             [w => this.waitLoader()],
@@ -247,6 +349,12 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Confirm user role.
+     *
+     * @param {string} role User role
+     * @returns {Promise<any>}
+     */
     selectAccount(role) {
         return this.works([
             [w => this.waitFor(By.xpath('//div[@class="container-account-select"]'))],
@@ -256,6 +364,11 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Check for SIPD unoperational messages.
+     *
+     * @returns {Promise<any>}
+     */
     checkMessages() {
         return this.works([
             [w => this.getMessages()],
@@ -272,6 +385,11 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Dismiss update notification.
+     *
+     * @returns {Promise<any>}
+     */
     dismissUpdate() {
         return this.works([
             [w => this.waitForPresence(By.xpath('//h1[contains(@class,"css-nwjwe-j2aft") and text()="Pembaruan"]'))],
@@ -280,6 +398,14 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Set React select value.
+     *
+     * @param {WebElement} el React select element
+     * @param {string} value Selected value
+     * @param {string|null} message An error message displayed when the value is unavailable
+     * @returns {Promise<WebElement>}
+     */
     reactSelect(el, value, message = null) {
         return this.works([
             [w => el.click()],
@@ -291,6 +417,13 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Set checkbox value.
+     *
+     * @param {WebElement} el The element
+     * @param {boolean} value Checked state
+     * @returns {Promise<WebElement>}
+     */
     clickCheckbox(el, value) {
         return this.works([
             [w => el.getAttribute('checked')],
@@ -299,6 +432,12 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Click the element and wait for specified `opdelay` ms.
+     *
+     * @param {WebElement} el The element
+     * @returns {Promise<any>}
+     */
     clickWait(el) {
         return this.works([
             [w => el.click()],
@@ -306,6 +445,12 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Click the element and wait until it's expanded.
+     *
+     * @param {WebElement} el The element
+     * @returns {Promise<any>}
+     */
     clickExpanded(el) {
         let click = true;
         return new Promise((resolve, reject) => {
@@ -328,24 +473,44 @@ class Sipd extends WebRobot {
         });
     }
 
+    /**
+     * Wait for SIPD Penatausahaan until the page is loaded.
+     *
+     * @returns {Promise<any>}
+     */
     waitPage() {
         return this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0});
     }
 
+    /**
+     * Wait for SIPD Penatausahaan until the sidebar is loaded.
+     *
+     * @returns {Promise<any>}
+     */
     waitSidebar() {
         return this.waitForPresence(By.xpath('//div[@class="simplebar-content"]/ul/div/div[contains(@class,"animate-pulse")]'), {presence: false, timeout: 0});
     }
 
+    /**
+     * Wait for SIPD Penatausahaan until the content is loaded.
+     *
+     * @returns {Promise<any>}
+     */
     waitLoader() {
         return this.waitForPresence(By.xpath('//div[@class="container-rendering"]'), {presence: false, timeout: 0});
     }
 
+    /**
+     * Wait for SIPD Penatausahaan until the spinner is done.
+     *
+     * @returns {Promise<any>}
+     */
     waitSpinner(el, spinner = null) {
         return this.waitForPresence({el, data: spinner ?? this.SPINNER_ANIMATE}, {presence: false, timeout: 0});
     }
 
     /**
-     * Wait an element until its presence or gone.
+     * Wait an element until it's presence or gone.
      *
      * @param {object|By} data Element to wait for
      * @param {WebElement} data.el Parent element
@@ -415,6 +580,11 @@ class Sipd extends WebRobot {
         });
     }
 
+    /**
+     * Get the waiting state of selector.
+     *
+     * @returns {Promise<boolean>}
+     */
     isWaiting({data, options}) {
         let res;
         const maxlen = options.maxlen || 100;
@@ -453,6 +623,11 @@ class Sipd extends WebRobot {
         ]);
     }
 
+    /**
+     * Observes children mutation.
+     *
+     * @returns {Promise<any>}
+     */
     observeChildren({data, options}) {
         if (!options.observed && data.el) {
             options.observed = true;
@@ -462,6 +637,11 @@ class Sipd extends WebRobot {
         }
     }
 
+    /**
+     * Get observed children addition or removal.
+     *
+     * @returns {Promise<any>}
+     */
     getObservedChildren({target, options}) {
         if (options.observed && options.classname) {
             return this.works([
@@ -546,23 +726,31 @@ class Sipd extends WebRobot {
         ]);
     }
 
-    // https://stackoverflow.com/questions/642125/encoding-xpath-expressions-with-both-single-and-double-quotes
-    escapeStr(s) {
-        if (typeof s !== 'string') {
-            s = '' + s;
-        }
-        // does not contain double quote
-        if (s.indexOf('"') < 0) {
-            return `"${s}"`;
-        }
-        // does not contain single quote
-        if (s.indexOf('\'') < 0) {
-            return `'${s}'`;
-        }
-        // contains both, escape single quote
-        return `concat('${s.replace(/'/g, '\', "\'", \'')}')`;
+    /**
+     * Navigate to sub page content.
+     *
+     * @param  {...any} subs Sub pages
+     * @returns {Promise<any>}
+     */
+    subPageNav(...subs) {
+        return new Promise((resolve, reject) => {
+            const q = new Queue([...subs], nav => {
+                this.works([
+                    [w => this.waitAndClick(By.xpath(`//button/p[text()="${nav}"]/..`))],
+                    [w => this.waitSpinner(w.getRes(0), this.SPINNER_CHAKRA)],
+                ])
+                .then(() => q.next())
+                .catch(err => reject(err));
+            });
+            q.once('done', () => resolve());
+        });
     }
 
+    /**
+     * Get additional helper script.
+     *
+     * @returns {string}
+     */
     getHelperScript() {
         return `
             if (window._xhelper === undefined) {
@@ -602,7 +790,6 @@ class Sipd extends WebRobot {
                             }
                             const status = el.querySelector('div[role="status"]');
                             if (status) {
-                                console.log(status.textContent);
                                 window._xlogs.push(status.textContent);
                             }
                         });

@@ -24,8 +24,13 @@
 
 const Queue = require('@ntlab/work/queue');
 const { Sipd } = require('.');
-const { By } = require('selenium-webdriver');
+const { By, WebElement } = require('selenium-webdriver');
 
+/**
+ * Handles paging, searching, and iterating of data rows.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdPage {
 
     PAGE_SIZE = 10
@@ -44,6 +49,11 @@ class SipdPage {
         this.options = options;
     }
 
+    /**
+     * Do page setup to look for the page elements.
+     *
+     * @returns {Promise<any>}
+     */
     setup() {
         const selector = this.options.selector ? this.options.selector :
             '//h1[contains(@class,"card-title") and text()="%TITLE%"]/../../..';
@@ -58,6 +68,11 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Find if page is empty.
+     *
+     * @returns {Promise<any>}
+     */
     findEmpty() {
         const selector = this.options.emptySelector ? this.options.emptySelector :
             './/div[@class="container-no-data-access-modal"]';
@@ -69,6 +84,11 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Find page data table.
+     *
+     * @returns {Promise<any>}
+     */
     findTable() {
         const selector = this.options.tableSelector ? this.options.tableSelector :
             './/div[contains(@class,"css-table-responsive")]';
@@ -80,6 +100,11 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Find page pagination element.
+     *
+     * @returns {Promise<any>}
+     */
     findPagination() {
         const selector = this.options.paginationSelector ? this.options.paginationSelector :
             './/div[@class="container-pagination-table-list"]';
@@ -91,6 +116,16 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Find page search form element.
+     *
+     * @param {object} data Search model object
+     * @param {By} data.toggler Toggler element to expand the search form
+     * @param {By} data.input Text input element
+     * @param {By} data.filter Filter choices element
+     * @param {By} data.submit Form submit element
+     * @returns {Promise<any>}
+     */
     findSearch(data) {
         return this.works([
             [w => Promise.reject('Wrapper is required!'), w => !this._wrapper],
@@ -105,6 +140,11 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Find page result either with page data table or empty page.
+     *
+     * @returns {Promise<any>}
+     */
     findResult() {
         return new Promise((resolve, reject) => {
             const f = () => {
@@ -126,6 +166,11 @@ class SipdPage {
         });   
     }
 
+    /**
+     * Get current page.
+     *
+     * @returns {Promise<number>}
+     */
     getPage() {
         return this.works([
             [w => Promise.reject('Pager not initialized!'), w => !this._pager],
@@ -135,6 +180,11 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Get total pages.
+     *
+     * @returns {Promise<number>}
+     */
     getPages() {
         return this.works([
             [w => Promise.reject('Pager not initialized!'), w => !this._pager],
@@ -145,6 +195,12 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Go to page number.
+     *
+     * @param {number} page Page number
+     * @returns {Promise<any>}
+     */
     gotoPage(page) {
         const selector = this.options.pageSelector ? this.options.pageSelector :
             'li[text()="%PAGE%"]';
@@ -164,6 +220,13 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Iterate a function over data found on page.
+     *
+     * @param {number} page Page number
+     * @param {Function} onwork A callback to iterate data found on page
+     * @returns {Promise<any>}
+     */
     eachPage(page, onwork) {
         return this.works([
             // get current page
@@ -190,6 +253,11 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Get data rows on page.
+     *
+     * @returns {Promise<WebElement[]>}
+     */
     getRows() {
         return this.works([
             [w => this._table.findElements(By.xpath('.//table/tbody/tr')), w => this._table],
@@ -197,6 +265,13 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Perform search on page.
+     *
+     * @param {string} term Search term
+     * @param {string} key Filter key
+     * @returns {Promise<any>}
+     */
     search(term, key = null) {
         return this.works([
             [w => Promise.reject('Search not initialized!'), w => !this._search],
@@ -212,6 +287,15 @@ class SipdPage {
         ]);
     }
 
+    /**
+     * Iterate a function over all rows found on all pages. To stop the
+     * iteration, simply throw `SipdStopError`.
+     *
+     * @param {object} options The options
+     * @param {boolean} options.filtered Is filter enabled
+     * @param {Function} callback The callback to call when iterating rows
+     * @returns {Promise<any>}
+     */
     each(options, callback) {
         if (typeof options === 'function') {
             callback = options;
@@ -244,6 +328,11 @@ class SipdPage {
     }
 }
 
+/**
+ * An error to indicate a stop operation when iterating data rows.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdStopError extends Error
 {
 }

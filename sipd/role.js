@@ -33,7 +33,7 @@ const SipdEncryptable = require('./encryptable');
  */
 class SipdRole {
 
-    actors = []
+    actors = {}
 
     /**
      * Get role actor.

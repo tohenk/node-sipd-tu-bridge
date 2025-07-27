@@ -78,7 +78,7 @@ class SipdBridge {
                 ['cleanup', s => s.bp.stop()],
             ]);
         } else {
-            return Promise.resolve();
+            return Promise.resolve(f());
         }
     }
 
