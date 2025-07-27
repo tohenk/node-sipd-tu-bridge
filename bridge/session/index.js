@@ -761,7 +761,7 @@ class SipdSession {
                 if (afektasi.isValid()) {
                     data = {
                         target: By.xpath('.//p[contains(@class,"form-label") and text()="Belanja"]/../div[2]'),
-                        value: this.spp.nominal,
+                        value: afektasi.nominal,
                         onfill: (el, value) => this.fillAfektasi(el, value, {subkeg: afektasi.keg, rekening: afektasi.rek}),
                     }
                 } else {
