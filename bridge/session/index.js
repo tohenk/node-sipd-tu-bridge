@@ -49,6 +49,7 @@ class SipdSession {
         this.sipd = new Sipd({...options, tag: this.bridge.name});
         this.works = this.sipd.works;
         this.initialize();
+        this.doInitialize();
     }
 
     initialize() {
@@ -82,6 +83,9 @@ class SipdSession {
         }
     }
 
+    doInitialize() {
+    }
+
     debug(tag) {
         return require('debug')([this.bridge.name, tag].join(':'));
     }
@@ -98,6 +102,32 @@ class SipdSession {
 
     ready() {
         return this.sipd.ready;
+    }
+
+    /**
+     * Create account charge.
+     *
+     * @param {string} key The key
+     * @returns {SipdSession}
+     */
+    createAfektasi(key) {
+        key = key.toLowerCase();
+        this[key] = SipdAfektasi.get(key);
+        return this;
+    }
+
+    /**
+     * Get account charge.
+     *
+     * @param {string} key The key
+     * @returns {SipdAfektasi}
+     */
+    getAfektasi(key) {
+        key = key.toLowerCase();
+        if (this[key] === undefined || !this[key] instanceof SipdAfektasi) {
+            throw new Error(`Account charges ${key} is not registered!`);
+        }
+        return this[key];
     }
 
     genFilename(dir, filename) {
@@ -656,7 +686,7 @@ class SipdSession {
         Object.keys(maps).forEach(k => {
             const selector = [];
             const f = this.getFormKey(k);
-            let key = f.selector, attr, vtype, skey;
+            let key = f.selector, attr, vtype;
             switch (true) {
                 case f.sflags.indexOf('#') >= 0:
                     attr = 'id';
@@ -704,15 +734,12 @@ class SipdSession {
                 value = SipdUtil.getSafeStr(value);
             }
             // handle special key
+            let afektasi;
             if (key.indexOf(':') > 0) {
                 const y = key.split(':');
-                skey = y[0];
                 key = y[1];
-                switch (skey) {
-                    case 'spp':
-                        this.spp[key.toLowerCase()] = value;
-                        break;
-                }
+                afektasi = this.getAfektasi(y[0])
+                    .set(key, value);
             }
             if (f.sflags.indexOf('=') < 0) {
                 selector.push(`[@${attr}="${key}"]`);
@@ -730,18 +757,16 @@ class SipdSession {
                     data.parent = By.xpath(f.parent);
                 }
             }
-            switch (skey) {
-                case 'spp':
-                    if (this.spp.tgl && this.spp.keg && this.spp.rek && this.spp.nominal) {
-                        data = {
-                            target: By.xpath('.//p[contains(@class,"form-label") and text()="Belanja"]/../div[2]'),
-                            value: this.spp.nominal,
-                            onfill: (el, value) => this.fillAfektasi(el, value, {subkeg: this.spp.keg, rekening: this.spp.rek}),
-                        }
-                    } else {
-                        data = null;
+            if (afektasi) {
+                if (afektasi.isValid()) {
+                    data = {
+                        target: By.xpath('.//p[contains(@class,"form-label") and text()="Belanja"]/../div[2]'),
+                        value: this.spp.nominal,
+                        onfill: (el, value) => this.fillAfektasi(el, value, {subkeg: afektasi.keg, rekening: afektasi.rek}),
                     }
-                    break;
+                } else {
+                    data = null;
+                }
             }
             // form data and handler
             if (data) {
@@ -942,6 +967,84 @@ class SipdSession {
                 By.xpath('//button[text()="Konfirmasi"]')), w => (!w.getRes(0) || forceEdit) && allowChange],
             [w => this.submitForm(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!w.getRes(0) || forceEdit) && allowChange],
         ]);
+    }
+}
+
+/**
+ * Holds account charges.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdAfektasi {
+
+    keys = {
+        keg: true,
+        rek: true,
+        no: false,
+        tgl: true,
+        untuk: false,
+        nominal: true,
+    }
+
+    /**
+     * Set key value.
+     *
+     * @param {string} key The key
+     * @param {any} value The value
+     * @returns {SipdAfektasi}
+     */
+    set(key, value) {
+        if (!key) {
+            throw new Error('Key is required!');
+        }
+        key = key.toLowerCase();
+        if (!Object.keys(this.keys).includes(key)) {
+            throw new Error(`Unknown key ${key}!`);
+        }
+        this[key] = value;
+        return this;
+    }
+
+    /**
+     * Clear all values.
+     *
+     * @returns {SipdAfektasi}
+     */
+    clear() {
+        for (const k of Object.keys(this.keys)) {
+            delete this[k];
+        }
+        return this;
+    }
+
+    /**
+     * Check if afektasi is valid.
+     *
+     * @returns {boolean}
+     */
+    isValid() {
+        for (const [k, required] of Object.entries(this.keys)) {
+            if (required && (this[k] === undefined || this[k] === null)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Create or get account charge.
+     *
+     * @param {string} id The account id
+     * @returns {SipdAfektasi}
+     */
+    static get(id) {
+        if (this.instances === undefined) {
+            this.instances = {};
+        }
+        if (this.instances[id] === undefined) {
+            this.instances[id] = new this();
+        }
+        return this.instances[id];
     }
 }
 

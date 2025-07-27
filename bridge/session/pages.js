@@ -164,10 +164,13 @@ class SipdVoterRekanan extends SipdVoter {
             nik: {selector: './td[1]/div/div/div[2]/span[2]'},
             action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
         }
-        this.search = [this.data.value];
+        const rekanan = Array.isArray(this.data.value) ? this.data.value[0] : this.data.value;
+        const nik = Array.isArray(this.data.value) ? this.data.value[1] : null;
+        this.search = [rekanan];
         this.diffs = [
-            ['nama', this.data.value],
-        ];
+            ['nama', rekanan],
+            nik ? ['nik', nik] : null,
+        ].filter(Boolean);
     }
 }
 
@@ -180,7 +183,10 @@ class SipdQueryRekanan extends SipdVoterRekanan {
 
     doPreInitialize() {
         this.actionEnabled = false;
-        this.data.value = SipdUtil.getSafeStr(this.data.getMappedData('info.nama'));
+        this.data.value = [
+            SipdUtil.getSafeStr(this.data.getMappedData('info.rekanan')),
+            this.data.getMappedData('info.nik'),
+        ];
     }
 
     doPostInitialize() {
@@ -214,12 +220,13 @@ class SipdQuerySpp extends SipdQueryBase {
         this.diffs = [];
         this.group = this.options.jenis;
         const nomor = this.options.nomor || this.constructor.SPP;
-        let sppno, tgl, nominal, untuk;
+        let no, tgl, nominal, untuk;
         if (nomor === this.constructor.SPP) {
-            sppno = this.data.getMappedData('info.check');
+            no = this.data.getMappedData('info.check');
         }
-        if (sppno) {
-            this.search.push(sppno, 'Nomor');
+        if (no) {
+            this.search.push(no, 'Nomor');
+            this.diffs.push(['no', no]);
         } else {
             if (nomor !== this.constructor.SPP) {
                 tgl = this.data.SPP_TGL;
@@ -231,10 +238,6 @@ class SipdQuerySpp extends SipdQueryBase {
                 untuk = SipdUtil.getSafeStr(this.data.getMappedData('spp.spp:UNTUK'));
             }
             this.search.push(untuk, 'Keterangan');
-        }
-        if (sppno) {
-            this.diffs.push(['no', sppno]);
-        } else {
             if (!this.options.skipDate) {
                 this.diffs.push(['tgl', tgl]);
             }

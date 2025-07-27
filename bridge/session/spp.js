@@ -35,6 +35,10 @@ class SipdSppSession extends SipdSession {
     UNVERIFIED = 2
     TRANSFERED = 4
 
+    doInitialize() {
+        this.createAfektasi('spp');
+    }
+
     querySpp(queue, options) {
         options = {
             title: 'Surat Permintaan Pembayaran (SPP) | LS',
@@ -51,7 +55,7 @@ class SipdSppSession extends SipdSession {
     checkSpp(queue, options = null) {
         return this.works([
             [w => this.querySpp(queue, {navigates: ['Pengeluaran', 'SPP', 'LS'], ...(options || {})})],
-            [w => Promise.reject(new SipdAnnouncedError(`SPP ${queue.getMappedData('info.nama')} dihapus, diabaikan!`)), w => w.getRes(0) && queue.STATUS === 'Dihapus'],
+            [w => Promise.reject(new SipdAnnouncedError(`SPP ${queue.getMappedData('info.title')} dihapus, diabaikan!`)), w => w.getRes(0) && queue.STATUS === 'Dihapus'],
         ]);
     }
 
@@ -61,7 +65,7 @@ class SipdSppSession extends SipdSession {
             [w => this.checkSpp(queue)],
             [w => this.sipd.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w =>!w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//a/span/p[text()="Barang dan Jasa"]/../..')), w => !w.getRes(0) && allowChange],
-            [w => Promise.resolve(this.spp = {}), w => !w.getRes(0) && allowChange],
+            [w => Promise.resolve(this.spp.clear()), w => !w.getRes(0) && allowChange],
             [w => this.fillForm(queue, 'spp',
                 By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],
