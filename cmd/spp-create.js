@@ -25,7 +25,7 @@
 const SipdCmd = require('.');
 const SipdQueue = require('../app/queue');
 
-class SipdCmdSppSpp extends SipdCmd {
+class SipdCmdSppCreate extends SipdCmd {
 
     consume(payload) {
         let result;
@@ -51,4 +51,4 @@ class SipdCmdSppSpp extends SipdCmd {
     }
 }
 
-module.exports = SipdCmdSppSpp;
+module.exports = SipdCmdSppCreate;
