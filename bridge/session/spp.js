@@ -25,7 +25,6 @@
 const SipdSession = require('.');
 const SipdUtil = require('../../sipd/util');
 const { SipdColumnQuery } = require('../../sipd/query');
-const { SipdAnnouncedError } = require('../../sipd');
 const { SipdQuerySpp } = require('./pages');
 const { By } = require('selenium-webdriver');
 
@@ -53,10 +52,7 @@ class SipdSppSession extends SipdSession {
     }
 
     checkSpp(queue, options = null) {
-        return this.works([
-            [w => this.querySpp(queue, {navigates: ['Pengeluaran', 'SPP', 'LS'], ...(options || {})})],
-            [w => Promise.reject(new SipdAnnouncedError(`SPP ${queue.getMappedData('info.title')} dihapus, diabaikan!`)), w => w.getRes(0) && queue.STATUS === 'Dihapus'],
-        ]);
+        return this.querySpp(queue, {navigates: ['Pengeluaran', 'SPP', 'LS'], ...(options || {})});
     }
 
     createSpp(queue) {
