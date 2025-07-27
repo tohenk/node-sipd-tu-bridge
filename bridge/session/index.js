@@ -29,6 +29,7 @@ const SipdPage = require('../../sipd/page');
 const SipdUtil = require('../../sipd/util');
 const { Sipd, SipdAnnouncedError } = require('../../sipd');
 const { SipdColumnQuery } = require('../../sipd/query');
+const { SipdActivitySelector } = require('./activity');
 const { SipdQueryBase, SipdVoterPegawai, SipdVoterRekanan, SipdQueryRekanan } = require('./pages');
 const { By, Key, WebElement } = require('selenium-webdriver');
 
@@ -178,7 +179,7 @@ class SipdSession {
             flags = [flags];
         }
         while (true) {
-            if (flags.indexOf(s.substr(0, 1)) >= 0) {
+            if (flags.includes(s.substr(0, 1))) {
                 res.push(s.substr(0, 1));
                 s = s.substr(1);
                 if (multiple) {
@@ -501,23 +502,29 @@ class SipdSession {
     }
 
     fillKegiatan(el, value) {
+        let fulfilled = false;
+        /** @type {SipdActivitySelector} */
+        const selector = this.kegSeq++ === 0 ? this.kegSelector : this.subkegSelector;
         return this.works([
             [w => el.click()],
-            [w => this.sipd.waitAndClick(By.xpath('//div[@class="css-j-3jq-af-a2fa"]'))],
-            [w => this.sipd.findElements(By.xpath('//div[@class="css-j03r-a-cf3fa"]/div/span/div/span[2]'))],
+            [w => this.sipd.waitForPresence(selector.loadingSelector, {presence: false, timeout: 0})],
+            [w => this.sipd.waitAndClick(selector.clicker), w => selector.clicker],
+            [w => this.sipd.findElements(selector.listSelector)],
             [w => new Promise((resolve, reject) => {
-                let done = false;
-                const items = w.getRes(2);
+                const items = w.getRes(3);
                 const q = new Queue(items, item => {
+                    let itemText;
                     this.works([
                         [x => item.getAttribute('innerText')],
                         [x => Promise.resolve(SipdUtil.pickNumber(x.getRes(0)))],
-                        [x => item.findElement(By.xpath('../../../../div[2]/button')), x => value.startsWith(x.getRes(1))],
+                        [x => item.findElement(selector.chooseSelector), x => value.startsWith(x.getRes(1))],
                         [x => x.getRes(2).click(), x => value.startsWith(x.getRes(1))],
-                        [x => Promise.resolve(done = true), x => value.startsWith(x.getRes(1))],
+                        [x => Promise.resolve(fulfilled = true), x => value.startsWith(x.getRes(1))],
+                        [x => Promise.resolve(itemText = x.getRes(1))],
                     ])
                     .then(() => {
-                        if (done) {
+                        this.debug(dtag)(`fill activity: ${itemText}, done = ${fulfilled ? 'yes' : 'no'}`);
+                        if (fulfilled) {
                             q.done();
                         } else {
                             q.next();
@@ -527,7 +534,8 @@ class SipdSession {
                 });
                 q.once('done', () => resolve());
             })],
-            [w => this.sipd.sleep(this.sipd.opdelay)],
+            [w => Promise.reject(`Unable to fill activity ${value}!`), w => !fulfilled],
+            [w => this.sipd.sleep(this.sipd.opdelay), w => fulfilled],
         ]);
     }
 
@@ -683,15 +691,16 @@ class SipdSession {
             }
             return s;
         }
+        this.kegSeq = 0;
         Object.keys(maps).forEach(k => {
             const selector = [];
             const f = this.getFormKey(k);
             let key = f.selector, attr, vtype;
             switch (true) {
-                case f.sflags.indexOf('#') >= 0:
+                case f.sflags.includes('#'):
                     attr = 'id';
                     break;
-                case f.sflags.indexOf('=') >= 0:
+                case f.sflags.includes('='):
                     break;
                 default:
                     attr = 'name';
@@ -701,7 +710,7 @@ class SipdSession {
             this.debug(dtag)(`Mapped value ${name + '->' + key} = ${trunc(value)}`);
             // fall back to non mapped value if undefined
             if (value === undefined) {
-                if (f.flags.indexOf('*') >= 0) {
+                if (f.flags.includes('*')) {
                     throw new Error(`Form ${name}: ${key} value is mandatory`);
                 }
                 value = maps[k];
@@ -741,12 +750,12 @@ class SipdSession {
                 afektasi = this.getAfektasi(y[0])
                     .set(key, value);
             }
-            if (f.sflags.indexOf('=') < 0) {
+            if (!f.sflags.includes('=')) {
                 selector.push(`[@${attr}="${key}"]`);
             }
             // form data
             let data = {
-                target: By.xpath(f.sflags.indexOf('=') >= 0 ? key : `.//*${selector.join('')}`),
+                target: By.xpath(f.sflags.includes('=') ? key : `.//*${selector.join('')}`),
                 value: value
             }
             // check form parent
@@ -760,7 +769,7 @@ class SipdSession {
             if (afektasi) {
                 if (afektasi.isValid()) {
                     data = {
-                        target: By.xpath('.//p[contains(@class,"form-label") and text()="Belanja"]/../div[2]'),
+                        target: By.xpath('.//p[contains(@class,"form-label") and contains(text(),"Belanja")]/../div[2]'),
                         value: afektasi.nominal,
                         onfill: (el, value) => this.fillAfektasi(el, value, {subkeg: afektasi.keg, rekening: afektasi.rek}),
                     }
@@ -817,19 +826,20 @@ class SipdSession {
                 }
                 switch (true) {
                     // read operation
-                    case f.flags.indexOf('?') >= 0:
+                    case f.flags.includes('?'):
                         data.onfill = (el, value) => this.readValue(el, value, queue);
                         break;
                     // fill value using javascript
-                    case f.flags.indexOf('$') >= 0:
+                    case f.flags.includes('$'):
                         data.onfill = (el, value) => this.sipd.getDriver().executeScript(
                             function(el, value) {
                                 $(el).val(value);
                             }, el, value);
                         break;
                     // add waiting
-                    case f.flags.indexOf('+') >= 0:
+                    case f.flags.includes('+'):
                         data.done = (d, next) => {
+                            this.debug(dtag)(`Wait ${this.sipd.opdelay} ms before continuing`);
                             this.sipd.sleep(this.sipd.opdelay)
                                 .then(() => next())
                                 .catch(err => {
@@ -838,15 +848,15 @@ class SipdSession {
                         }
                         break;
                     // optional
-                    case f.flags.indexOf('~') >= 0:
+                    case f.flags.includes('~'):
                         data.optional = true;
                         break;
                 }
                 // generic handler of special tag
                 if (!data.onfill) {
                     // date time picker
-                    if (key.toLowerCase().indexOf('tanggal') >= 0) {
-                        data.onfill = (el, value) => this.fillDatePicker(el, SipdUtil.getDate(value, f.flags.indexOf('&') >= 0));
+                    if (key.toLowerCase().includes('tanggal')) {
+                        data.onfill = (el, value) => this.fillDatePicker(el, SipdUtil.getDate(value, f.flags.includes('&')));
                     }
                     data.canfill = (tag, el, value) => {
                         return new Promise((resolve, reject) => {
