@@ -42,7 +42,7 @@ const debug = require('debug')('sipd:app');
  */
 class App {
 
-    VERSION = 'SIPD-BRIDGE-4.1'
+    VERSION = 'SIPD-BRIDGE-4.2'
 
     /** @type {Configuration} */
     config = {}
