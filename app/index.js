@@ -85,8 +85,8 @@ class App {
                     this.dequeue.setMaps(queue);
                     queue.retry = true;
                     break;
-                case SipdQueue.QUEUE_QUERY:
-                    queue = SipdQueue.createQueryQueue(data.data, data.callback);
+                case SipdQueue.QUEUE_SPP_QUERY:
+                    queue = SipdQueue.createSppQueryQueue(data.data, data.callback);
                     this.dequeue.setMaps(queue);
                     queue.readonly = true;
                     break;

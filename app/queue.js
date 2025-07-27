@@ -383,7 +383,7 @@ class SipdBridgeConsumer extends SipdConsumer
     initialize() {
         this.accepts = [
             SipdQueue.QUEUE_SPP,
-            SipdQueue.QUEUE_QUERY,
+            SipdQueue.QUEUE_SPP_QUERY,
             SipdQueue.QUEUE_CAPTCHA,
             SipdQueue.QUEUE_NOOP,
         ];
@@ -417,7 +417,7 @@ class SipdBridgeConsumer extends SipdConsumer
         switch (queue.type) {
             case SipdQueue.QUEUE_SPP:
                 return this.bridge.createSpp(queue);
-            case SipdQueue.QUEUE_QUERY:
+            case SipdQueue.QUEUE_SPP_QUERY:
                 return this.bridge.querySpp(queue);
             case SipdQueue.QUEUE_CAPTCHA:
                 return this.bridge.fetchCaptcha(queue);
@@ -666,8 +666,8 @@ class SipdQueue
         return this.create(SipdQueue.QUEUE_SPP, data, callback);
     }
 
-    static createQueryQueue(data, callback = null) {
-        return this.create(SipdQueue.QUEUE_QUERY, data, callback);
+    static createSppQueryQueue(data, callback = null) {
+        return this.create(SipdQueue.QUEUE_SPP_QUERY, data, callback);
     }
 
     static createCallbackQueue(data, callback = null) {
@@ -705,7 +705,7 @@ class SipdQueue
     }
 
     static get QUEUE_SPP() { return 'spp' }
-    static get QUEUE_QUERY() { return 'query' }
+    static get QUEUE_SPP_QUERY() { return 'spp-query' }
     static get QUEUE_CALLBACK() { return 'callback' }
     static get QUEUE_CAPTCHA() { return 'captcha' }
     static get QUEUE_NOOP() { return 'noop' }
