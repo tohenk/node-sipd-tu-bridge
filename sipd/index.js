@@ -666,12 +666,11 @@ class Sipd extends WebRobot {
             [w => this.waitSidebar()],
             [w => new Promise((resolve, reject) => {
                 let restart;
-                const dep = (s, n) => Array.from({length: n}, () => s).join('/');
                 const f = () => {
                     restart = false;
                     let res, level = 0, length = menus.length;
                     const q = new Queue([...menus], menu => {
-                        let root, selector, parent = res ?? this.getDriver(), n = 3;
+                        let root, parent = res ?? this.getDriver(), n = 3;
                         const last = ++level === length;
                         switch (level) {
                             case 1:
@@ -682,26 +681,17 @@ class Sipd extends WebRobot {
                                 break;
                             case 3:
                                 root = './../../../div/div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div';
-                                n = 4;
                                 break;
                         }
-                        let clicked = false;
                         this.works([
-                            [w => parent.findElements(By.xpath(root)), w => level === 3],
-                            [w => Promise.resolve(--n), w => level === 3 && w.getRes(0).length === 1],
-                            [w => Promise.resolve(selector = `/a/${dep('*', n)}[text()="${menu}"]`)],
-                            [w => Promise.resolve(this.debug(dtag)(`Menu level ${level} ${root + selector}`))],
-                            [w => parent.findElement(By.xpath(root + selector))],
-                            [w => w.getRes(4).findElement(By.xpath(dep('..', n)))],
-                            [w => w.getRes(4).getAttribute('class')],
-                            [w => w.getRes(5).getAttribute('class')],
-                            [w => Promise.resolve(level > 1 ? w.getRes(6) : w.getRes(7))],
-                            [w => w.getRes(5).click(), w => w.getRes(8).indexOf('false') >= 0],
-                            [w => Promise.resolve(clicked = true), w => w.getRes(8).indexOf('false') >= 0],
-                            [w => Promise.resolve(res = w.getRes(5))],
+                            [w => this.findMenu(parent, root, menu, level, n)],
+                            [w => this.findMenu(parent, root, menu, level, n + 1), w => !w.getRes(0)],
+                            [w => Promise.resolve(w.getRes(0) || w.getRes(1))],
+                            [w => Promise.reject(`Unable to find menu ${menu}!`), w => !w.getRes(2)],
                         ])
-                        .then(() => {
-                            if (clicked && !last) {
+                        .then(state => {
+                            res = state.el;
+                            if (state.clicked && !last) {
                                 restart = true;
                                 q.done();
                             } else {
@@ -720,6 +710,35 @@ class Sipd extends WebRobot {
                 }
                 f();
             })],
+        ]);
+    }
+
+    /**
+     * Find menu title.
+     *
+     * @param {WebElement} parent The parent element
+     * @param {string} root Root selector
+     * @param {string} title Menu title 
+     * @param {number} level Menu level
+     * @param {number} depth Menu depth
+     * @returns {Promise<object|undefined>}
+     */
+    findMenu(parent, root, title, level, depth) {
+        const dep = (s, n) => Array.from({length: n}, () => s).join('/');
+        const selector = `${root}/a/${dep('*', depth)}[text()="${title}"]`;
+        const upselector = dep('..', depth);
+        let res;
+        return this.works([
+            [w => parent.findElements(By.xpath(selector))],
+            [w => w.getRes(0)[0].findElement(By.xpath(upselector)), w => w.getRes(0).length],
+            [w => w.getRes(0)[0].getAttribute('class'), w => w.getRes(0).length],
+            [w => w.getRes(1).getAttribute('class'), w => w.getRes(0).length],
+            [w => Promise.resolve(level > 1 ? w.getRes(2) : w.getRes(3)), w => w.getRes(0).length],
+            [w => Promise.resolve(res = {el: w.getRes(1)}), w => w.getRes(0).length],
+            [w => w.getRes(1).click(), w => w.getRes(0).length && w.getRes(4).indexOf('false') >= 0],
+            [w => Promise.resolve(res.clicked = true), w => w.getRes(0).length && w.getRes(4).indexOf('false') >= 0],
+            [w => Promise.resolve(this.debug(dtag)(`Menu level ${level} ${selector}`)), w => res],
+            [w => Promise.resolve(res)],
         ]);
     }
 
