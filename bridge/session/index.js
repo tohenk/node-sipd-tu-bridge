@@ -424,7 +424,7 @@ class SipdSession {
             ])],
             [w => Promise.resolve(result), w => !actionCol],
             [w => clicker.click(), w => query.isActionEnabled() && clicker],
-            [w => Promise.reject(new SipdAnnouncedError(`${query.options.title}: ${expectedValue} tidak ditemukan!`)), w => query.isActionEnabled() && actionCol && !clicker],
+            [w => Promise.reject(new SipdAnnouncedError(`${query.options.title}: ${expectedValue} not found!`)), w => query.isActionEnabled() && actionCol && !clicker],
         ]);
     }
 
@@ -539,23 +539,23 @@ class SipdSession {
         ]);
     }
 
-    fillAfektasi(el, value, data) {
+    fillAfektasi(el, value, afektasi) {
         return this.works([
             [w => this.sipd.waitForPresence({el, data: By.xpath('.//div/div/div[@class="animate-pulse"]')}, {presence: false, timeout: 0})],
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.findElements(By.xpath('//div[@class="css-kw-3t-2fa3"]/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
-            [w => this.fillAccount(w.getRes(2), value, data)],
-            [w => Promise.reject(`Tidak dapat mengalokasikan ${SipdUtil.fmtCurr(value)} ke ${data.subkeg}-${data.rekening}, sisa anggaran ${SipdUtil.fmtCurr(data.sisa)}!`), w => !w.getRes(3)],
+            [w => this.fillAccount(w.getRes(2), value, afektasi)],
+            [w => Promise.reject(`Unable to allocate ${SipdUtil.fmtCurr(value)} to ${afektasi.keg}-${afektasi.rek}, available ${SipdUtil.fmtCurr(afektasi.sisa)}!`), w => !w.getRes(3)],
         ]);
     }
 
-    fillAccount(accounts, value, data) {
+    fillAccount(accounts, value, afektasi) {
         return new Promise((resolve, reject) => {
             let result = false;
             const q = new Queue(accounts, el => {
                 this.works([
-                    [w => this.isAccount(el, data.rekening)],
-                    [w => this.canFillAccount(el, value, data), w => w.getRes(0)],
+                    [w => this.isAccount(el, afektasi)],
+                    [w => this.canFillAccount(el, value, afektasi), w => w.getRes(0)],
                 ])
                 .then(res => {
                     if (res) {
@@ -571,20 +571,22 @@ class SipdSession {
         });
     }
 
-    isAccount(el, rekening) {
+    isAccount(el, afektasi) {
         return this.works([
             [w => el.getAttribute('innerText')],
-            [w => Promise.resolve(SipdUtil.pickCurr(w.getRes(0)) === rekening)],
+            [w => Promise.resolve(SipdUtil.pickCurr(w.getRes(0)) === afektasi.rek)],
         ]);
     }
 
-    canFillAccount(el, value, data) {
+    canFillAccount(el, value, afektasi) {
         return this.works([
             [w => el.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/div/input'))],
-            [w => el.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/p[2]'))],
+            [w => el.findElement(afektasi.kuota === 1 ?
+                By.xpath('../../../../../div[@class="col-span-5"]/div/p[2]') : By.xpath('../div/span')
+            )],
             [w => Promise.resolve(w.getRes(1).getAttribute('innerText'))],
-            [w => Promise.resolve(data.sisa = parseFloat(SipdUtil.pickCurr(w.getRes(2))))],
-            [w => this.sipd.fillInput(w.getRes(0), null, this.options.clearUsingKey), w => data.sisa >= value],
+            [w => Promise.resolve(afektasi.sisa = parseFloat(SipdUtil.pickCurr(w.getRes(2))))],
+            [w => this.sipd.fillInput(w.getRes(0), null, this.options.clearUsingKey), w => afektasi.sisa >= value],
             [w => new Promise((resolve, reject) => {
                 const input = w.getRes(0);
                 const chars = value.toString().split('');
@@ -599,8 +601,8 @@ class SipdSession {
                     }
                 }
                 f();
-            }), w => data.sisa >= value],
-            [w => Promise.resolve(false), w => data.sisa < value],
+            }), w => afektasi.sisa >= value],
+            [w => Promise.resolve(false), w => afektasi.sisa < value],
         ]);
     }
 
@@ -691,11 +693,12 @@ class SipdSession {
             }
             return s;
         }
+        delete this.afektasi;
         this.kegSeq = 0;
         Object.keys(maps).forEach(k => {
             const selector = [];
             const f = this.getFormKey(k);
-            let key = f.selector, attr, vtype;
+            let key = f.selector, attr, vtype, data, afektasi;
             switch (true) {
                 case f.sflags.includes('#'):
                     attr = 'id';
@@ -743,7 +746,6 @@ class SipdSession {
                 value = SipdUtil.getSafeStr(value);
             }
             // handle special key
-            let afektasi;
             if (key.indexOf(':') > 0) {
                 const y = key.split(':');
                 key = y[1];
@@ -753,28 +755,22 @@ class SipdSession {
             if (!f.sflags.includes('=')) {
                 selector.push(`[@${attr}="${key}"]`);
             }
-            // form data
-            let data = {
-                target: By.xpath(f.sflags.includes('=') ? key : `.//*${selector.join('')}`),
-                value: value
-            }
-            // check form parent
-            if (f.parent) {
-                if (f.parent.substring(0, 1) === '#') {
-                    data.parent = By.id(f.parent.substring(1));
-                } else {
-                    data.parent = By.xpath(f.parent);
-                }
-            }
             if (afektasi) {
-                if (afektasi.isValid()) {
-                    data = {
-                        target: By.xpath('.//p[contains(@class,"form-label") and contains(text(),"Belanja")]/../div[2]'),
-                        value: afektasi.nominal,
-                        onfill: (el, value) => this.fillAfektasi(el, value, {subkeg: afektasi.keg, rekening: afektasi.rek}),
+                if (!this.afektasi) {
+                    this.afektasi = afektasi;
+                }
+            } else {
+                data = {
+                    target: By.xpath(f.sflags.includes('=') ? key : `.//*${selector.join('')}`),
+                    value
+                }
+                // check form parent
+                if (f.parent) {
+                    if (f.parent.substring(0, 1) === '#') {
+                        data.parent = By.id(f.parent.substring(1));
+                    } else {
+                        data.parent = By.xpath(f.parent);
                     }
-                } else {
-                    data = null;
                 }
             }
             // form data and handler
@@ -791,6 +787,18 @@ class SipdSession {
                         break;
                     case 'KEG':
                         data.onfill = (el, value) => this.fillKegiatan(el, value);
+                        break;
+                    case 'AFEKTASI':
+                        data.onfill = (el, value) => {
+                            if (this.afektasi) {
+                                if (this.afektasi.isValid()) {
+                                    return this.fillAfektasi(el, value, this.afektasi);
+                                }
+                                return Promise.reject('Unable to fill allocation with invalid metadata!');
+                            } else {
+                                return Promise.reject('Unable to fill allocation without metadata!');
+                            }
+                        }
                         break;
                     case 'FILE':
                         const docfile = this.genFilename('doctmp', `${queue.id}.pdf`);
@@ -988,12 +996,14 @@ class SipdSession {
 class SipdAfektasi {
 
     keys = {
+        kuota: false,
         keg: true,
         rek: true,
         no: false,
         tgl: true,
         untuk: false,
         nominal: true,
+        sisa: false,
     }
 
     /**

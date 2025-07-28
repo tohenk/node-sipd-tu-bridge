@@ -16,6 +16,8 @@
         "filepond": "FILE:BUKTI",
         "=.//p[text()='Pilih Salah Satu Kegiatan Disini']/../../button": "KEG:KEG",
         "+=.//p/span[text()='Sub Kegiatan']/../../../button": "KEG:KEG",
+        "=.//p[contains(@class,'form-label') and text()='Belanja']/../div[2]": "AFEKTASI:AFEKTASI",
+        "spp:KUOTA": 1,
         "spp:KEG": "KEG",
         "spp:REK": "REK",
         "spp:NO": "NO_SPP",
