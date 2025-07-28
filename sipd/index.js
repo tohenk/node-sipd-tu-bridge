@@ -392,7 +392,7 @@ class Sipd extends WebRobot {
      */
     dismissUpdate() {
         return this.works([
-            [w => this.waitForPresence(By.xpath('//h1[contains(@class,"css-nwjwe-j2aft") and text()="Pembaruan"]'))],
+            [w => this.waitForPresence(By.xpath('//h1[contains(@class,"css-nwjwe-j2aft") and text()="Pembaruan"]'), {timeout: this.delay})],
             [w => this.findElement(By.xpath('//button[text()="Sembunyikan"]')), w => w.getRes(0)],
             [w => w.getRes(1).click(), w => w.getRes(0)],
         ]);
@@ -671,7 +671,7 @@ class Sipd extends WebRobot {
                     restart = false;
                     let res, level = 0, length = menus.length;
                     const q = new Queue([...menus], menu => {
-                        let root, selector, parent = res ? res : this.getDriver(), n = 3;
+                        let root, selector, parent = res ?? this.getDriver(), n = 3;
                         const last = ++level === length;
                         switch (level) {
                             case 1:
@@ -679,9 +679,6 @@ class Sipd extends WebRobot {
                                 break;
                             case 2:
                                 root = './../div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div/div/div/div';
-                                if (!last) {
-                                    n = 4;
-                                }
                                 break;
                             case 3:
                                 root = './../../../div/div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div';
