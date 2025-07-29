@@ -399,14 +399,15 @@ class SipdSession {
                         status = values[statusCol.name];
                     }
                     const states = f(...compares);
+                    const rowstate = states.okay ? '[OK]' : '[NO]';
                     if (status !== undefined) {
-                        this.debug(dtag)('Row state:', status, ...states.info);
+                        this.debug(dtag)('Row state:', rowstate, status, ...states.info);
                     } else {
-                        this.debug(dtag)('Row state:', ...states.info);
+                        this.debug(dtag)('Row state:', rowstate, ...states.info);
                     }
                     if (states.okay) {
                         result = el;
-                        if (actionCol) {
+                        if (query.isActionEnabled() && actionCol) {
                             clicker = values[actionCol.name];
                         }
                         if (status !== undefined) {
@@ -422,7 +423,7 @@ class SipdSession {
                     }
                 })],
             ])],
-            [w => Promise.resolve(result), w => !actionCol],
+            [w => Promise.resolve(result), w => !query.isActionEnabled()],
             [w => clicker.click(), w => query.isActionEnabled() && clicker],
             [w => Promise.reject(new SipdAnnouncedError(`${query.options.title}: ${expectedValue} not found!`)), w => query.isActionEnabled() && actionCol && !clicker],
         ]);

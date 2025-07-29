@@ -95,9 +95,9 @@ class SipdQuery {
                 ...(this.options.columns || {}),
             }
             for (const [k, v] of Object.entries(columns)) {
-                const idx = Array.isArray(v) ? v[0] : (typeof v === 'object' ? v.index : v);
-                const colType = Array.isArray(v) ? v[1] : (typeof v === 'object' && v.type ? v.type : SipdColumnQuery.COL_ICON);
-                const withTippy = Array.isArray(v) ? v[2] : (typeof v === 'object' && v.tippy ? v.tippy : false);
+                const idx = Array.isArray(v) ? v[0] : (v.index !== undefined ? v.index : (typeof v === 'number' ? v : null));
+                const colType = Array.isArray(v) ? v[1] : (v.type !== undefined ? v.type : SipdColumnQuery.COL_ICON);
+                const withTippy = Array.isArray(v) ? v[2] : (v.tippy !== undefined ? v.tippy : false);
                 const selector = typeof v === 'object' && v.selector ? v.selector : tselectors[colType];
                 const column = new SipdColumnQuery(colType, k, idx, withTippy, selector);
                 if (typeof this.getNormalizer === 'function') {
