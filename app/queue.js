@@ -129,7 +129,7 @@ class SipdDequeue extends EventEmitter {
     }
 
     setInfo(info) {
-        this.info = Object.assign({}, info);
+        this.info = {...info};
         return this;
     }
 
@@ -698,8 +698,12 @@ class SipdQueue
 
     static hasPendingQueue(queue) {
         if (dequeue) {
-            const queues = dequeue.queues.filter(q => q.type === queue.type && q.info === queue.info && [SipdQueue.STATUS_NEW, SipdQueue.STATUS_PROCESSING].indexOf(q.status) >= 0);
-            return queues.length ? true : false;
+            if (dequeue.queues.filter(q => q.type === queue.type && q.info === queue.info).length) {
+                return true;
+            }
+            if (dequeue.processing.filter(q => q.type === queue.type && q.info === queue.info).length) {
+                return true;
+            }
         }
         return false;
     }
