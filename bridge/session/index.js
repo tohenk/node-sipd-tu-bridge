@@ -319,6 +319,36 @@ class SipdSession {
     }
 
     /**
+     * Get progress value.
+     *
+     * @param {WebElement} el Progress element
+     * @returns {Promise<string>}
+     */
+    getProgress(el, selector) {
+        let res;
+        return this.works([
+            [w => el.findElements(selector)],
+            [w => new Promise((resolve, reject) => {
+                const q = new Queue([...w.getRes(0).reverse()], p => {
+                    if (!res) {
+                        this.works([
+                            [x => p.getAttribute('innerHTML')],
+                            [x => p.findElement(By.xpath('../*[@class="stepProgressBar__step__button__label"]'))],
+                            [x => x.getRes(1).getAttribute('innerText')],
+                            [x => Promise.resolve(res = x.getRes(2)), x => x.getRes(0)],
+                        ])
+                        .then(() => q.next())
+                        .catch(err => reject(err));
+                    } else {
+                        q.next();
+                    }
+                });
+                q.once('done', () => resolve(res ?? ''));
+            })],
+        ]);
+    }
+
+    /**
      * Get row data for data paging colums.
      *
      * @param {SipdColumnQuery[]} columns Columns data
@@ -329,15 +359,36 @@ class SipdSession {
         return new Promise((resolve, reject) => {
             const res = {};
             const q = new Queue([...columns], col => {
-                const isValue = col.type !== SipdColumnQuery.COL_ACTION;
-                const tippy = col.tippyXpath;
+                let works;
+                switch (col.type) {
+                    case SipdColumnQuery.COL_ACTION:
+                        works = [
+                            [w => this.sipd.findElement({el, data: col.xpath})]
+                        ];
+                        break;
+                    case SipdColumnQuery.COL_PROGRESS:
+                        works = [
+                            [w => this.getProgress(el, col.xpath)]
+                        ];
+                        break;
+                    default:
+                        const tippy = col.tippyXpath;
+                        if (tippy) {
+                            works = [
+                                [w => el.findElements(tippy)],
+                                [w => this.getTippy(w.res[0]), w => w.res.length],
+                            ];
+                        } else {
+                            works = [
+                                [w => this.sipd.getText([col.xpath], el)],
+                                [w => Promise.resolve(w.res[0])],
+                            ];
+                        }
+                        break;
+                }
                 this.works([
-                    [w => el.findElements(tippy), w => tippy],
-                    [w => this.getTippy(w.getRes(0)[0]), w => tippy && w.getRes(0).length],
-                    [w => this.sipd.getText([col.xpath], el), w => !tippy && isValue],
-                    [w => Promise.resolve(res[col.name] = col.normalize(tippy ? w.getRes(1) : w.getRes(2)[0])), w => isValue],
-                    [w => this.sipd.findElement({el, data: col.xpath}), w => !isValue],
-                    [w => Promise.resolve(res[col.name] = w.getRes(4)), w => !isValue],
+                    ...works,
+                    [w => Promise.resolve(res[col.name] = typeof w.res === 'string' ? col.normalize(w.res) : w.res)],
                 ])
                 .then(() => q.next())
                 .catch(err => reject(err));
@@ -392,7 +443,7 @@ class SipdSession {
                         }
                     }
                     expectedValue = compares.map(v => v[0]).join('-');
-                    statusCol = query.columns.find(column => column.type === SipdColumnQuery.COL_STATUS);
+                    statusCol = query.columns.find(column => [SipdColumnQuery.COL_STATUS, SipdColumnQuery.COL_PROGRESS].includes(column.type));
                     actionCol = query.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
                     let status;
                     if (statusCol) {
@@ -427,6 +478,18 @@ class SipdSession {
             [w => clicker.click(), w => query.isActionEnabled() && clicker],
             [w => Promise.reject(new SipdAnnouncedError(`${query.options.title}: ${expectedValue} not found!`)), w => query.isActionEnabled() && actionCol && !clicker],
         ]);
+    }
+
+    executeAction(queue, action, status) {
+        if (queue.STATUS === status && queue.values && queue.values.action) {
+            const el = queue.values.action;
+            return this.works([
+                [w => el.click()],
+                [w => this.sipd.click({el, data: By.xpath(`../div/div/button/span/p[text()="${action}"]/../..`)})],
+            ]);
+        } else {
+            return Promise.resolve();
+        }
     }
 
     dismissModal(title) {

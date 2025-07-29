@@ -209,17 +209,11 @@ class SipdQuerySpp extends SipdQueryBase {
                 submit: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[3]/div/div'),
             }
         }
-        this.defaultColumns = {
-            no: 1,
-            tgl: 4,
-            untuk: [5, SipdColumnQuery.COL_SINGLE, true],
-            nom: 6,
-            status: [2, SipdColumnQuery.COL_STATUS],
-        }
+        const nomor = this.options.nomor || this.constructor.SPP;
+        this.defaultColumns = this.constructor.getColumns(nomor);
         this.search = [];
         this.diffs = [];
         this.group = this.options.jenis;
-        const nomor = this.options.nomor || this.constructor.SPP;
         let no, tgl, nominal, untuk;
         if (nomor === this.constructor.SPP) {
             no = this.data.getMappedData('info.check');
@@ -252,6 +246,36 @@ class SipdQuerySpp extends SipdQueryBase {
             this.data[`${nomor}_UNTUK`] = this.data.values.untuk;
             this.data[`${nomor}_NOM`] = this.data.values.nom;
         }
+    }
+
+    static getColumns(type) {
+        const columns = {
+            [this.SPP]: {
+                no: 1,
+                tgl: 4,
+                untuk: [5, SipdColumnQuery.COL_SINGLE, true],
+                nom: 6,
+                status: [2, SipdColumnQuery.COL_STATUS],
+                action: [7, SipdColumnQuery.COL_ACTION],
+            },
+            [this.SPM]: {
+                no: [1, SipdColumnQuery.COL_TIPPY],
+                tgl: 3,
+                untuk: [6, SipdColumnQuery.COL_SINGLE, true],
+                nom: 7,
+                status: {index: 4, type: SipdColumnQuery.COL_STATUS, selector: '*/*/p'},
+                action: [9, SipdColumnQuery.COL_ACTION],
+            },
+            [this.SP2D]: {
+                no: [1, SipdColumnQuery.COL_TIPPY],
+                tgl: 3,
+                untuk: [9, SipdColumnQuery.COL_SINGLE, true],
+                nom: 10,
+                tglCair: 7,
+                status: {index: 6, type: SipdColumnQuery.COL_STATUS, selector: '*/*/p'},
+            }
+        }
+        return columns[type];
     }
 
     static get SPP() { return 'SPP' }

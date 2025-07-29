@@ -82,8 +82,11 @@ class SipdQuery {
         if (this._columns === undefined) {
             this._columns = [];
             const tselectors = {
-                [SipdColumnQuery.COL_ICON]: '*/*/*[2]/*[1]',
                 [SipdColumnQuery.COL_STATUS]: '*/*/*/p',
+                [SipdColumnQuery.COL_PROGRESS]: '*/ol/li/*/*[@class="stepProgressBar__step__button__indicator"]',
+                [SipdColumnQuery.COL_ACTION]: 'div/button',
+                [SipdColumnQuery.COL_ICON]: '*/*/*[2]/*[1]',
+                [SipdColumnQuery.COL_ICON2]: '*/*/*[2]/*[2]',
                 [SipdColumnQuery.COL_SINGLE]: '*/*/span',
                 [SipdColumnQuery.COL_TIPPY]: 'div[@class="custom-tippy"]/div/div/div/div[2]/span[1]',
                 [SipdColumnQuery.COL_TWOLINE]: 'span[2]',
@@ -247,11 +250,13 @@ class SipdColumnQuery {
     }
 
     static get COL_ACTION() { return 0 }
-    static get COL_ICON() { return 1 }
-    static get COL_STATUS() { return 2 }
-    static get COL_SINGLE() { return 3 }
-    static get COL_TIPPY() { return 4 }
-    static get COL_TWOLINE() { return 5 }
+    static get COL_STATUS() { return 1 }
+    static get COL_PROGRESS() { return 2 }
+    static get COL_ICON() { return 3 }
+    static get COL_ICON2() { return 4 }
+    static get COL_SINGLE() { return 5 }
+    static get COL_TIPPY() { return 6 }
+    static get COL_TWOLINE() { return 7 }
 }
 
 module.exports = {
