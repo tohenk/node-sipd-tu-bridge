@@ -373,7 +373,7 @@ class SipdSession {
                         for (const arg of args) {
                             const okay = arg[0] == arg[1];
                             res.states.push(okay);
-                            res.info.push(dbg(arg[0], okay));
+                            res.info.push(dbg(arg[1], okay));
                         }
                         res.okay = true;
                         res.states.forEach(state => {
