@@ -343,7 +343,7 @@ class SipdSession {
                         q.next();
                     }
                 });
-                q.once('done', () => resolve(res ?? ''));
+                q.once('done', () => resolve(res ?? (w.getRes(0).length ? this.progressInitialValue : null)));
             })],
         ]);
     }
@@ -452,7 +452,7 @@ class SipdSession {
                     const states = f(...compares);
                     const rowstate = states.okay ? '[OK]' : '[NO]';
                     if (status !== undefined) {
-                        this.debug(dtag)('Row state:', rowstate, status, ...states.info);
+                        this.debug(dtag)('Row state:', rowstate, `<${status}>`, ...states.info);
                     } else {
                         this.debug(dtag)('Row state:', rowstate, ...states.info);
                     }
