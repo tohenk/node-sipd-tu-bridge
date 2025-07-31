@@ -44,8 +44,11 @@ class SipdSppBridge extends SipdBridge {
             // result
             ['res', w => new Promise((resolve, reject) => {
                 let res;
-                if (queue.SPP && queue.SPP !== 'DRAFT' && queue.callback) {
-                    res = {queue: queue.id, id: queue.getMappedData('info.id'), spp: queue.SPP, tglspp: queue.SPP_TGL};
+                if (queue.SPP && queue.SPP !== 'DRAFT') {
+                    res = {
+                        spp: queue.SPP,
+                        tglspp: queue.SPP_TGL,
+                    }
                     if (queue.SPM) {
                         res.spm = queue.SPM;
                         res.tglspm = queue.SPM_TGL;
@@ -57,8 +60,15 @@ class SipdSppBridge extends SipdBridge {
                     if (queue.CAIR) {
                         res.cair = queue.CAIR;
                     }
-                    const callbackQueue = SipdQueue.createCallbackQueue(res, queue.callback);
-                    SipdQueue.addQueue(callbackQueue);
+                    if (queue.callback) {
+                        const data = {
+                            queue: queue.id,
+                            id: queue.getMappedData('info.id'),
+                            ...res,
+                        }
+                        const callbackQueue = SipdQueue.createCallbackQueue(data, queue.callback);
+                        SipdQueue.addQueue(callbackQueue);
+                    }
                 }
                 resolve(res ? res : false);
             })],
