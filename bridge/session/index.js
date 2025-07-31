@@ -759,10 +759,10 @@ class SipdSession {
         }
         delete this.afektasi;
         this.kegSeq = 0;
-        Object.keys(maps).forEach(k => {
+        for (const k of Object.keys(maps)) {
             const selector = [];
             const f = this.getFormKey(k);
-            let key = f.selector, attr, vtype, data, afektasi;
+            let key = f.selector, attr, vcond, vtype, data, afektasi;
             switch (true) {
                 case f.sflags.includes('#'):
                     attr = 'id';
@@ -782,11 +782,50 @@ class SipdSession {
                 }
                 value = maps[k];
             }
+            // handle condition or special value
+            if (typeof value === 'string' && queue.getMap([name, k]) === value) {
+                // condition (?) with evaluated values separated by comma (,)
+                let okay, p = value.indexOf('?');
+                if (p > 0) {
+                    vcond = value.substr(0, p);
+                    value = value.substr(p + 1);
+                    const operators = {
+                        '!=': (a, b) => a !== b,
+                        '<=': (a, b) => a <= b,
+                        '>=': (a, b) => a >= b,
+                        '<':  (a, b) => a < b,
+                        '>':  (a, b) => a > b,
+                        '=':  (a, b) => a === b,
+                    }
+                    for (const [op, fn] of Object.entries(operators)) {
+                        if (vcond.indexOf(op) > 0) {
+                            const params = vcond.split(op).map(p => p.trim());
+                            for (let i = 0; i < params.length; i++) {
+                                const pvalue = queue.getDataValue(params[i]);
+                                if (pvalue !== undefined) {
+                                    params[i] = pvalue;
+                                }
+                            }
+                            okay = fn(params[0], params[1]);
+                            break;
+                        }
+                    }
+                    this.debug(dtag)(`Condition ${vcond} evaluated to ${okay ? 'true' : 'false'}`);
+                    const [vtrue, vfalse] = value.split(',');
+                    value = okay ? vtrue : vfalse;
+                    if (!value) {
+                        continue;
+                    }
+                }
+                // special value TYPE:value
+                p = value.indexOf(':');
+                if (p > 0) {
+                    vtype = value.substr(0, p);
+                    value = value.substr(p + 1);
+                }
+            }
             // handle special value TYPE:value
-            if (typeof value === 'string' && value.indexOf(':') > 0 && queue.getMap([name, k]) === value) {
-                const x = value.split(':');
-                vtype = x[0];
-                value = x[1];
+            if (vtype) {
                 const v = queue.getDataValue(value);
                 if (v === undefined) {
                     // try multiple values
@@ -954,7 +993,7 @@ class SipdSession {
                 }
                 result.push(data);
             }
-        });
+        }
         return result;
     }
 
