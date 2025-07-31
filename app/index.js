@@ -31,6 +31,7 @@ const SipdCmd = require('../cmd');
 const SipdQueue = require('./queue');
 const SipdBridge = require('../bridge');
 const SipdSppBridge = require('../bridge/spp');
+const SipdLpjBridge = require('../bridge/lpj');
 const SipdUtilBridge = require('../bridge/util');
 const { Socket } = require('socket.io');
 const debug = require('debug')('sipd:app');
@@ -87,6 +88,16 @@ class App {
                     break;
                 case SipdQueue.QUEUE_SPP_QUERY:
                     queue = SipdQueue.createSppQueryQueue(data.data, data.callback);
+                    this.dequeue.setMaps(queue);
+                    queue.readonly = true;
+                    break;
+                case SipdQueue.QUEUE_LPJ:
+                    queue = SipdQueue.createLpjQueue(data.data, data.callback);
+                    this.dequeue.setMaps(queue);
+                    queue.retry = true;
+                    break;
+                case SipdQueue.QUEUE_LPJ_QUERY:
+                    queue = SipdQueue.createLpjQueryQueue(data.data, data.callback);
                     this.dequeue.setMaps(queue);
                     queue.readonly = true;
                     break;
@@ -157,6 +168,9 @@ class App {
             switch (this.config.mode) {
                 case Configuration.BRIDGE_SPP:
                     bridge = new SipdSppBridge(name, config);
+                    break;
+                case Configuration.BRIDGE_LPJ:
+                    bridge = new SipdLpjBridge(name, config);
                     break;
                 case Configuration.BRIDGE_UTIL:
                     bridge = new SipdUtilBridge(name, config);
@@ -237,7 +251,11 @@ class App {
     }
 
     registerCommands() {
-        const prefixes = {[Configuration.BRIDGE_SPP]: 'spp', [Configuration.BRIDGE_UTIL]: 'util'};
+        const prefixes = {
+            [Configuration.BRIDGE_SPP]: 'spp',
+            [Configuration.BRIDGE_LPJ]: 'lpj',
+            [Configuration.BRIDGE_UTIL]: 'util',
+        }
         SipdCmd.register(this, prefixes[this.config.mode]);
     }
 

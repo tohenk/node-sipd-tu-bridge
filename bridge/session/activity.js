@@ -50,7 +50,24 @@ class SipdSppActivitySelector extends SipdActivitySelector {
     }
 }
 
+class SipdNpdKegActivitySelector extends SipdActivitySelector {
+
+    initialize() {
+        this.listSelector = By.xpath('//div[contains(@class,"css-Sj-ej-fe3f0j")]/div/span/div/span[2]');
+    }
+}
+
+class SipdNpdSubKegActivitySelector extends SipdActivitySelector {
+
+    initialize() {
+        this.listSelector = By.xpath('//td[contains(@class,"table-td")]/div/span/div/span[2]');
+        this.chooseSelector = By.xpath('../../../../../td[2]/div/button');
+    }
+}
+
 module.exports = {
     SipdActivitySelector,
     SipdSppActivitySelector,
+    SipdNpdKegActivitySelector,
+    SipdNpdSubKegActivitySelector,
 }

@@ -39,6 +39,7 @@ class SipdQueryBase extends SipdQuery {
         this.doPreInitialize();
         this.doInitialize();
         this.doPostInitialize();
+        this.doPagerInitialize();
         this.doCreatePager();
     }
 
@@ -49,6 +50,9 @@ class SipdQueryBase extends SipdQuery {
     }
 
     doPostInitialize() {
+    }
+
+    doPagerInitialize() {
     }
 
     doCreatePager() {
@@ -111,13 +115,16 @@ class SipdVoter extends SipdQueryBase {
 
     doPreInitialize() {
         this.actionEnabled = true;
+        this.dialog = true;
     }
 
     getPagerOptions() {
         return {
-            selector: '//header[text()="%TITLE%"]/../div[contains(@class,"chakra-modal__body")]',
-            tableSelector: './/table/..',
-            pageSelector: 'li/a[text()="%PAGE%"]',
+            ...(this.dialog ? {
+                selector: '//header[text()="%TITLE%"]/../div[contains(@class,"chakra-modal__body")]',
+                tableSelector: './/table/..',
+                pageSelector: 'li/a[text()="%PAGE%"]',
+            } : {}),
             ...(this.pagerOptions || {}),
         }
     }
@@ -150,27 +157,75 @@ class SipdVoterPegawai extends SipdVoter {
 class SipdVoterRekanan extends SipdVoter {
 
     doInitialize() {
+        const perusahaan = this.jenis === this.constructor.REKANAN_USAHA;
         this.options.title = 'Daftar Rekanan';
         this.pagerOptions = {
             selector: '//h1[contains(@class,"card-title")]/h1[text()="%TITLE%"]/../../../..',
             search: {
-                input: By.xpath(`//input[contains(@placeholder,"Cari perusahaan")]`),
+                input: By.xpath(`//input[contains(@placeholder,"Cari ${perusahaan ? 'perusahaan' : 'nama rekanan'}")]`),
                 submit: By.xpath('//button[text()="Cari Sekarang"]'),
                 toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
             }
         }
         this.defaultColumns = {
-            nama: {selector: './td[2]/div/div/div[2]/span[1]'},
+            nama: {selector: './td[1]/div/div/div[2]/span[1]'},
             nik: {selector: './td[1]/div/div/div[2]/span[2]'},
+            usaha: {selector: './td[2]/div/div/div[2]/span[1]'},
             action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
         }
         const rekanan = Array.isArray(this.data.value) ? this.data.value[0] : this.data.value;
         const nik = Array.isArray(this.data.value) ? this.data.value[1] : null;
         this.search = [rekanan];
         this.diffs = [
-            ['nama', rekanan],
+            [perusahaan ? 'usaha' : 'nama', rekanan],
             nik ? ['nik', nik] : null,
         ].filter(Boolean);
+    }
+
+    get jenis() {
+        return this.options.jenis ?? this.constructor.REKANAN_USAHA;
+    }
+
+    static get REKANAN_USAHA() { return 'usaha' }
+    static get REKANAN_PNS() { return 'pns' }
+    static get REKANAN_ORANG() { return 'orang' }
+}
+
+/**
+ * Handles NPD selection.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdVoterNpd extends SipdVoter {
+
+    doInitialize() {
+        this.options.title = 'Pengajuan | Nota Pencairan Dana';
+        this.pagerOptions = {
+            search: {
+                input: By.xpath(`//input[contains(@placeholder,"Cari nomor dokumen")]`),
+                submit: By.xpath('//button[text()="Cari Sekarang"]'),
+                toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
+            }
+        }
+        this.defaultColumns = {
+            no: 1,
+            tgl: [1, SipdColumnQuery.COL_ICON2],
+            untuk: [2, SipdColumnQuery.COL_SINGLE, true],
+            nom: 5,
+            status: [4, SipdColumnQuery.COL_PROGRESS],
+            action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
+        }
+        const data = this.data.queue ?? this.data;
+        this.search = [data[this.data.value]];
+        this.diffs = [
+            ['no', data[this.data.value]],
+        ];
+    }
+
+    doPagerInitialize() {
+        if (this.dialog) {
+            this.pagerOptions.selector = '//h1[text()="%TITLE%"]/../../..';
+        }
     }
 }
 
@@ -183,8 +238,11 @@ class SipdQueryRekanan extends SipdVoterRekanan {
 
     doPreInitialize() {
         this.actionEnabled = false;
+        this.dialog = false;
+        this.options.jenis = this.data.getMappedData('info.jenis');
+        const perusahaan = this.jenis === this.constructor.REKANAN_USAHA;
         this.data.value = [
-            SipdUtil.getSafeStr(this.data.getMappedData('info.rekanan')),
+            SipdUtil.getSafeStr(this.data.getMappedData(perusahaan ? 'info.usaha' : 'info.rekanan')),
             this.data.getMappedData('info.nik'),
         ];
     }
@@ -192,6 +250,96 @@ class SipdQueryRekanan extends SipdVoterRekanan {
     doPostInitialize() {
         this.defaultColumns.action.selector = './td[4]/a';
     }
+}
+
+
+/**
+ * Handles NPD data paging.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdQueryNpd extends SipdVoterNpd {
+
+    doPreInitialize() {
+        this.actionEnabled = false;
+        this.dialog = false;
+    }
+
+    doPostInitialize() {
+        this.dialog = false;
+        this.defaultColumns.action = [10, SipdColumnQuery.COL_ACTION];
+        const nomor = this.constructor.NPD;
+        const no = this.data[nomor];
+        if (no) {
+            this.pagerOptions.search.input = By.xpath(`//input[contains(@placeholder,"Cari nomor dokumen")]`);
+            this.search = [no];
+            this.diffs = [
+                ['no', no]
+            ];
+        } else {
+            this.pagerOptions.search.input = By.xpath(`//textarea[contains(@placeholder,"Cari tujuan pembayaran")]`);
+            const tgl = SipdUtil.getDate(this.data.getMappedData('npd.npd:TGL'));
+            const nominal = this.data.getMappedData('npd.npd:NOMINAL');
+            const untuk = SipdUtil.getSafeStr(this.data.getMappedData('npd.npd:UNTUK'));
+            this.search = [untuk];
+            this.diffs = [
+                ['tgl', tgl],
+                ['untuk', untuk],
+                ['nom', nominal],
+            ];
+        }
+        this.onResult = () => {
+            this.data[`${nomor}`] = this.data.values.no;
+            this.data[`${nomor}_TGL`] = this.data.values.tgl;
+            this.data[`${nomor}_UNTUK`] = this.data.values.untuk;
+            this.data[`${nomor}_NOM`] = this.data.values.nom;
+        }
+    }
+
+    static get NPD() { return 'NPD' }
+}
+
+/**
+ * Handles TBP data paging.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdQueryTbp extends SipdQueryBase {
+
+    doInitialize() {
+        this.options.title = 'Tanda Bukti Pembayaran';
+        this.pagerOptions = {
+            search: {
+                input: By.xpath(`//textarea[contains(@placeholder,"Cari tujuan pembayaran")]`),
+                submit: By.xpath('//button[text()="Cari Sekarang"]'),
+                toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
+            }
+        }
+        this.defaultColumns = {
+            no: 1,
+            tgl: 2,
+            untuk: [3, SipdColumnQuery.COL_SINGLE, true],
+            nom: 6,
+        }
+        const nomor = this.constructor.TBP;
+        const tgl = SipdUtil.getDate(this.data.getMappedData('npd.npd:TGL'));
+        const nominal = this.data.getMappedData('npd.npd:NOMINAL');
+        const untuk = SipdUtil.getSafeStr(this.data.getMappedData('npd.npd:UNTUK'));
+        this.search = [untuk];
+        this.diffs= [
+            ['tgl', tgl],
+            ['untuk', untuk],
+            ['nom', nominal],
+        ];
+        this.onResult = () => {
+            this.data[`${nomor}`] = this.data.values.no;
+            this.data[`${nomor}_TGL`] = this.data.values.tgl;
+            this.data[`${nomor}_UNTUK`] = this.data.values.untuk;
+            this.data[`${nomor}_NOM`] = this.data.values.nom;
+        }
+    }
+
+    static get TBP() { return 'TBP' }
 }
 
 /**
@@ -287,6 +435,9 @@ module.exports = {
     SipdQueryBase,
     SipdVoterPegawai,
     SipdVoterRekanan,
+    SipdVoterNpd,
     SipdQueryRekanan,
+    SipdQueryNpd,
+    SipdQueryTbp,
     SipdQuerySpp,
 }

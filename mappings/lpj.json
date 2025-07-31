@@ -1,0 +1,54 @@
+{
+    "info": {
+        "id": "ID",
+        "role": "KEG",
+        "title": "FORMAT:%1% (%2%)|URAIAN|ID",
+        "jenis": "JENIS",
+        "usaha": "USAHA",
+        "rekanan": "NAMA",
+        "nik": "NIK",
+        "check": "NPD"
+    },
+    "npd": {
+        "=.//label[text()='Tanggal']/../input": "TGL_NPD",
+        "=.//label[text()='Tujuan Pembayaran']/../textarea": "URAIAN",
+        "=.//button[text()='Pilih Kegiatan Disini']": "KEG:KEG",
+        "+=.//button[text()='Pilih Sub Kegiatan Disini']": "KEG:KEG",
+        "=.//p[contains(@class,'form-label') and contains(text(),'Menampilkan Daftar Belanja')]/../div[2]": "AFEKTASI:AFEKTASI",
+        "npd:KUOTA": 0,
+        "npd:KEG": "KEG",
+        "npd:REK": "REK",
+        "npd:NO": "NO_NPD",
+        "npd:TGL": "TGL_NPD",
+        "npd:UNTUK": "URAIAN",
+        "npd:NOMINAL": "AFEKTASI"
+    },
+    "setuju-npd": {
+        "=.//label[text()='Tanggal']/../input": "TGL_NPD"
+    },
+    "validasi-npd": {
+        "=.//label[text()='Tanggal']/../input": "TGL_NPD"
+    },
+    "tbp": {
+        "+=.//button[text()='Pilih Dokumen Disini']": "NPD:NPD",
+        "=.//label[text()='Tanggal']/../input": "TGL_NPD",
+        "~=.//p[text()='Tunai']": "BAYAR=tunai?DO:CLICK",
+        "=.//label[text()='Nomor Kwitansi']/../div/div/input": "NOBUKTI",
+        "filepond": "FILE:BUKTI",
+        "+=.//label[text()='Rekanan']/../div/p": "JENIS=usaha?REKANAN:USAHA|NIK,REKANAN:NAMA|NIK"
+    },
+    "rekanan": {
+        "~=.//button[text()='Pilih Perusahaan']": "JENIS=usaha?DO:CLICK",
+        "~=.//p[text()='PNS']": "JENIS=pns?DO:CLICK",
+        "nama_tujuan": "NAMA",
+        "nik": "NIK",
+        "nama_perusahaan": "USAHA",
+        "npwp": "NPWP",
+        "telepon_perusahaan": "TELEPON",
+        "alamat_perusahaan": "ALAMAT",
+        "~nomor_rekening": "BANK_REK",
+        "nama_rekening": "BANK_NAMA",
+        "=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']": "BANK",
+        "cabang_bank": "BANK_CAB"
+    }
+}

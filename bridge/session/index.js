@@ -30,7 +30,7 @@ const SipdUtil = require('../../sipd/util');
 const { Sipd, SipdAnnouncedError } = require('../../sipd');
 const { SipdColumnQuery } = require('../../sipd/query');
 const { SipdActivitySelector } = require('./activity');
-const { SipdQueryBase, SipdVoterPegawai, SipdVoterRekanan, SipdQueryRekanan } = require('./pages');
+const { SipdQueryBase, SipdVoterPegawai, SipdVoterRekanan, SipdQueryRekanan, SipdVoterNpd } = require('./pages');
 const { By, Key, WebElement } = require('selenium-webdriver');
 
 const dtag = 'session';
@@ -565,6 +565,13 @@ class SipdSession {
         ]);
     }
 
+    fillNpd(el, value, queue) {
+        return this.works([
+            [w => el.click()],
+            [w => this.doQuery(new SipdVoterNpd(this.sipd, {value, queue}))],
+        ]);
+    }
+
     fillKegiatan(el, value) {
         let fulfilled = false;
         /** @type {SipdActivitySelector} */
@@ -890,6 +897,9 @@ class SipdSession {
                         break;
                     case 'KEG':
                         data.onfill = (el, value) => this.fillKegiatan(el, value);
+                        break;
+                    case 'NPD':
+                        data.onfill = (el, value) => this.fillNpd(el, value, queue);
                         break;
                     case 'AFEKTASI':
                         data.onfill = (el, value) => {

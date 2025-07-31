@@ -384,6 +384,8 @@ class SipdBridgeConsumer extends SipdConsumer
         this.accepts = [
             SipdQueue.QUEUE_SPP,
             SipdQueue.QUEUE_SPP_QUERY,
+            SipdQueue.QUEUE_LPJ,
+            SipdQueue.QUEUE_LPJ_QUERY,
             SipdQueue.QUEUE_CAPTCHA,
             SipdQueue.QUEUE_NOOP,
         ];
@@ -419,6 +421,10 @@ class SipdBridgeConsumer extends SipdConsumer
                 return this.bridge.createSpp(queue);
             case SipdQueue.QUEUE_SPP_QUERY:
                 return this.bridge.querySpp(queue);
+            case SipdQueue.QUEUE_LPJ:
+                return this.bridge.createLpj(queue);
+            case SipdQueue.QUEUE_LPJ_QUERY:
+                return this.bridge.queryLpj(queue);
             case SipdQueue.QUEUE_CAPTCHA:
                 return this.bridge.fetchCaptcha(queue);
             case SipdQueue.QUEUE_NOOP:
@@ -670,6 +676,14 @@ class SipdQueue
         return this.create(SipdQueue.QUEUE_SPP_QUERY, data, callback);
     }
 
+    static createLpjQueue(data, callback = null) {
+        return this.create(SipdQueue.QUEUE_LPJ, data, callback);
+    }
+
+    static createLpjQueryQueue(data, callback = null) {
+        return this.create(SipdQueue.QUEUE_LPJ_QUERY, data, callback);
+    }
+
     static createCallbackQueue(data, callback = null) {
         return this.create(SipdQueue.QUEUE_CALLBACK, data, callback);
     }
@@ -710,6 +724,8 @@ class SipdQueue
 
     static get QUEUE_SPP() { return 'spp' }
     static get QUEUE_SPP_QUERY() { return 'spp-query' }
+    static get QUEUE_LPJ() { return 'lpj' }
+    static get QUEUE_LPJ_QUERY() { return 'lpj-query' }
     static get QUEUE_CALLBACK() { return 'callback' }
     static get QUEUE_CAPTCHA() { return 'captcha' }
     static get QUEUE_NOOP() { return 'noop' }

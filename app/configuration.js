@@ -29,7 +29,7 @@ const Cmd = require('@ntlab/ntlib/cmd');
 const SipdRole = require('../sipd/role');
 
 Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
-Cmd.addVar('mode', 'm', 'Set bridge mode, spp or util', 'bridge-mode');
+Cmd.addVar('mode', 'm', 'Set bridge mode, spp, lpj, or util', 'bridge-mode');
 Cmd.addVar('config', 'c', 'Set configuration file', 'filename');
 Cmd.addVar('port', 'p', 'Set server port to listen', 'port');
 Cmd.addVar('url', '', 'Set Sipd url', 'url');
@@ -93,7 +93,8 @@ class Configuration {
         }
         // load form maps
         const mappings = {
-            [Configuration.BRIDGE_SPP]: 'spp.json'
+            [Configuration.BRIDGE_SPP]: 'spp.json',
+            [Configuration.BRIDGE_LPJ]: 'lpj.json',
         }
         if (mappings[this.mode] !== undefined) {
             filename = path.join(this.workdir, 'mappings', mappings[this.mode]);
@@ -280,6 +281,7 @@ class Configuration {
     }
 
     static get BRIDGE_SPP() { return 'spp' }
+    static get BRIDGE_LPJ() { return 'lpj' }
     static get BRIDGE_UTIL() { return 'util' }
 }
 

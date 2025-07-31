@@ -1,0 +1,23 @@
+{
+    "ID": "Identifikasi unik",
+    "NO_NPD": "Nomor NPD",
+    "TGL_NPD": "Tanggal NPD",
+    "KEG": "Kode kegiatan",
+    "REK": "Kode rekening",
+    "URAIAN": "Uraian",
+    "AFEKTASI": "Nominal",
+    "JENIS": "Jenis rekanan (usaha/pns/orang)",
+    "USAHA": "Nama usaha",
+    "NAMA": "Nama orang/pimpinan usaha",
+    "NIK": "Nomor Induk Kependudukan orang/pimpinan usaha",
+    "NPWP": "Nomor Pokok Wajib Pajak usaha/orang",
+    "ALAMAT": "Alamat usaha/orang",
+    "TELEPON": "Telepon usaha/orang",
+    "BANK": "Nama Bank",
+    "BANK_CAB": "Cabang Bank",
+    "BANK_REK": "Nomor rekening Bank",
+    "BANK_NAMA": "Nama rekening Bank",
+    "BAYAR": "Jenis pembayaran (non-tunai/tunai)",
+    "NOBUKTI": "Nomor bukti pembayaran",
+    "BUKTI": "PDF bukti pembayaran"
+}
