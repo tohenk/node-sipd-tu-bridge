@@ -104,7 +104,7 @@ class Configuration {
             }
         }
         // load roles
-        filename = path.join(this.workdir, 'roles.json');
+        filename = path.join(this.workdir, 'roles', 'roles.json');
         if (fs.existsSync(filename)) {
             this.roles = SipdRole
                 .setFilename(filename)
