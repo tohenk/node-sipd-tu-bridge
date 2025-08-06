@@ -299,7 +299,7 @@ class SipdSession {
     login() {
         return this.works([
             [w => this.start()],
-            [w => this.sipd.login(this.cred.username, this.cred.password, this.cred.role)],
+            [w => this.sipd.login(this.cred.username, this.cred.password, [this.cred.role, this.cred.idx])],
         ]);
     }
 

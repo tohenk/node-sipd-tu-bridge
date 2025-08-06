@@ -352,14 +352,16 @@ class Sipd extends WebRobot {
     /**
      * Confirm user role.
      *
-     * @param {string} role User role
+     * @param {string|Array} role User role
      * @returns {Promise<any>}
      */
     selectAccount(role) {
+        const idx = Array.isArray(role) ? role[1] : 0;
+        role = Array.isArray(role) ? role[0] : role;
         return this.works([
             [w => this.waitFor(By.xpath('//div[@class="container-account-select"]'))],
-            [w => w.getRes(0).findElement(By.xpath(`.//div[@class="container-txt-account-list"]/h1[text()="${role}"]/../../../button`))],
-            [w => w.getRes(1).click()],
+            [w => this.findElements({el: w.getRes(0), data: By.xpath(`.//div[@class="container-txt-account-list"]/h1[text()="${role}"]/../../../button`)})],
+            [w => w.getRes(1)[idx].click()],
             [w => this.waitSpinner(w.getRes(0))],
         ]);
     }
