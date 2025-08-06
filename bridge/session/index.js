@@ -1059,6 +1059,11 @@ class SipdSession {
 
     submitForm(clicker, options = null) {
         options = options || {};
+        const success = message => {
+            return message === null ||
+                message.toLowerCase().includes('berhasil') ||
+                message.toLowerCase().includes('dibuat');
+        }
         return this.works([
             [w => this.sipd.clearMessages()],
             [w => this.sipd.waitAndClick(clicker)],
@@ -1066,7 +1071,7 @@ class SipdSession {
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.getLastMessage()],
             [w => Promise.resolve(this.debug(dtag)('Form submit return:', w.getRes(4))), w => w.getRes(4)],
-            [w => Promise.resolve(w.getRes(1)), w => w.getRes(4) === null || w.getRes(4).toLowerCase().includes('berhasil')],
+            [w => Promise.resolve(w.getRes(1)), w => success(w.getRes(4))],
             [w => Promise.reject(w.getRes(4)), w => !w.getRes(6)],
         ]);
     }
