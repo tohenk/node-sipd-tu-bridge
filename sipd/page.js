@@ -275,11 +275,12 @@ class SipdPage {
     search(term, key = null) {
         return this.works([
             [w => Promise.reject('Search not initialized!'), w => !this._search],
-            [w => this.parent.clickExpanded(this._search_toggler), w => this._search_toggler],
+            [w => this._search_toggler.getAttribute('aria-expanded'), w => this._search_toggler],
+            [w => this.parent.clickExpanded(this._search_toggler), w => this._search_toggler && w.getRes(1) === 'false'],
             [w => this._search_filter.click(), w => this._search_filter && key],
             [w => this._search_filter.findElements(By.xpath(`./../*/*/button/span/p[text()="${key}"]/../..`)), w => this._search_filter && key],
-            [w => Promise.reject(`No filter key found for ${key}!`), w => this._search_filter && key && !w.getRes(3).length],
-            [w => w.getRes(3)[0].click(), w => this._search_filter && key && w.getRes(3).length],
+            [w => Promise.reject(`No filter key found for ${key}!`), w => this._search_filter && key && !w.getRes(4).length],
+            [w => w.getRes(4)[0].click(), w => this._search_filter && key && w.getRes(4).length],
             [w => this.parent.fillInput(this._search, typeof term === 'string' ? term.replace(/'/g, '\'\'') : term, this.parent.options.clearUsingKey)],
             [w => this._search_submit.click(), w => this._search_submit],
             [w => this.parent.sleep(this.parent.opdelay)],
