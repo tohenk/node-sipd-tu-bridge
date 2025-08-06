@@ -61,6 +61,13 @@ class SipdUtil {
      */
     static getDate(date, skipHoliday = false) {
         if (date && (!isNaN(date) || typeof date === 'string')) {
+            // try to get date portion, e.g. 06 Agustus 2025
+            if (typeof date === 'string') {
+                const matches = date.match(/\d{2}\s[A-Za-z]+\s\d{4}/);
+                if (matches) {
+                    date = matches[0];
+                }
+            }
             if (typeof date === 'string' && date.indexOf(' ') > 0) {
                 // 25 June 2025 - 12:00 PM
                 if (date.endsWith('AM') || date.endsWith('PM')) {
