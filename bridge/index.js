@@ -26,7 +26,7 @@ const util = require('util');
 const Work = require('@ntlab/work/work');
 const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
-const SipdRole = require('../sipd/role');
+const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { SipdAnnouncedError } = require('../sipd');
 
 /**
@@ -67,8 +67,11 @@ class SipdBridge {
             return this.state;
         }
         let role;
-        if (this.options.roles) {
-            role = Object.keys(this.options.roles)[0];
+        const rs = SipdRoleSwitcher
+            .switchTo()
+            .load();
+        if (Object.keys(rs.roles).length) {
+            role = Object.keys(rs.roles)[0];
         }
         if (role) {
             return Work.works([
@@ -99,10 +102,14 @@ class SipdBridge {
         return res;
     }
 
-    switchRole(role) {
-        if (this.options.roles && this.options.roles[role]) {
+    switchRole(role, unit) {
+        this.rs = SipdRoleSwitcher
+            .switchTo(unit)
+            .load();
+        if (this.rs.roles[role]) {
             this.role = role;
-            this.roles = this.options.roles[role];
+            /** @type {SipdRole} */
+            this.roles = this.rs.roles[role];
             return true;
         }
     }
@@ -118,8 +125,8 @@ class SipdBridge {
 
     getUsers(role) {
         const res = [];
-        if (this.options.roles) {
-            for (const [rid, rusers] of Object.entries(this.options.roles)) {
+        if (this.rs) {
+            for (const [rid, rusers] of Object.entries(this.rs.roles)) {
                 if (!role || role === rid) {
                     for (const u of Object.values(rusers)) {
                         if (u.username && !res.includes(u.username)) {
@@ -198,7 +205,7 @@ class SipdBridge {
         return Work.works([
             [m => Promise.resolve(queue.getMappedData('info.role'))],
             [m => Promise.reject('Invalid queue, no role specified!'), m => !m.getRes(0)],
-            [m => Promise.resolve(this.switchRole(m.getRes(0)))],
+            [m => Promise.resolve(this.switchRole(m.getRes(0), queue.getMappedData('info.unit')))],
             [m => Promise.reject(`Role not found ${m.getRes(0)}!`), m => !m.getRes(2)],
         ]);
     }

@@ -2,6 +2,7 @@
     "ID": "Identifikasi unik",
     "NO_NPD": "Nomor NPD",
     "TGL_NPD": "Tanggal NPD",
+    "UNIT": "Kode unit",
     "KEG": "Kode kegiatan",
     "REK": "Kode rekening",
     "URAIAN": "Uraian",

@@ -25,7 +25,7 @@
 const SipdBridge = require('.');
 const SipdQueue = require('../app/queue');
 const SipdSppSession = require('./session/spp');
-const SipdRole = require('../sipd/role');
+const { SipdRole } = require('../sipd/role');
 
 class SipdSppBridge extends SipdBridge {
 

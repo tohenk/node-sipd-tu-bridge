@@ -26,7 +26,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const Cmd = require('@ntlab/ntlib/cmd');
-const SipdRole = require('../sipd/role');
+const { SipdRoleSwitcher } = require('../sipd/role');
 
 Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
 Cmd.addVar('mode', 'm', 'Set bridge mode, spp, lpj, or util', 'bridge-mode');
@@ -103,15 +103,8 @@ class Configuration {
                 console.log('Maps loaded from %s', filename);
             }
         }
-        // load roles
-        filename = path.join(this.workdir, 'roles', 'roles.json');
-        if (fs.existsSync(filename)) {
-            this.roles = SipdRole
-                .setFilename(filename)
-                .load()
-                .roles;
-            console.log('Roles loaded from %s', filename);
-        }
+        // set roles directory
+        SipdRoleSwitcher.setDir(path.join(this.workdir, 'roles'));
         // add default bridges
         if (this.mode === Configuration.BRIDGE_SPP && !this.bridges) {
             const year = new Date().getFullYear();
@@ -276,8 +269,10 @@ class Configuration {
     }
 
     updateRoles(roles) {
-        SipdRole.update(roles);
-        return SipdRole.saved;
+        const rs = SipdRoleSwitcher
+            .switchTo(roles.unit)
+            .update(roles);
+        return rs.saved;
     }
 
     static get BRIDGE_SPP() { return 'spp' }

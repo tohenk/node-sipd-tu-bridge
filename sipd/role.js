@@ -27,68 +27,36 @@ const path = require('path');
 const SipdEncryptable = require('./encryptable');
 
 /**
- * Role handler.
+ * Role switcher.
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdRole {
+class SipdRoleSwitcher {
 
-    actors = {}
-
-    /**
-     * Get role actor.
-     *
-     * @param {string} roleId Role id
-     * @returns {SipdRoleUser}
-     */
-    get(roleId) {
-        return this.actors[roleId];
-    }
+    roles = {}
+    users = {}
 
     /**
-     * Set role actor.
-     *
-     * @param {string} roleId Role id
-     * @param {SipdRoleUser} actor Actor
-     * @returns {SipdRole}
-     */
-    set(roleId, actor) {
-        this.actors[roleId] = actor;
-        return this;
-    }
-
-    /**
-     * Set role filename.
-     *
-     * @param {string} filename Role filename
-     * @returns {SipdRole}
-     */
-    static setFilename(filename) {
-        this.filename = filename;
-        return this;
-    }
-
-    /**
-     * Load role definition.
+     * Set role definition.
      *
      * @param {string} role Role id
      * @param {object} data Role data
      * @param {object} users Role users
-     * @returns {SipdRole}
+     * @returns {SipdRoleSwitcher}
      */
-    static loadRole(role, data, users = null) {
+    setRole(role, data, users = null) {
         if (!this.roles[role]) {
-            this.roles[role] = new this();
+            this.roles[role] = new SipdRole();
         }
         /** @var {SipdRole} */
         const rr = this.roles[role];
-        for (const roleId of this.rolesKey) {
+        for (const roleId of this.constructor.rolesKey) {
             // uid can be: reference to the user or the user itself
             let uid = data[roleId], udata; 
             // check if uid is the user itself
             if (typeof uid === 'object') {
                 udata = uid;
-                uid = this.genUid(SipdRoleUser.normalize(SipdEncryptable.decrypt(udata.username)));
+                uid = this.constructor.genUid(SipdRoleUser.normalize(SipdEncryptable.decrypt(udata.username)));
             } else {
                 // set user data from user reference
                 if (users) {
@@ -121,6 +89,126 @@ class SipdRole {
     }
 
     /**
+     * Load roles.
+     *
+     * @param {boolean} force Set to true to force load
+     * @returns {SipdRoleSwitcher}
+     */
+    load(force = null) {
+        const filename = path.join(this.constructor._dir, path.basename(this.filename));
+        if (fs.existsSync(filename) && (force || this.loaded === undefined)) {
+            this.loaded = true;
+            const data = JSON.parse(fs.readFileSync(filename));
+            if (data.roles) {
+                for (const [role, roles] of Object.entries(data.roles)) {
+                    if (this.constructor.isRoles(roles)) {
+                        this.setRole(role, roles, data.users);
+                    }
+                }
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Save roles.
+     *
+     * @returns {SipdRoleSwitcher}
+     */
+    save() {
+        this.saved = false;
+        const roles = {};
+        const users = {};
+        for (const [role, srole] of Object.entries(this.roles)) {
+            if (!roles[role]) {
+                roles[role] = {};
+            }
+            for (const roleId of this.constructor.rolesKey) {
+                const u = srole.get(roleId);
+                if (u instanceof SipdRoleUser) {
+                    const uid = this.constructor.genUid(SipdRoleUser.normalize(u.username));
+                    if (users[uid] === undefined) {
+                        users[uid] = {
+                            role: u.role,
+                            name: SipdEncryptable.isDecryptable(u._name) ? u._name : SipdEncryptable.encrypt(u.name),
+                            username: SipdEncryptable.isDecryptable(u._username) ? u._username : SipdEncryptable.encrypt(u.username),
+                            password: SipdEncryptable.isDecryptable(u._password) ? u._password : SipdEncryptable.encrypt(u.password),
+                        }
+                    }
+                    roles[role][roleId] = uid;
+                }
+            }
+        }
+        let data = JSON.stringify({users, roles}, null, 4);
+        const filename = path.join(this.constructor._dir, path.basename(this.filename));
+        if (fs.existsSync(filename)) {
+            const olddata = fs.readFileSync(filename);
+            if (olddata.toString() === data) {
+                data = undefined;
+            } else {
+                const fileext = path.extname(filename);
+                const backupFilename = path.join(path.dirname(filename),
+                    path.basename(filename, fileext) + '~' + (fileext ? fileext : ''));
+                fs.renameSync(filename, backupFilename);
+            }
+        }
+        if (data) {
+            fs.writeFileSync(filename, data);
+            this.saved = true;
+        }
+        return this;
+    }
+
+    /**
+     * Update roles.
+     *
+     * @param {Array} roles Roles to update
+     * @returns {SipdRoleSwitcher}
+     */
+    update(roles) {
+        if (Array.isArray(roles)) {
+            for (const role of roles) {
+                if (role.keg && role.roles) {
+                    if (this.constructor.isRoles(role.roles)) {
+                        this.setRole(role.keg, role.roles);
+                    }
+                }
+            }
+            this.save();
+        }
+        return this;
+    }
+
+    /**
+     * Set roles directory.
+     *
+     * @param {string} dir Roles directory
+     */
+    static setDir(dir) {
+        this._dir = dir;
+        return this;
+    }
+
+    /**
+     * Switch roles to unit.
+     *
+     * @param {string} unit Unit id
+     * @returns {SipdRoleSwitcher}
+     */
+    static switchTo(unit = null) {
+        const filename = `${unit ?? 'roles'}.json`;
+        if (this._items === undefined) {
+            this._items = {};
+        }
+        unit = unit ?? '_';
+        if (this._items[unit] === undefined) {
+            this._items[unit] = new this();
+        }
+        this._items[unit].filename = filename;
+        return this._items[unit];
+    }
+
+    /**
      * Check if data contains role definition?
      *
      * @param {Array} roles Role data
@@ -138,99 +226,6 @@ class SipdRole {
         return res;
     }
 
-    /**
-     * Load roles.
-     *
-     * @returns {SipdRole}
-     */
-    static load() {
-        if (this.roles === undefined) {
-            this.roles = {};
-        }
-        if (fs.existsSync(this.filename)) {
-            this.users = {};
-            const data = JSON.parse(fs.readFileSync(this.filename));
-            if (data.roles) {
-                for (const [role, roles] of Object.entries(data.roles)) {
-                    if (this.isRoles(roles)) {
-                        this.loadRole(role, roles, data.users);
-                    }
-                }
-            }
-        }
-        return this;
-    }
-
-    /**
-     * Update roles.
-     *
-     * @param {Array} roles Roles to update
-     * @returns {SipdRole}
-     */
-    static update(roles) {
-        if (Array.isArray(roles)) {
-            for (const role of roles) {
-                if (role.keg && role.roles) {
-                    if (this.isRoles(role.roles)) {
-                        this.loadRole(role.keg, role.roles);
-                    }
-                }
-            }
-            this.save();
-        }
-        return this;
-    }
-
-    /**
-     * Save roles.
-     *
-     * @returns {SipdRole}
-     */
-    static save() {
-        this.saved = false;
-        if (this.roles) {
-            const roles = {};
-            const users = {};
-            for (const [role, srole] of Object.entries(this.roles)) {
-                if (!roles[role]) {
-                    roles[role] = {};
-                }
-                for (const roleId of this.rolesKey) {
-                    const u = srole.get(roleId);
-                    if (u instanceof SipdRoleUser) {
-                        const uid = this.genUid(SipdRoleUser.normalize(u.username));
-                        if (users[uid] === undefined) {
-                            users[uid] = {
-                                role: u.role,
-                                name: SipdEncryptable.isDecryptable(u._name) ? u._name : SipdEncryptable.encrypt(u.name),
-                                username: SipdEncryptable.isDecryptable(u._username) ? u._username : SipdEncryptable.encrypt(u.username),
-                                password: SipdEncryptable.isDecryptable(u._password) ? u._password : SipdEncryptable.encrypt(u.password),
-                            }
-                        }
-                        roles[role][roleId] = uid;
-                    }
-                }
-            }
-            let data = JSON.stringify({users, roles}, null, 4);
-            if (fs.existsSync(this.filename)) {
-                const olddata = fs.readFileSync(this.filename);
-                if (olddata.toString() === data) {
-                    data = undefined;
-                } else {
-                    const fileext = path.extname(this.filename);
-                    const backupFilename = path.join(path.dirname(this.filename),
-                        path.basename(this.filename, fileext) + '~' + (fileext ? fileext : ''));
-                    fs.renameSync(this.filename, backupFilename);
-                }
-            }
-            if (data) {
-                fs.writeFileSync(this.filename, data);
-                this.saved = true;
-            }
-        }
-        return this;
-    }
-
     static genUid(username) {
         return require('crypto')
             .createHash('sha1')
@@ -239,7 +234,39 @@ class SipdRole {
             .substring(0, 8);
     }
 
-    static get rolesKey() { return [this.PA, this.BP, this.PPK, this.PPTK] }
+    static get rolesKey() { return [SipdRole.PA, SipdRole.BP, SipdRole.PPK, SipdRole.PPTK] }
+}
+
+/**
+ * Role holder.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdRole {
+
+    actors = {}
+
+    /**
+     * Get role actor.
+     *
+     * @param {string} roleId Role id
+     * @returns {SipdRoleUser}
+     */
+    get(roleId) {
+        return this.actors[roleId];
+    }
+
+    /**
+     * Set role actor.
+     *
+     * @param {string} roleId Role id
+     * @param {SipdRoleUser} actor Actor
+     * @returns {SipdRole}
+     */
+    set(roleId, actor) {
+        this.actors[roleId] = actor;
+        return this;
+    }
 
     static get PA() { return 'pa' }
     static get BP() { return 'bp' }
@@ -312,4 +339,4 @@ class SipdRoleUser {
     }
 }
 
-module.exports = SipdRole;
+module.exports = {SipdRoleSwitcher, SipdRole};
