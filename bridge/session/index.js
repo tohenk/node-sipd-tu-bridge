@@ -269,9 +269,10 @@ class SipdSession {
             return Promise.resolve();
         }
         return new Promise((resolve, reject) => {
-            this.debug(dtag)('Startup', this.options.startup);
+            const cmd = `${this.options.startup}`.replace(/%BRIDGE%/g, this.bridge.name);
+            this.debug(dtag)('Startup', cmd);
             const exec = require('child_process').exec;
-            exec(`${this.options.startup}`.replace(/%BRIDGE%/g, this.bridge.name), (err, stdout, stderr) => {
+            exec(cmd, (err, stdout, stderr) => {
                 resolve(err);
             });
         });
