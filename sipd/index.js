@@ -361,8 +361,9 @@ class Sipd extends WebRobot {
         return this.works([
             [w => this.waitFor(By.xpath('//div[@class="container-account-select"]'))],
             [w => this.findElements({el: w.getRes(0), data: By.xpath(`.//div[@class="container-txt-account-list"]/h1[text()="${role}"]/../../../button`)})],
-            [w => w.getRes(1)[idx].click()],
-            [w => this.waitSpinner(w.getRes(0))],
+            [w => w.getRes(1)[idx].click(), w => w.getRes(1).length],
+            [w => this.waitSpinner(w.getRes(0)), w => w.getRes(1).length],
+            [w => Promise.reject(`Unable to select account ${role}!`), w => !w.getRes(1).length],
         ]);
     }
 
