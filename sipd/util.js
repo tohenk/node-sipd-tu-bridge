@@ -208,6 +208,30 @@ class SipdUtil {
     }
 
     /**
+     * Check if activity code is matched?
+     *
+     * @param {string} keg The activity code to check
+     * @param {string} s The string
+     * @returns {boolean}
+     */
+    static matchKeg(keg, s) {
+        let res = false;
+        if (s && s.length >= keg.length) {
+            res = true;
+            for (let i = 0; i < keg.length; i++) {
+                if (s.charAt(i) === 'X') {
+                    continue;
+                }
+                if (s.charAt(i) !== keg.charAt(i)) {
+                    res = false;
+                    break;
+                }
+            }
+        }
+        return res;
+    }
+
+    /**
      * Pick the currency of number string.
      *
      * @param {string} s Number string

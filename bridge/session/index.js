@@ -589,9 +589,10 @@ class SipdSession {
                     this.works([
                         [x => item.getAttribute('innerText')],
                         [x => Promise.resolve(SipdUtil.pickKeg(x.getRes(0)))],
-                        [x => item.findElement(selector.chooseSelector), x => value.startsWith(x.getRes(1))],
-                        [x => x.getRes(2).click(), x => value.startsWith(x.getRes(1))],
-                        [x => Promise.resolve(fulfilled = true), x => value.startsWith(x.getRes(1))],
+                        [x => Promise.resolve(SipdUtil.matchKeg(x.getRes(1), value))],
+                        [x => item.findElement(selector.chooseSelector), x => x.getRes(2)],
+                        [x => x.getRes(3).click(), x => x.getRes(2)],
+                        [x => Promise.resolve(fulfilled = true), x => x.getRes(2)],
                         [x => Promise.resolve(itemText = x.getRes(1))],
                     ])
                     .then(() => {
