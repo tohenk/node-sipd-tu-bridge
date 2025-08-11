@@ -192,6 +192,22 @@ class SipdUtil {
     }
 
     /**
+     * Pick activity code from string.
+     *
+     * @param {string} s The string
+     * @returns {string}
+     */
+    static pickKeg(s) {
+        let result = '';
+        for (let i = 0; i < s.length; i++) {
+            if (s.charAt(i).match(/[0-9X]/)) {
+                result += s.charAt(i);
+            }
+        }
+        return result.trim();
+    }
+
+    /**
      * Pick the currency of number string.
      *
      * @param {string} s Number string

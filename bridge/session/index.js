@@ -588,7 +588,7 @@ class SipdSession {
                     let itemText;
                     this.works([
                         [x => item.getAttribute('innerText')],
-                        [x => Promise.resolve(SipdUtil.pickNumber(x.getRes(0)))],
+                        [x => Promise.resolve(SipdUtil.pickKeg(x.getRes(0)))],
                         [x => item.findElement(selector.chooseSelector), x => value.startsWith(x.getRes(1))],
                         [x => x.getRes(2).click(), x => value.startsWith(x.getRes(1))],
                         [x => Promise.resolve(fulfilled = true), x => value.startsWith(x.getRes(1))],
