@@ -123,7 +123,6 @@ class SipdVoter extends SipdQueryBase {
             ...(this.dialog ? {
                 selector: '//header[text()="%TITLE%"]/../div[contains(@class,"chakra-modal__body")]',
                 tableSelector: './/table/..',
-                pageSelector: 'li/a[text()="%PAGE%"]',
             } : {}),
             ...(this.pagerOptions || {}),
         }

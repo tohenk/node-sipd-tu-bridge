@@ -216,7 +216,7 @@ class SipdPage {
      * @returns {Promise<any>}
      */
     gotoPage(page) {
-        const selector = this.options.pageSelector ?? 'li[text()="%PAGE%"]';
+        const selector = this.options.pageSelector ?? 'li/a[text()="%PAGE%"]';
         const xpath = `.//ul[@class="${this.PAGINATION_CLASS}"]/${selector.replace(/%PAGE%/, page)}`;
         return this.works([
             [w => Promise.reject('Pager not initialized!'), w => !this._pager],
