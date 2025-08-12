@@ -482,7 +482,26 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     waitPage() {
-        return this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0});
+        return new Promise((resolve, reject) => {
+            const f = () => {
+                let restart = false;
+                this.works([
+                    [w => this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0})],
+                    [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]'))],
+                    [w => w.getRes(1)[0].click(), w => w.getRes(1).length],
+                    [w => Promise.resolve(restart = true), w => w.getRes(1).length],
+                ])
+                .then(() => {
+                    if (restart) {
+                        setTimeout(f, 0);
+                    } else {
+                        resolve();
+                    }
+                })
+                .catch(err => reject(err));
+            }
+            f();
+        });
     }
 
     /**
