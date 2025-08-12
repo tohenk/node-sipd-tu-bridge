@@ -590,7 +590,6 @@ class Sipd extends WebRobot {
      */
     isWaiting({data, options}) {
         let res;
-        const maxlen = options.maxlen || 100;
         return this.works([
             [w => this.findElements(data)],
             [w => new Promise((resolve, reject) => {
@@ -620,7 +619,7 @@ class Sipd extends WebRobot {
                     })
                     .catch(() => resolve());
             }), w => w.getRes(2) === true],
-            [w => Promise.resolve(options.sres = options.res.length > maxlen ? options.res.substr(0, maxlen) + '...' : options.res),
+            [w => Promise.resolve(options.sres = this.trunc(options.res)),
                 w => typeof options.res === 'string'],
             [w => Promise.resolve(res)],
         ]);
@@ -828,7 +827,7 @@ class Sipd extends WebRobot {
                                 if (!window._xobserves.added.includes(node.outerHTML)) {
                                     window._xobserves.added.push(node.outerHTML);
                                 }
-                                if (classname && node.classList.includes(classname)) {
+                                if (classname && node.classList && node.classList.includes(classname)) {
                                     window._xobserves.state[classname] = 'added';
                                 }
                             }
@@ -839,7 +838,7 @@ class Sipd extends WebRobot {
                                 if (!window._xobserves.removed.includes(node.outerHTML)) {
                                     window._xobserves.removed.push(node.outerHTML);
                                 }
-                                if (classname && node.classList.includes(classname)) {
+                                if (classname && node.classList && node.classList.includes(classname)) {
                                     window._xobserves.state[classname] = 'removed';
                                 }
                             }
@@ -890,6 +889,20 @@ class Sipd extends WebRobot {
                 }
                 addEventListener('load', e => window._xinit());
             }`;
+    }
+
+    /**
+     * Truncate string to maximum length.
+     *
+     * @param {string} s The string
+     * @param {number} maxlen Allowed maximum length
+     * @returns {string}
+     */
+    trunc(s, maxlen = 100) {
+        if (s) {
+            s = s.length > maxlen ? s.substr(0, maxlen) + '...' : s;
+        }
+        return s;
     }
 }
 
