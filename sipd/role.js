@@ -68,8 +68,17 @@ class SipdRoleSwitcher {
                 if (!this.users[uid]) {
                     this.users[uid] = new SipdRoleUser(roleId, udata.role, udata.name, udata.username, udata.password);
                 } else {
-                    // try update password
+                    // update user data
                     const u = this.users[uid];
+                    if (u.role !== udata.role) {
+                        u.role = udata.role;
+                    }
+                    if (u.name !== udata.name) {
+                        u._name = udata.name;
+                    }
+                    if (u.username !== udata.username) {
+                        u._username = udata.username;
+                    }
                     if (u.password !== udata.password) {
                         u._password = udata.password;
                     }
