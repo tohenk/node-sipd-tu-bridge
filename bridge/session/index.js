@@ -27,11 +27,11 @@ const path = require('path');
 const Queue = require('@ntlab/work/queue');
 const SipdPage = require('../../sipd/page');
 const SipdUtil = require('../../sipd/util');
-const { Sipd, SipdAnnouncedError } = require('../../sipd');
+const { Sipd, SipdAnnouncedError, SipdRetryError } = require('../../sipd');
 const { SipdColumnQuery } = require('../../sipd/query');
 const { SipdActivitySelector } = require('./activity');
 const { SipdQueryBase, SipdVoterPegawai, SipdVoterRekanan, SipdQueryRekanan, SipdVoterNpd } = require('./pages');
-const { By, Key, WebElement } = require('selenium-webdriver');
+const { By, Key, WebElement, error } = require('selenium-webdriver');
 
 const dtag = 'session';
 
@@ -284,12 +284,21 @@ class SipdSession {
      * @returns {Promise<any>}
      */
     start() {
-        return this.works([
-            [w => this.waitUntilReady(), w => !this.sipd.ready],
-            [w => this.doStartup(), w => this.options.startup],
-            [w => this.sipd.handlePageLoad()],
-            [w => this.sipd.open()],
-        ]);
+        return new Promise((resolve, reject) => {
+            this.works([
+                [w => this.waitUntilReady(), w => !this.sipd.ready],
+                [w => this.doStartup(), w => this.options.startup],
+                [w => this.sipd.handlePageLoad()],
+                [w => this.sipd.open()],
+            ])
+            .then(res => resolve())
+            .catch(err => {
+                if (err instanceof error.WebDriverError && err.message.includes('net::ERR_CONNECTION_TIMED_OUT')) {
+                    err = new SipdRetryError(err.message);
+                }
+                reject(err);
+            });
+        });
     }
 
     /**
