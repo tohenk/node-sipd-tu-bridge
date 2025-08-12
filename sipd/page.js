@@ -216,16 +216,16 @@ class SipdPage {
      * @returns {Promise<any>}
      */
     gotoPage(page) {
-        const selector = this.options.pageSelector ? this.options.pageSelector :
-            'li[text()="%PAGE%"]';
+        const selector = this.options.pageSelector ?? 'li[text()="%PAGE%"]';
+        const xpath = `.//ul[@class="${this.PAGINATION_CLASS}"]/${selector.replace(/%PAGE%/, page)}`;
         return this.works([
             [w => Promise.reject('Pager not initialized!'), w => !this._pager],
-            [w => this._pager.findElements(By.xpath(`.//ul[@class="${this.PAGINATION_CLASS}"]/${selector.replace(/%PAGE%/, page)}`))],
+            [w => this._pager.findElements(By.xpath(xpath))],
             [w => new Promise((resolve, reject) => {
                 if (w.getRes(1).length) {
                     resolve(w.getRes(1)[0]);
                 } else {
-                    reject(`Unable to locate page ${page} element!`);
+                    reject(`Unable to locate page ${page} element using ${xpath}!`);
                 }
             })],
             [w => w.res.click()],
