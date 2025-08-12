@@ -26,6 +26,8 @@ const Queue = require('@ntlab/work/queue');
 const { Sipd } = require('.');
 const { By, WebElement } = require('selenium-webdriver');
 
+const dtag = 'page';
+
 /**
  * Handles paging, searching, and iterating of data rows.
  *
@@ -33,7 +35,6 @@ const { By, WebElement } = require('selenium-webdriver');
  */
 class SipdPage {
 
-    PAGE_SIZE = 10
     PAGINATION_CLASS = 'pagination-custom'
 
     /**
@@ -43,6 +44,7 @@ class SipdPage {
      * @param {object} options Options
      */
     constructor(parent, options) {
+        /** @type {Sipd} */
         this.parent = parent;
         this.parent.constructor.expectErr(SipdStopError);
         this.works = this.parent.works;
@@ -147,6 +149,8 @@ class SipdPage {
      */
     findResult() {
         return new Promise((resolve, reject) => {
+            let lastTime;
+            const startTime = new Date().getTime();
             const f = () => {
                 this.works([
                     [w => this.findTable()],
@@ -155,8 +159,18 @@ class SipdPage {
                 ])
                 .then(res => {
                     if (res) {
-                        resolve();
+                        this.parent.getHtml(res)
+                            .then(html => {
+                                this.parent.debug(dtag)(`Page result is ${this.parent.trunc(html)}`);
+                                resolve();
+                            })
+                            .catch(err => reject(err));
                     } else {
+                        const deltaTime = Math.floor((new Date().getTime() - startTime) / 1000);
+                        if (deltaTime > 0 && deltaTime % 5 === 0 && (lastTime === undefined || lastTime < deltaTime)) {
+                            lastTime = deltaTime;
+                            this.parent.debug(dtag)(`Still waiting page result after ${deltaTime}s...`);
+                        }
                         setTimeout(f, this.parent.loopdelay);
                     }
                 })
@@ -191,7 +205,7 @@ class SipdPage {
             [w => this._pager.findElements(By.xpath(`.//ul[@class="${this.PAGINATION_CLASS}"]/li[not (contains(@class,"previous") or contains(@class,"next"))]`))],
             [w => w.getRes(1)[w.getRes(1).length - 1].getAttribute('innerText'), w => w.getRes(1).length],
             [w => Promise.resolve(parseInt(w.getRes(2))), w => w.getRes(1).length],
-            [w => Promise.resolve(0), w => w.getRes(1).length == 0],
+            [w => Promise.resolve(0), w => w.getRes(1).length === 0],
         ]);
     }
 
@@ -232,7 +246,7 @@ class SipdPage {
             // get current page
             [w => this.getPage()],
             // activate page if not current
-            [w => this.gotoPage(page), w => w.getRes(0) != page],
+            [w => this.gotoPage(page), w => w.getRes(0) !== page],
             // find table rows
             [w => this.getRows()],
             // process rows
@@ -293,7 +307,6 @@ class SipdPage {
      * iteration, simply throw `SipdStopError`.
      *
      * @param {object} options The options
-     * @param {boolean} options.filtered Is filter enabled
      * @param {Function} callback The callback to call when iterating rows
      * @returns {Promise<any>}
      */
@@ -306,9 +319,10 @@ class SipdPage {
             [w => this.getRows()],
             [w => this.getPages(), w => w.getRes(0).length],
             [w => new Promise((resolve, reject) => {
-                const p = options.filtered && w.getRes(0).length < this.PAGE_SIZE ? 1 : w.getRes(1);
-                const pages = Array.from({length: p}, (x, i) => i + 1);
+                const pageCount = w.getRes(1);
+                const pages = Array.from({length: pageCount}, (x, i) => i + 1);
                 const q = new Queue(pages, page => {
+                    this.parent.debug(dtag)(`Processing page ${page} of ${pageCount}`);
                     this.eachPage(page, callback)
                         .then(() => q.next())
                         .catch(err => {
