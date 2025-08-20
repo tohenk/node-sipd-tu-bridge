@@ -25,6 +25,7 @@
 const util = require('util');
 const Queue = require('@ntlab/work/queue');
 const WebRobot = require('@ntlab/webrobot');
+const SipdUtil = require('./util');
 const { By, error, WebElement } = require('selenium-webdriver');
 
 const dtag = 'core';
@@ -256,12 +257,14 @@ class Sipd extends WebRobot {
      * @returns {Promise<boolean>}
      */
     solveCaptcha(code) {
+        code = SipdUtil.pickNumber(code);
         return this.works([
             [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
-            [w => this.clearMessages(), w => w.getRes(0).length],
             [w => w.getRes(0)[0].findElements(By.xpath('.//input[@data-index]')), w => w.getRes(0).length],
+            [w => Promise.resolve(w.getRes(1).length === code.length), w => w.getRes(0).length],
+            [w => this.clearMessages(), w => w.getRes(2)],
             [w => new Promise((resolve, reject) => {
-                const q = new Queue(w.getRes(2), el => {
+                const q = new Queue(w.getRes(1), el => {
                     this.works([
                         [x => el.getAttribute('data-index')],
                         [x => el.sendKeys(code.substr(parseInt(x.getRes(0)), 1))],
@@ -271,10 +274,10 @@ class Sipd extends WebRobot {
                     .catch(err => reject(err));
                 });
                 q.once('done', () => resolve());
-            }), w => w.getRes(0).length],
-            [w => this.sleep(this.opdelay), w => w.getRes(0).length],
-            [w => this.getLastMessage(), w => w.getRes(0).length],
-            [w => Promise.resolve(null === w.getRes(5) || !w.getRes(5).includes('invalid') ? true : false), w => w.getRes(0).length],
+            }), w => w.getRes(2)],
+            [w => this.sleep(this.opdelay), w => w.getRes(2)],
+            [w => this.getLastMessage(), w => w.getRes(2)],
+            [w => Promise.resolve(null === w.getRes(6) || !w.getRes(6).includes('invalid') ? true : false), w => w.getRes(2)],
         ]);
     }
 
