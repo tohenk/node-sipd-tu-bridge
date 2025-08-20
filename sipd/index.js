@@ -787,6 +787,15 @@ class Sipd extends WebRobot {
     }
 
     /**
+     * Go to the top of current page window.
+     *
+     * @returns {Promise<any>}
+     */
+    gotoPageTop() {
+        return this.getDriver().executeScript('window.scrollTo(0, 0);');
+    }
+
+    /**
      * Get additional helper script.
      *
      * @returns {string}

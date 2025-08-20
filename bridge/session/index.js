@@ -1107,7 +1107,7 @@ class SipdSession {
         const allowChange = this.isEditable(queue);
         return this.works([
             [w => this.doQuery(new SipdQueryRekanan(this.sipd, queue, {navigates: ['Pengeluaran', 'Daftar Rekanan']}))],
-            [w => this.sipd.getDriver().executeScript('window.scrollTo(0, 0);'), w => !w.getRes(0) && allowChange],
+            [w => this.sipd.gotoPageTop(), w => !w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Rekanan"]')), w => !w.getRes(0) && allowChange],
             [w => queue.values.action.click(), w => w.getRes(0) && forceEdit && allowChange],
             [w => this.fillForm(queue, 'rekanan',

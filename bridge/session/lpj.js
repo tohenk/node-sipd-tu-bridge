@@ -48,7 +48,7 @@ class SipdLpjSession extends SipdSession {
         const allowChange = this.isEditable(queue);
         return this.works([
             [w => this.checkNpd(queue)],
-            [w => this.sipd.getDriver().executeScript('window.scrollTo(0, 0);'), w => !w.getRes(0) && allowChange],
+            [w => this.sipd.gotoPageTop(), w => !w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//a/button[text()="Tambah"]/..')), w => !w.getRes(0) && allowChange],
             [w => Promise.resolve(this.npd.clear()), w => !w.getRes(0) && allowChange],
             [w => this.fillForm(queue, 'npd',
@@ -99,7 +99,7 @@ class SipdLpjSession extends SipdSession {
         const allowChange = this.isEditable(queue);
         return this.works([
             [w => this.checkTbp(queue)],
-            [w => this.sipd.getDriver().executeScript('window.scrollTo(0, 0);'), w => !w.getRes(0) && allowChange],
+            [w => this.sipd.gotoPageTop(), w => !w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//a/button[text()="Tambah"]/..')), w => !w.getRes(0) && allowChange],
             [w => this.fillForm(queue, 'tbp',
                 By.xpath('//h1[text()="Tanda Bukti Pembayaran (TBP)"]/../../../../..'),
