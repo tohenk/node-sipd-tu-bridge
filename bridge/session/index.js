@@ -425,7 +425,7 @@ class SipdSession {
                 [x => this.getRowData(query.columns, el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0);
-                    const dbg = (l, s) => `${l} (${s ? 'v' : 'x'})`;
+                    const dbg = (l, s) => `${l} (${s ? '✓' : '✗'})`;
                     const f = (...args) => {
                         const res = {
                             states: [],
@@ -460,7 +460,7 @@ class SipdSession {
                         status = values[statusCol.name];
                     }
                     const states = f(...compares);
-                    const rowstate = states.okay ? '[OK]' : '[NO]';
+                    const rowstate = `[${states.okay ? '✔' : '✘'}]`;
                     if (status !== undefined) {
                         this.debug(dtag)('Row state:', rowstate, `<${status}>`, ...states.info);
                     } else {
