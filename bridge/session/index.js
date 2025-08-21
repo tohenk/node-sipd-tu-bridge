@@ -1062,7 +1062,8 @@ class SipdSession {
                 this.handleFormFill(name, queue, queue.files),
                 form,
                 () => this.submitForm(submit, options),
-                options.wait)],
+                options.wait,
+                form => this.sipd.waitSpinner(form))],
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => Promise.resolve(w.getRes(1))],
         ]);
