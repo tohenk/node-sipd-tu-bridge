@@ -167,7 +167,7 @@ class SipdPage {
                             .catch(err => reject(err));
                     } else {
                         const deltaTime = Math.floor((new Date().getTime() - startTime) / 1000);
-                        if (deltaTime > 0 && deltaTime % 5 === 0 && (lastTime === undefined || lastTime < deltaTime)) {
+                        if (deltaTime > 0 && deltaTime % 10 === 0 && (lastTime === undefined || lastTime < deltaTime)) {
                             lastTime = deltaTime;
                             this.parent.debug(dtag)(`Still waiting page result after ${deltaTime}s...`);
                         }
