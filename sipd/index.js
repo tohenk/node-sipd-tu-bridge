@@ -813,7 +813,7 @@ class Sipd extends WebRobot {
                         }
                     },
                     {
-                        selector: '#_rht_toaster',
+                        selector: '[data-rht-toaster]',
                         callback(el) {
                             window._xlog(el);
                             return false;
