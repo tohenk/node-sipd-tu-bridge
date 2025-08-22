@@ -129,6 +129,7 @@ class Sipd extends WebRobot {
                 [w => this.waitCaptcha(), w => force || !w.getRes(1)],
                 [w => this.waitLoader(), w => force || !w.getRes(1)],
                 [w => this.waitSidebar()],
+                [w => this.dismissStatuses()],
                 [w => this.checkMessages()],
                 [w => this.dismissUpdate()],
             ])
@@ -389,6 +390,31 @@ class Sipd extends WebRobot {
                 resolve();
             }), w => w.getRes(0).length],
         ]);
+    }
+
+    /**
+     * Dismiss status notification.
+     *
+     * @returns {Promise<any>}
+     */
+    dismissStatuses() {
+        return new Promise((resolve, reject) => {
+            const f = () => {
+                this.works([
+                    [w => this.findElements(By.xpath('//div[@role="status"]'))],
+                    [w => Promise.resolve(w.getRes(0).length ? true : false)],
+                ])
+                .then(res => {
+                    if (res) {
+                        setTimeout(f, this.loopdelay);
+                    } else {
+                        resolve();
+                    }
+                })
+                .catch(err => reject(err));
+            }
+            f();
+        });
     }
 
     /**

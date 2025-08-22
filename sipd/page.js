@@ -67,6 +67,7 @@ class SipdPage {
             [w => this.findResult()],
             [w => this.findPagination()],
             [w => this.findSearch(this.options.search), w => this.options.search],
+            [w => this.parent.dismissStatuses()],
         ]);
     }
 
