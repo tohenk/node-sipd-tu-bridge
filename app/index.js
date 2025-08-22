@@ -306,8 +306,8 @@ class App {
                                 [w => bridge.solveCaptcha(w.getRes(1)), w => w.getRes(1)],
                             ])
                             .then(res => {
-                                if (!res) {
-                                    console.error(`Captcha code is invalid, retrying...`);
+                                if (res !== undefined && !res) {
+                                    console.error(`Captcha code for ${bridge.name} is invalid, retrying...`);
                                     f();
                                 } else {
                                     delete bridge.captchaSolving;
