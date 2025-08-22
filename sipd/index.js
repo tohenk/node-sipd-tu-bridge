@@ -949,17 +949,14 @@ class Sipd extends WebRobot {
     }
 
     /**
-     * Truncate string to maximum length.
+     * Truncate HTML content to maximum length.
      *
      * @param {string} s The string
      * @param {number} maxlen Allowed maximum length
      * @returns {string}
      */
     trunc(s, maxlen = 100) {
-        if (s) {
-            s = s.length > maxlen ? s.substr(0, maxlen) + '...' : s;
-        }
-        return s;
+        return SipdUtil.truncHtml(s, maxlen);
     }
 }
 

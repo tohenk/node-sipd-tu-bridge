@@ -22,6 +22,8 @@
  * SOFTWARE.
  */
 
+const { parse, HTMLElement, TextNode } = require('node-html-parser');
+
 /**
  * An SIPD utility.
  *
@@ -277,6 +279,42 @@ class SipdUtil {
         if (s) {
             return s.replace(/\s{2,}/g, ' ').trim();
         }
+    }
+
+    /**
+     * Truncate HTML text to the maximum length allowed.
+     *
+     * @param {string} html The content
+     * @param {number} maxlen New maximum allowed length
+     * @returns {string}
+     */
+    static truncHtml(html, maxlen = 100) {
+        if (html && html.length > maxlen) {
+            const root = parse(html);
+            let node = root;
+            while (root.outerHTML.length > maxlen) {
+                let top = false;
+                if (node instanceof HTMLElement) {
+                    if (node.childNodes.length > 1) {
+                        node.removeChild(node.lastChild);
+                    } else if (node.childNodes.length > 0) {
+                        node = node.firstChild;
+                    } else {
+                        top = true;
+                    }
+                } else {
+                    top = true;
+                }
+                if (top) {
+                    const p = node.parentNode;
+                    p.removeChild(node);
+                    node = p;
+                }
+            }
+            node.append(new TextNode('...'));
+            html = root.outerHTML;
+        }
+        return html;
     }
 }
 
