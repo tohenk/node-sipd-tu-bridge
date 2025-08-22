@@ -460,7 +460,7 @@ class SipdSession {
                         status = values[statusCol.name];
                     }
                     const states = f(...compares);
-                    const rowstate = `[${states.okay ? '✔' : '✘'}]`;
+                    const rowstate = `[${states.okay ? '✓' : '✗'}]`;
                     if (status !== undefined) {
                         this.debug(dtag)('Row state:', rowstate, `<${status}>`, ...states.info);
                     } else {
