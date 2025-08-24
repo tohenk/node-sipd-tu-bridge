@@ -1046,46 +1046,10 @@ class SipdSession {
     }
 
     fillForm(queue, name, form, submit, options = null) {
-        options = options || {};
-        if (options.wait === undefined) {
-            options.wait = 0;
-        }
-        if (options.dismiss === undefined) {
-            options.dismiss = true;
-        }
         if (!queue.files) {
             queue.files = [];
         }
-        return this.works([
-            [w => this.sipd.sleep(this.sipd.opdelay)],
-            [w => this.sipd.fillInForm(
-                this.handleFormFill(name, queue, queue.files),
-                form,
-                () => this.submitForm(submit, options),
-                options.wait,
-                form => this.sipd.waitSpinner(form))],
-            [w => this.sipd.sleep(this.sipd.opdelay)],
-            [w => Promise.resolve(w.getRes(1))],
-        ]);
-    }
-
-    submitForm(clicker, options = null) {
-        options = options || {};
-        const success = message => {
-            return message === null ||
-                message.toLowerCase().includes('berhasil') ||
-                message.toLowerCase().includes('dibuat');
-        }
-        return this.works([
-            [w => this.sipd.clearMessages()],
-            [w => this.sipd.waitAndClick(clicker)],
-            [w => this.sipd.waitSpinner(w.getRes(1), typeof options.spinner === 'string' ? options.spinner : null), w => options.spinner],
-            [w => this.sipd.sleep(this.sipd.opdelay)],
-            [w => this.sipd.getLastMessage()],
-            [w => Promise.resolve(this.debug(dtag)('Form submit return:', w.getRes(4))), w => w.getRes(4)],
-            [w => Promise.resolve(w.getRes(1)), w => success(w.getRes(4))],
-            [w => Promise.reject(w.getRes(4)), w => !w.getRes(6)],
-        ]);
+        return this.sipd.formSubmit(form, submit, this.handleFormFill(name, queue, queue.files), options);
     }
 
     cleanFiles(queue) {
@@ -1114,7 +1078,7 @@ class SipdSession {
             [w => this.fillForm(queue, 'rekanan',
                 By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
                 By.xpath('//button[text()="Konfirmasi"]')), w => (!w.getRes(0) || forceEdit) && allowChange],
-            [w => this.submitForm(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!w.getRes(0) || forceEdit) && allowChange],
+            [w => this.sipd.confirmSubmission(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!w.getRes(0) || forceEdit) && allowChange],
         ]);
     }
 }

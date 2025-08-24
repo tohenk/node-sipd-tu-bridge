@@ -116,18 +116,7 @@ class Sipd extends WebRobot {
                 [w => this.gotoPenatausahaan()],
                 [w => this.isLoggedIn()],
                 [w => this.logout(), w => force],
-                [w => this.waitFor(By.xpath(this.LOGIN_FORM)), w => force || !w.getRes(1)],
-                [w => this.fillInForm([
-                        {parent: w.res, target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'), value: this.year, onfill: (el, value) => this.reactSelect(el, value, 'Tahun anggaran tidak tersedia!')},
-                        {parent: w.res, target: By.id('ed_username'), value: username},
-                        {parent: w.res, target: By.id('ed_password'), value: password},
-                    ],
-                    By.xpath(this.LOGIN_FORM),
-                    By.xpath('//button[@type="submit"]')), w => force || !w.getRes(1)],
-                [w => this.waitSpinner(w.getRes(4)), w => force || !w.getRes(1)],
-                [w => this.selectAccount(role), w => force || !w.getRes(1)],
-                [w => this.waitCaptcha(), w => force || !w.getRes(1)],
-                [w => this.waitLoader(), w => force || !w.getRes(1)],
+                [w => this.doLogin(username, password, role), w => force || !w.getRes(1)],
                 [w => this.waitSidebar()],
                 [w => this.dismissStatuses()],
                 [w => this.checkMessages()],
@@ -136,6 +125,35 @@ class Sipd extends WebRobot {
             .then(() => resolve())
             .catch(err => reject(new SipdRetryError(err instanceof Error ? err.message : err)));
         });
+    }
+
+    /**
+     * Perform login.
+     *
+     * @param {string} username Username
+     * @param {string} password Password
+     * @param {string|Array} role User role
+     * @returns {Promise<any>}
+     */
+    doLogin(username, password, role) {
+        return this.works([
+            [w => this.formSubmit(
+                By.xpath(this.LOGIN_FORM),
+                By.xpath('//button[@type="submit"]'),
+                [
+                    {
+                        target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'),
+                        value: this.year,
+                        onfill: (el, value) => this.reactSelect(el, value, 'Tahun anggaran tidak tersedia!')
+                    },
+                    {target: By.id('ed_username'), value: username},
+                    {target: By.id('ed_password'), value: password},
+                ],
+                {spinner: true})],
+            [w => this.selectAccount(role)],
+            [w => this.waitCaptcha()],
+            [w => this.waitLoader()],
+        ]);
     }
 
     /**
@@ -197,6 +215,62 @@ class Sipd extends WebRobot {
      */
     getHtml(el) {
         return this.getDriver().executeScript('return arguments[0].outerHTML', el);
+    }
+
+    /**
+     * Do submit form.
+     *
+     * @param {By} form Form element selector
+     * @param {By} submit Form submit selector
+     * @param {Array} values Form values
+     * @param {object} options Submit options
+     * @returns {Promise<WebElement>}
+     */
+    formSubmit(form, submit, values, options = null) {
+        options = options || {};
+        if (options.wait === undefined) {
+            options.wait = 0;
+        }
+        if (options.dismiss === undefined) {
+            options.dismiss = true;
+        }
+        return this.works([
+            [w => this.sleep(this.opdelay)],
+            [w => this.fillInForm(
+                values,
+                form,
+                () => this.confirmSubmission(submit, options),
+                options.wait,
+                form => this.waitSpinner(form))],
+            [w => this.sleep(this.opdelay)],
+            [w => Promise.resolve(w.getRes(1))],
+        ]);
+    }
+
+    /**
+     * Do confirm submission.
+     *
+     * @param {By} clicker The confirm clicker
+     * @param {object} options Submit options
+     * @returns {Promise<WebElement>}
+     */
+    confirmSubmission(clicker, options = null) {
+        options = options || {};
+        const success = message => {
+            return message === null ||
+                message.toLowerCase().includes('berhasil') ||
+                message.toLowerCase().includes('dibuat');
+        }
+        return this.works([
+            [w => this.clearMessages()],
+            [w => this.waitAndClick(clicker)],
+            [w => this.waitSpinner(w.getRes(1), typeof options.spinner === 'string' ? options.spinner : null), w => options.spinner],
+            [w => this.sleep(this.opdelay)],
+            [w => this.getLastMessage()],
+            [w => Promise.resolve(this.debug(dtag)('Form submit return:', w.getRes(4))), w => w.getRes(4)],
+            [w => Promise.resolve(w.getRes(1)), w => success(w.getRes(4))],
+            [w => Promise.reject(w.getRes(4)), w => !w.getRes(6)],
+        ]);
     }
 
     /**
