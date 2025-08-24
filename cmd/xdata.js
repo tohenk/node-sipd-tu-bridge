@@ -30,9 +30,12 @@ class SipdCmdXData extends SipdCmd {
         const { socket, data } = payload;
         let res = {};
         if (Array.isArray(data) && data.length && this.config.privkey) {
-            const sppData = JSON.parse(this.config.unobfuscate(data[0]));
-            if (Array.isArray(sppData.roles)) {
-                res.success = this.config.updateRoles(sppData.roles);
+            const xdata = JSON.parse(this.config.unobfuscate(data[0]));
+            if (Array.isArray(xdata.roles)) {
+                res.success = this.config.updateRoles(xdata.roles);
+            }
+            if (typeof xdata.clean === 'boolean' && xdata.clean) {
+                res = this.parent.createCleanQueue();
             }
         }
         return res;

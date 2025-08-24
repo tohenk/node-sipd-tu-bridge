@@ -325,13 +325,18 @@ class SipdBridge {
     }
 
     noop(queue) {
-        return this.do([
-            [w => this.getSessions()[0].login()],
-        ], (w, err) => {
-            return [
-                [e => this.end(queue, this.autoClose)],
-            ];
-        });
+        const sess = this.getSessions()[0];
+        if (sess) {
+            return this.do([
+                [w => sess.login()],
+            ], (w, err) => {
+                return [
+                    [e => this.end(queue, this.autoClose)],
+                ];
+            });
+        } else {
+            return Promise.reject('No roles defined!');
+        }
     }
 }
 

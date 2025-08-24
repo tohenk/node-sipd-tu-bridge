@@ -109,6 +109,10 @@ class App {
                     queue = SipdQueue.createNoopQueue(data.data);
                     queue.info = null;
                     break;
+                case SipdQueue.QUEUE_CLEAN:
+                    queue = SipdQueue.createCleanQueue(data.data);
+                    queue.info = null;
+                    break;
             }
             if (queue) {
                 if (data.id) {
@@ -117,7 +121,10 @@ class App {
                 if (queue.type === SipdQueue.QUEUE_SPP && SipdQueue.hasPendingQueue(queue)) {
                     return {message: `SPP ${queue.info} sudah dalam antrian!`};
                 }
-                console.log('%s: %s', queue.type.toUpperCase(), queue.info);
+                if (queue.type === SipdQueue.QUEUE_CLEAN && SipdQueue.hasPendingQueue(queue)) {
+                    return {message: `Antrian sudah dalam antrian atau sedang dalam proses!`};
+                }
+                console.log('📦 %s: %s', queue.type.toUpperCase(), queue.info);
                 return SipdQueue.addQueue(queue);
             }
         }
@@ -152,7 +159,7 @@ class App {
             }
             const browser = config.browser ? config.browser : 'default';
             if (browser) {
-                config.profiledir = path.join(this.config.workdir, 'profile', id);
+                config.profiledir = path.join(this.config.profiledir, id);
                 if (!this.sessions[id]) {
                     this.sessions[id] = {};
                 }
@@ -250,6 +257,10 @@ class App {
         });
     }
 
+    createCleanQueue() {
+        return this.dequeue.createQueue({type: SipdQueue.QUEUE_CLEAN, data: {dir: this.config.profiledir}});
+    }
+
     registerCommands() {
         const prefixes = {
             [Configuration.BRIDGE_SPP]: 'spp',
@@ -268,6 +279,17 @@ class App {
             if (this.ready) {
                 clearInterval(interval);
                 console.log('Readiness checking is done...');
+                if (Cmd.get('clean')) {
+                    this.createCleanQueue();
+                }
+                if (this._cmd) {
+                    const queue = SipdCmd.get(this._cmd.command).consume({data: this._cmd.data});
+                    this.dequeue.on('queue-done', q => {
+                        if (q.id === queue.id && (this.config.autoClose === undefined || this.config.autoClose)) {
+                            process.exit();
+                        }
+                    });
+                }
             } else {
                 if (now - this.startTime > readinessTimeout) {
                     throw new Error(util.format('Bridge is not ready within %d seconds timeout!', readinessTimeout / 1000));
@@ -278,8 +300,11 @@ class App {
     }
 
     registerConsumers() {
-        const { SipdBridgeConsumer, SipdCallbackConsumer } = SipdQueue.CONSUMERS;
-        const consumers = [new SipdCallbackConsumer(10)];
+        const { SipdBridgeConsumer, SipdCallbackConsumer, SipdCleanerConsumer } = SipdQueue.CONSUMERS;
+        const consumers = [
+            new SipdCleanerConsumer(10),
+            new SipdCallbackConsumer(10),
+        ];
         this.bridges.forEach(bridge => {
             consumers.push(new SipdBridgeConsumer(bridge, bridge.accepts ? 20 : 30));
         });
@@ -380,12 +405,7 @@ class App {
                             break;
                     }
                     if (command) {
-                        const queue = SipdCmd.get(command).consume({data: data ? data : {}});
-                        this.dequeue.on('queue-done', q => {
-                            if (q.id === queue.id && (this.config.autoClose === undefined || this.config.autoClose)) {
-                                process.exit();
-                            }
-                        });
+                        this._cmd = {command, data: data ?? {}};
                     } else {
                         console.log('Supported utility: captcha, noop');
                         process.exit();

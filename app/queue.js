@@ -197,7 +197,7 @@ class SipdDequeue extends EventEmitter {
     }
 
     saveLogs() {
-        const logs = this.getLogs(true).filter(log => log.type !== SipdQueue.QUEUE_CALLBACK && [SipdQueue.STATUS_NEW, SipdQueue.STATUS_PROCESSING].indexOf(log.status) < 0);
+        const logs = this.getLogs(true).filter(log => log.isLoggable());
         if (logs.length) {
             const queueDir = path.join(process.cwd(), 'queue');
             if (!fs.existsSync(queueDir)) {
@@ -226,7 +226,7 @@ class SipdDequeue extends EventEmitter {
     }
 
     saveQueue() {
-        const queues = this.queues.filter(queue => queue.type !== SipdQueue.QUEUE_CALLBACK && queue.status === SipdQueue.STATUS_NEW);
+        const queues = this.queues.filter(queue => queue.isSaveable());
         if (queues.length) {
             const savedQueues = queues.map(queue => {
                 return {
@@ -392,23 +392,41 @@ class SipdBridgeConsumer extends SipdConsumer
     }
 
     canAccept(queue) {
-        if (!this.bridge.isOperational()) {
-            debug('Not ready: bridge %s is not operational', this.bridge.name);
-            return false;
+        let reason, data;
+        if (SipdQueue.hasPendingQueue({type: SipdQueue.QUEUE_CLEAN, info: null})) {
+            reason = 'cleaning in progress';
         }
-        if (this.bridge.queue && !this.bridge.queue.finished()) {
-            debug('Not ready: bridge %s is processing queue %s', this.bridge.name, this.bridge.queue);
-            return false;
+        if (!reason && !this.bridge.isOperational()) {
+            reason = 'not operational';
         }
-        if (this.bridge.accepts && (
+        if (!reason && this.bridge.queue && !this.bridge.queue.finished()) {
+            reason = 'processing queue';
+            data = this.bridge.queue;
+        }
+        if (!reason && this.bridge.accepts && (
             (Array.isArray(this.bridge.accepts) && !this.bridge.accepts.includes(queue.type)) ||
             this.bridge.accepts !== queue.type
         )) {
-            debug('Not ready: bridge %s only accepts %s', this.bridge.name, this.bridge.accepts);
-            return false;
+            reason = 'only accepts';
+            data = this.bridge.accepts;
         }
-        debug('Ready: bridge %s can handle %s', this.bridge.name, queue);
-        return true;
+        if (reason) {
+            const ctime = new Date().getTime();
+            const xtime = this._time || ctime;
+            const dtime = ctime - xtime;
+            if (dtime % 100 === 0) {
+                this._time = ctime;
+                if (data) {
+                    debug('%s not ready: %s %s', this.bridge.name, reason, data);
+                } else {
+                    debug('%s not ready: %s', this.bridge.name, reason);
+                }
+            }
+            return false;
+        } else {
+            debug('%s ready: can handle %s', this.bridge.name, queue);
+            return true;
+        }
     }
 
     doConsume(queue) {
@@ -446,6 +464,30 @@ class SipdCallbackConsumer extends SipdConsumer
 
     doConsume(queue) {
         return SipdNotifier.notify(queue);
+    }
+}
+
+/**
+ * Cleaner queue consumer.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdCleanerConsumer extends SipdConsumer
+{
+    initialize() {
+        this.accepts = SipdQueue.QUEUE_CLEAN;
+    }
+
+    doConsume(queue) {
+        return new Promise((resolve, reject) => {
+            let res = false;
+            if (queue.data && queue.data.dir && fs.existsSync(queue.data.dir)) {
+                console.log('Cleaning', queue.data.dir);
+                fs.rmSync(queue.data.dir, {recursive: true, force: true});
+                res = true;
+            }
+            resolve(res);
+        });
     }
 }
 
@@ -653,6 +695,18 @@ class SipdQueue
         }
     }
 
+    isExportable() {
+        return ![SipdQueue.QUEUE_CALLBACK, SipdQueue.QUEUE_CLEAN].includes(this.type);
+    }
+
+    isSaveable() {
+        return this.isExportable() && [SipdQueue.STATUS_NEW].includes(this.status);
+    }
+
+    isLoggable() {
+        return this.isExportable() && ![SipdQueue.STATUS_NEW, SipdQueue.STATUS_PROCESSING].includes(this.status);
+    }
+
     toString() {
         const info = this.getInfo();
         return `${this.getTypeText()}:${this.id}${info ? ' ' + info : ''}`;
@@ -696,6 +750,10 @@ class SipdQueue
         return this.create(SipdQueue.QUEUE_NOOP, data);
     }
 
+    static createCleanQueue(data) {
+        return this.create(SipdQueue.QUEUE_CLEAN, data);
+    }
+
     static createDequeuer() {
         if (!dequeue) {
             dequeue = new SipdDequeue();
@@ -729,6 +787,7 @@ class SipdQueue
     static get QUEUE_CALLBACK() { return 'callback' }
     static get QUEUE_CAPTCHA() { return 'captcha' }
     static get QUEUE_NOOP() { return 'noop' }
+    static get QUEUE_CLEAN() { return 'clean' }
 
     static get STATUS_NEW() { return 'new' }
     static get STATUS_PROCESSING() { return 'processing' }
@@ -737,7 +796,7 @@ class SipdQueue
     static get STATUS_TIMED_OUT() { return 'timeout' }
     static get STATUS_SKIPPED() { return 'skipped' }
 
-    static get CONSUMERS() { return {SipdBridgeConsumer, SipdCallbackConsumer, SipdBlackholeConsumer} }
+    static get CONSUMERS() { return {SipdBridgeConsumer, SipdCallbackConsumer, SipdCleanerConsumer, SipdBlackholeConsumer} }
 }
 
 module.exports = SipdQueue;

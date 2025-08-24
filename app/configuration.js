@@ -144,13 +144,7 @@ class Configuration {
                 this[key] = this.profiles[profile][key];
             }
         }
-        // clean profile
-        if (Cmd.get('clean')) {
-            const profiledir = path.join(this.workdir, 'profile');
-            if (fs.existsSync(profiledir)) {
-                fs.rmSync(profiledir, {recursive: true, force: true});
-            }
-        }
+        this.profiledir = path.join(this.workdir, 'profile');
         return this;
     }
 

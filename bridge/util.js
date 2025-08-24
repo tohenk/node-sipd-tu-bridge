@@ -30,32 +30,36 @@ class SipdUtilBridge extends SipdBridge {
 
     fetchCaptcha(queue) {
         const sess = this.getSessions()[0];
-        const count = queue.data.count || 100;
-        const oldOnState = this.onState;
-        this.onState = s => {
-            if (sess.state().captcha && !this._captcha) {
-                this._captcha = true;
-                const f = () => {
-                    this._captcha = false;
-                    sess.cancelCaptcha()
-                        .then(() => console.log('Captcha cancelled!'))
-                        .catch(err => console.error(err));
+        if (sess) {
+            const count = queue.data.count || 100;
+            const oldOnState = this.onState;
+            this.onState = s => {
+                if (sess.state().captcha && !this._captcha) {
+                    this._captcha = true;
+                    const f = () => {
+                        this._captcha = false;
+                        sess.cancelCaptcha()
+                            .then(() => console.log('Captcha cancelled!'))
+                            .catch(err => console.error(err));
+                    }
+                    this.getCaptchas(sess, count)
+                        .then(() => f())
+                        .catch(err => f());
                 }
-                this.getCaptchas(sess, count)
-                    .then(() => f())
-                    .catch(err => f());
+                if (typeof oldOnState === 'function') {
+                    oldOnState(s);
+                }
             }
-            if (typeof oldOnState === 'function') {
-                oldOnState(s);
-            }
+            return this.do([
+                [w => sess.login()],
+            ], (w, err) => {
+                return [
+                    [e => this.end(queue, this.autoClose)],
+                ];
+            });
+        } else {
+            return Promise.reject('No roles defined!');
         }
-        return this.do([
-            [w => sess.login()],
-        ], (w, err) => {
-            return [
-                [e => this.end(queue, this.autoClose)],
-            ];
-        });
     }
 
     /**
