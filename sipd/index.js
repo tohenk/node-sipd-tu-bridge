@@ -741,7 +741,7 @@ class Sipd extends WebRobot {
                     })
                     .catch(() => resolve());
             }), w => w.getRes(2) === true],
-            [w => Promise.resolve(options.sres = this.trunc(options.res)),
+            [w => Promise.resolve(options.sres = this.truncate(options.res)),
                 w => typeof options.res === 'string'],
             [w => Promise.resolve(res)],
         ]);
@@ -1020,17 +1020,6 @@ class Sipd extends WebRobot {
                 }
                 addEventListener('load', e => window._xinit());
             }`;
-    }
-
-    /**
-     * Truncate HTML content to maximum length.
-     *
-     * @param {string} s The string
-     * @param {number} maxlen Allowed maximum length
-     * @returns {string}
-     */
-    trunc(s, maxlen = 100) {
-        return SipdUtil.truncHtml(s, maxlen);
     }
 }
 

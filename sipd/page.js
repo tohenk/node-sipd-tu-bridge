@@ -162,7 +162,7 @@ class SipdPage {
                     if (res) {
                         this.parent.getHtml(res)
                             .then(html => {
-                                this.parent.debug(dtag)(`Page result is ${this.parent.trunc(html)}`);
+                                this.parent.debug(dtag)(`Page result is ${this.parent.truncate(html)}`);
                                 resolve();
                             })
                             .catch(err => reject(err));
