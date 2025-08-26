@@ -153,6 +153,7 @@ class SipdVoterPegawai extends SipdVoter {
         this.search = [this.data.value];
         this.diffs = [
             ['nip', this.data.value],
+            ['nama', null, false],
         ];
     }
 }
@@ -187,6 +188,7 @@ class SipdVoterRekanan extends SipdVoter {
         this.diffs = [
             [perusahaan ? 'usaha' : 'nama', rekanan],
             nik ? ['nik', nik] : null,
+            perusahaan ? ['nama', null, false] : null,
         ].filter(Boolean);
     }
 

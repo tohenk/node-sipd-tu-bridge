@@ -432,9 +432,13 @@ class SipdSession {
                             info: [],
                         }
                         for (const arg of args) {
-                            const okay = arg[0] == arg[1];
-                            res.states.push(okay);
-                            res.info.push(dbg(arg[1], okay));
+                            if (arg[2]) {
+                                const okay = arg[0] == arg[1];
+                                res.states.push(okay);
+                                res.info.push(dbg(arg[1], okay));
+                            } else {
+                                res.info.push(arg[1]);
+                            }
                         }
                         res.okay = true;
                         res.states.forEach(state => {
@@ -446,13 +450,16 @@ class SipdSession {
                         return res;
                     }
                     const compares = [];
-                    for (const [col, value] of query.diffs) {
+                    for (const [col, value, required] of query.diffs) {
                         const column = query.columns.find(column => column.name === col);
                         if (column) {
-                            compares.push([column.asString(value), column.asString(values[col])]);
+                            compares.push([column.asString(value), column.asString(values[col]), required !== undefined ? required : true]);
                         }
                     }
-                    expectedValue = compares.map(v => v[0]).join('-');
+                    expectedValue = compares
+                        .filter(v => v[2])
+                        .map(v => v[0])
+                        .join('-');
                     statusCol = query.columns.find(column => [SipdColumnQuery.COL_STATUS, SipdColumnQuery.COL_PROGRESS].includes(column.type));
                     actionCol = query.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
                     let status;

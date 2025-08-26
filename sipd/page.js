@@ -162,7 +162,7 @@ class SipdPage {
                     if (res) {
                         this.parent.getHtml(res)
                             .then(html => {
-                                this.parent.debug(dtag)(`Page result is ${this.parent.truncate(html)}`);
+                                this.parent.debug(dtag)(`Page ${this.options.title} result is ${this.parent.truncate(html)}`);
                                 resolve();
                             })
                             .catch(err => reject(err));
@@ -170,7 +170,7 @@ class SipdPage {
                         const deltaTime = Math.floor((new Date().getTime() - startTime) / 1000);
                         if (deltaTime > 0 && deltaTime % 10 === 0 && (lastTime === undefined || lastTime < deltaTime)) {
                             lastTime = deltaTime;
-                            this.parent.debug(dtag)(`Still waiting page result after ${deltaTime}s...`);
+                            this.parent.debug(dtag)(`Still waiting page ${this.options.title} result after ${deltaTime}s...`);
                         }
                         setTimeout(f, this.parent.loopdelay);
                     }
@@ -323,7 +323,7 @@ class SipdPage {
                 const pageCount = w.getRes(1);
                 const pages = Array.from({length: pageCount}, (x, i) => i + 1);
                 const q = new Queue(pages, page => {
-                    this.parent.debug(dtag)(`Processing page ${page} of ${pageCount}`);
+                    this.parent.debug(dtag)(`Processing page ${this.options.title}: ${page} of ${pageCount}`);
                     this.eachPage(page, callback)
                         .then(() => q.next())
                         .catch(err => {
