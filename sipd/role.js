@@ -25,6 +25,7 @@
 const fs = require('fs');
 const path = require('path');
 const SipdEncryptable = require('./encryptable');
+const SipdUtil = require('./util');
 
 /**
  * Role switcher.
@@ -56,7 +57,7 @@ class SipdRoleSwitcher {
             // check if uid is the user itself
             if (typeof uid === 'object') {
                 udata = uid;
-                uid = this.constructor.genUid(SipdRoleUser.normalize(SipdEncryptable.decrypt(udata.username)));
+                uid = this.constructor.genUid(SipdUtil.normalize(SipdEncryptable.decrypt(udata.username)));
             } else {
                 // set user data from user reference
                 if (users) {
@@ -135,7 +136,7 @@ class SipdRoleSwitcher {
             for (const roleId of this.constructor.rolesKey) {
                 const u = srole.get(roleId);
                 if (u instanceof SipdRoleUser) {
-                    const uid = this.constructor.genUid(SipdRoleUser.normalize(u.username));
+                    const uid = this.constructor.genUid(SipdUtil.normalize(u.username));
                     if (users[uid] === undefined) {
                         users[uid] = {
                             role: u.role,
@@ -332,19 +333,6 @@ class SipdRoleUser {
      */
     get password() {
         return SipdEncryptable.decrypt(this._password);
-    }
-
-    /**
-     * Normalize a string.
-     *
-     * @param {string} s String to normalize
-     * @returns {string}
-     */
-    static normalize(s) {
-        if (s) {
-            s = s.replace(/\s/g, '');
-        }
-        return s;
     }
 }
 

@@ -901,7 +901,7 @@ class SipdSession {
                         data.onfill = (el, value) => this.fillRadio(el, value);
                         break;
                     case 'ROLE':
-                        data.onfill = (el, value) => this.fillRole(el, this.bridge.getUser(value)?.name);
+                        data.onfill = (el, value) => this.fillRole(el, SipdUtil.normalize(this.bridge.getUser(value)?.username));
                         break;
                     case 'REKANAN':
                         data.onfill = (el, value) => this.fillRekanan(el, value);

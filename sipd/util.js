@@ -278,6 +278,19 @@ class SipdUtil {
             return s.replace(/\s{2,}/g, ' ').trim();
         }
     }
+
+    /**
+     * Normalize a string.
+     *
+     * @param {string} s String to normalize
+     * @returns {string}
+     */
+    static normalize(s) {
+        if (s) {
+            s = s.replace(/\s/g, '');
+        }
+        return s;
+    }
 }
 
 module.exports = SipdUtil;

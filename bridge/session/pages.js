@@ -138,12 +138,21 @@ class SipdVoterPegawai extends SipdVoter {
 
     doInitialize() {
         this.options.title = 'Pilih Pegawai';
+        this.pagerOptions = {
+            search: {
+                input: By.xpath(`//input[contains(@placeholder,"Cari nip")]`),
+                submit: By.xpath('//button[text()="Cari Sekarang"]'),
+                toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
+            }
+        }
         this.defaultColumns = {
             nama: {selector: './td[1]/div/span/div/span[1]'},
+            nip: {selector: './td[1]/div/span/div/span[2]'},
             action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
         }
+        this.search = [this.data.value];
         this.diffs = [
-            ['nama', this.data.value],
+            ['nip', this.data.value],
         ];
     }
 }
