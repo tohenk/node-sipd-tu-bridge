@@ -582,19 +582,26 @@ class Sipd extends WebRobot {
     /**
      * Wait for SIPD Penatausahaan until the page is loaded.
      *
+     * @param {number} reload Force reload page in second
      * @returns {Promise<any>}
      */
-    waitPage() {
+    waitPage(reload = 60) {
         return new Promise((resolve, reject) => {
             const f = () => {
                 let restart = false;
                 this.works([
+                    [w => Promise.resolve(this.tmo = setTimeout(() => this.getDriver().navigate().refresh(), reload * 1000)),
+                        w => reload > 0],
                     [w => this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0})],
                     [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]'))],
-                    [w => w.getRes(1)[0].click(), w => w.getRes(1).length],
-                    [w => Promise.resolve(restart = true), w => w.getRes(1).length],
+                    [w => w.getRes(2)[0].click(), w => w.getRes(2).length],
+                    [w => Promise.resolve(restart = true), w => w.getRes(2).length],
                 ])
                 .then(() => {
+                    if (this.tmo !== undefined) {
+                        clearTimeout(this.tmo);
+                        delete this.tmo;
+                    }
                     if (restart) {
                         setTimeout(f, 0);
                     } else {
