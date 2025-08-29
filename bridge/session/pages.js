@@ -66,6 +66,15 @@ class SipdQueryBase extends SipdQuery {
         return this.pagerOptions || {};
     }
 
+    getFilterSelector(placeholder = null) {
+        placeholder = placeholder ?? this.placeholder;
+        return {
+            input: By.xpath(`//*[contains(@placeholder,"Cari ${placeholder}")]`),
+            submit: By.xpath('//button[text()="Cari Sekarang"]'),
+            toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
+        }
+    }
+
     isActionEnabled() {
         return this.actionEnabled;
     }
@@ -138,13 +147,8 @@ class SipdVoterPegawai extends SipdVoter {
 
     doInitialize() {
         this.options.title = 'Pilih Pegawai';
-        this.pagerOptions = {
-            search: {
-                input: By.xpath(`//input[contains(@placeholder,"Cari nip")]`),
-                submit: By.xpath('//button[text()="Cari Sekarang"]'),
-                toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
-            }
-        }
+        this.placeholder = 'nip';
+        this.pagerOptions = {search: this.getFilterSelector()};
         this.defaultColumns = {
             nama: {selector: './td[1]/div/span/div/span[1]'},
             nip: {selector: './td[1]/div/span/div/span[2]'},
@@ -168,13 +172,10 @@ class SipdVoterRekanan extends SipdVoter {
     doInitialize() {
         const perusahaan = this.jenis === this.constructor.REKANAN_USAHA;
         this.options.title = 'Daftar Rekanan';
+        this.placeholder = perusahaan ? 'perusahaan' : 'nama rekanan';
         this.pagerOptions = {
             selector: '//h1[contains(@class,"card-title")]/h1[text()="%TITLE%"]/../../../..',
-            search: {
-                input: By.xpath(`//input[contains(@placeholder,"Cari ${perusahaan ? 'perusahaan' : 'nama rekanan'}")]`),
-                submit: By.xpath('//button[text()="Cari Sekarang"]'),
-                toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
-            }
+            search: this.getFilterSelector(),
         }
         this.defaultColumns = {
             nama: {selector: './td[1]/div/div/div[2]/span[1]'},
@@ -210,13 +211,10 @@ class SipdVoterNpd extends SipdVoter {
 
     doInitialize() {
         this.options.title = 'Pengajuan | Nota Pencairan Dana';
-        this.pagerOptions = {
-            search: {
-                input: By.xpath(`//input[contains(@placeholder,"Cari nomor dokumen")]`),
-                submit: By.xpath('//button[text()="Cari Sekarang"]'),
-                toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
-            }
+        if (this.placeholder === undefined) {
+            this.placeholder = 'nomor dokumen';
         }
+        this.pagerOptions = {search: this.getFilterSelector()};
         this.defaultColumns = {
             no: 1,
             tgl: [1, SipdColumnQuery.COL_ICON2],
@@ -273,6 +271,10 @@ class SipdQueryNpd extends SipdVoterNpd {
     doPreInitialize() {
         this.actionEnabled = false;
         this.dialog = false;
+        const nomor = this.constructor.NPD;
+        if (!this.data[nomor]) {
+            this.placeholder = 'tujuan pembayaran';
+        }
     }
 
     doPostInitialize() {
@@ -281,13 +283,11 @@ class SipdQueryNpd extends SipdVoterNpd {
         const nomor = this.constructor.NPD;
         const no = this.data[nomor];
         if (no) {
-            this.pagerOptions.search.input = By.xpath(`//input[contains(@placeholder,"Cari nomor dokumen")]`);
             this.search = [no];
             this.diffs = [
                 ['no', no]
             ];
         } else {
-            this.pagerOptions.search.input = By.xpath(`//textarea[contains(@placeholder,"Cari tujuan pembayaran")]`);
             const tgl = SipdUtil.getDate(this.data.getMappedData('npd.npd:TGL'));
             const nominal = this.data.getMappedData('npd.npd:NOMINAL');
             const untuk = SipdUtil.getSafeStr(this.data.getMappedData('npd.npd:UNTUK'));
@@ -318,13 +318,8 @@ class SipdQueryTbp extends SipdQueryBase {
 
     doInitialize() {
         this.options.title = 'Tanda Bukti Pembayaran';
-        this.pagerOptions = {
-            search: {
-                input: By.xpath(`//textarea[contains(@placeholder,"Cari tujuan pembayaran")]`),
-                submit: By.xpath('//button[text()="Cari Sekarang"]'),
-                toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
-            }
-        }
+        this.placeholder = 'tujuan pembayaran';
+        this.pagerOptions = {search: this.getFilterSelector()};
         this.defaultColumns = {
             no: 1,
             tgl: 2,
@@ -360,13 +355,6 @@ class SipdQueryTbp extends SipdQueryBase {
 class SipdQuerySpp extends SipdQueryBase {
 
     doInitialize() {
-        this.pagerOptions = {
-            search: {
-                filter: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[1]/div/button'),
-                input: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[2]/div/input'),
-                submit: By.xpath('//div[@class="container-form-filter-table"]/*/*/*/*[3]/div/div'),
-            }
-        }
         const nomor = this.options.nomor || this.constructor.SPP;
         this.defaultColumns = this.constructor.getColumns(nomor);
         this.search = [];
@@ -377,7 +365,8 @@ class SipdQuerySpp extends SipdQueryBase {
             no = this.data.getMappedData('info.check');
         }
         if (no) {
-            this.search.push(no, 'Nomor');
+            this.placeholder = 'nomor';
+            this.search.push(no);
             this.diffs.push(['no', no]);
         } else {
             if (nomor !== this.constructor.SPP) {
@@ -389,7 +378,8 @@ class SipdQuerySpp extends SipdQueryBase {
                 nominal = this.data.getMappedData('spp.spp:NOMINAL');
                 untuk = SipdUtil.getSafeStr(this.data.getMappedData('spp.spp:UNTUK'));
             }
-            this.search.push(untuk, 'Keterangan');
+            this.placeholder = 'keterangan';
+            this.search.push(untuk);
             if (!this.options.skipDate) {
                 this.diffs.push(['tgl', tgl]);
             }
@@ -398,6 +388,7 @@ class SipdQuerySpp extends SipdQueryBase {
                 ['nom', nominal],
             );
         }
+        this.pagerOptions = {search: this.getFilterSelector()};
         this.onResult = () => {
             this.data[`${nomor}`] = this.data.values.no;
             this.data[`${nomor}_TGL`] = this.data.values.tgl;

@@ -418,10 +418,11 @@ class SipdSession {
         return this.works([
             [w => this.sipd.navigate(...query.navigates), w => query.navigates],
             [w => this.sipd.waitLoader()],
+            [w => this.sipd.gotoPageTop(), w => query.group],
             [w => this.sipd.subPageNav(...(Array.isArray(query.group) ? query.group : [query.group])), w => query.group],
             [w => query.page.setup()],
             [w => query.page.search(...(Array.isArray(query.search) ? query.search : [query.search])), w => query.search],
-            [w => query.page.each({filtered: query.search ? true : false}, el => [
+            [w => query.page.each(el => [
                 [x => this.getRowData(query.columns, el)],
                 [x => new Promise((resolve, reject) => {
                     const values = x.getRes(0);

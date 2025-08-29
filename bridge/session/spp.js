@@ -65,6 +65,7 @@ class SipdSppSession extends SipdSession {
         const allowChange = this.isEditable(queue);
         return this.works([
             [w => this.checkSpp(queue)],
+            [w => this.sipd.gotoPageTop(), w => !w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w => !w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//a/span/p[text()="Barang dan Jasa"]/../..')), w => !w.getRes(0) && allowChange],
             [w => Promise.resolve(this.spp.clear()), w => !w.getRes(0) && allowChange],
