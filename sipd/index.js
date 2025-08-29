@@ -1052,4 +1052,8 @@ class SipdAnnouncedError extends Error {
 class SipdRetryError extends Error {
 }
 
-module.exports = {Sipd, SipdAnnouncedError, SipdRetryError};
+class SipdCleanAndRetryError extends SipdRetryError {
+}
+
+
+module.exports = {Sipd, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError};

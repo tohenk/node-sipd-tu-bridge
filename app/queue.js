@@ -28,7 +28,7 @@ const path = require('path');
 const util = require('util');
 const EventEmitter = require('events');
 const SipdNotifier = require('./notifier');
-const { SipdRetryError } = require('../sipd');
+const { SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const debug = require('debug')('sipd:queue');
 
 /** @type {SipdDequeue} */
@@ -336,6 +336,13 @@ class SipdConsumer extends EventEmitter
             this.emit('queue-error', queue);
         }
         const retry = err => {
+            if (err instanceof SipdCleanAndRetryError && queue.bridge && queue.bridge.session) {
+                const profileDir = queue.bridge.session.sipd.getProfileDir();
+                if (fs.existsSync(profileDir)) {
+                    console.log('Cleaning directory %s...', profileDir);
+                    fs.rmSync(profileDir, {recursive: true, force: true});
+                }
+            }
             queue.retryCount = (queue.retryCount !== undefined ? queue.retryCount : 0) + 1;
             if (err instanceof SipdRetryError && queue.retry && queue.retryCount <= queue.maxretry) {
                 console.log('Retrying %s (%d)...', queue.toString(), queue.retryCount);

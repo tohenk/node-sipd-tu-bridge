@@ -27,7 +27,8 @@ const Work = require('@ntlab/work/work');
 const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
-const { SipdAnnouncedError } = require('../sipd');
+const { SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
+const { error } = require('selenium-webdriver');
 
 /**
  * Work finished callback. The callback must returns an array of works to do.
@@ -262,20 +263,28 @@ class SipdBridge {
      * @returns {Promise<SipdSession>}
      */
     doAs(role) {
-        const user = this.getUser(role);
-        if (!user) {
-            return Promise.reject(util.format('Role not found: %s!', role));
-        }
-        role = user.role ?? this.getRoleTitle(role);
-        let idx = 0;
-        const p = role.indexOf(':');
-        if (p > 1) {
-            idx = parseInt(role.substr(p + 1).trim()) - 1;
-            role = role.substr(0, p);
-        }
-        const session = this.getSession(user.username, idx);
-        session.cred = {username: user.username, password: user.password, role, idx};
-        return Promise.resolve(session);
+        return new Promise((resolve, reject) => {
+            try {
+                const user = this.getUser(role);
+                if (user) {
+                    role = user.role ?? this.getRoleTitle(role);
+                    let idx = 0;
+                    const p = role.indexOf(':');
+                    if (p > 1) {
+                        idx = parseInt(role.substr(p + 1).trim()) - 1;
+                        role = role.substr(0, p);
+                    }
+                    this.session = this.getSession(user.username, idx);
+                    this.session.cred = {username: user.username, password: user.password, role, idx};
+                    resolve(this.session);
+                } else {
+                    reject(util.format('Role not found: %s!', role));
+                }
+            }
+            catch (err) {
+                reject(err);
+            }
+        });
     }
 
     /**
@@ -293,23 +302,35 @@ class SipdBridge {
         if (typeof works === 'function') {
             _works.push(works);
         }
-        return Work.works(_works, {
-            done: (w, err) => {
-                if (err instanceof SipdAnnouncedError && err._queue) {
-                    const queue = err._queue;
-                    const callbackQueue = SipdQueue.createCallbackQueue({id: queue.getMappedData('info.id'), error: err.message}, queue.callback);
-                    SipdQueue.addQueue(callbackQueue);
-                }
-                if (typeof callback === 'function') {
-                    return Work.works(callback(w, err));
-                } else {
-                    if (err) {
-                        return Promise.reject(err);
+        return new Promise((resolve, reject) => {
+            Work.works(_works, {
+                done: (w, err) => {
+                    if (err instanceof SipdAnnouncedError && err._queue) {
+                        const queue = err._queue;
+                        const callbackQueue = SipdQueue.createCallbackQueue({id: queue.getMappedData('info.id'), error: err.message}, queue.callback);
+                        SipdQueue.addQueue(callbackQueue);
+                    }
+                    if (typeof callback === 'function') {
+                        return Work.works(callback(w, err));
                     } else {
-                        return Promise.resolve();
+                        if (err) {
+                            return Promise.reject(err);
+                        } else {
+                            return Promise.resolve();
+                        }
                     }
                 }
-            }
+            })
+            .then(res => resolve(res))
+            .catch(err => {
+                if (err instanceof error.WebDriverError && err.message.includes('net::ERR_CONNECTION_TIMED_OUT')) {
+                    err = new SipdRetryError(err.message);
+                }
+                if (err instanceof error.SessionNotCreatedError) {
+                    err = new SipdCleanAndRetryError(err.message);
+                }
+                reject(err);
+            });
         });
     }
 
