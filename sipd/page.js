@@ -124,7 +124,7 @@ class SipdPage {
      *
      * @param {object} data Search model object
      * @param {By} data.toggler Toggler element to expand the search form
-     * @param {By} data.input Text input element
+     * @param {By|By[]} data.input Text input element
      * @param {By} data.filter Filter choices element
      * @param {By} data.submit Form submit element
      * @returns {Promise<any>}
@@ -132,12 +132,29 @@ class SipdPage {
     findSearch(data) {
         return this.works([
             [w => Promise.reject('Wrapper is required!'), w => !this._wrapper],
-            [w => this._wrapper.findElement(data.input), w => data.input],
-            [w => Promise.resolve(this._search = w.res), w => data.input],
             [w => this._wrapper.findElement(data.toggler), w => data.toggler],
             [w => Promise.resolve(this._search_toggler = w.res), w => data.toggler],
             [w => this._wrapper.findElement(data.filter), w => data.filter],
             [w => Promise.resolve(this._search_filter = w.res), w => data.filter],
+            [w => new Promise((resolve, reject) => {
+                if (Array.isArray(data.input)) {
+                    const res = [];
+                    const q = new Queue([...data.input], input => {
+                        this._wrapper.findElement(input)
+                            .then(el => {
+                                res.push(el);
+                                q.next();
+                            })
+                            .catch(err => reject(err));
+                    });
+                    q.once('done', () => resolve(res));
+                } else {
+                    this._wrapper.findElement(data.input)
+                        .then(el => resolve(el))
+                        .catch(err => reject(err));
+                }
+            }), w => data.input],
+            [w => Promise.resolve(this._search = w.res), w => data.input],
             [w => this._wrapper.findElement(data.submit), w => data.submit],
             [w => Promise.resolve(this._search_submit = w.res), w => data.submit],
         ]);
@@ -253,8 +270,8 @@ class SipdPage {
             // process rows
             [w => new Promise((resolve, reject) => {
                 const q = new Queue(w.getRes(2), row => {
-                    const works = onwork(row);
                     try {
+                        const works = onwork(row);
                         this.works(works)
                             .then(() => q.next())
                             .catch(err => reject(err));
@@ -263,7 +280,7 @@ class SipdPage {
                         reject(e);
                     }
                 });
-                q.once('done', () => resolve())
+                q.once('done', () => resolve());
             })],
         ]);
     }
@@ -283,7 +300,7 @@ class SipdPage {
     /**
      * Perform search on page.
      *
-     * @param {string} term Search term
+     * @param {string|string[]} term Search term
      * @param {string} key Filter key
      * @returns {Promise<any>}
      */
@@ -296,7 +313,25 @@ class SipdPage {
             [w => this._search_filter.findElements(By.xpath(`./../*/*/button/span/p[text()="${key}"]/../..`)), w => this._search_filter && key],
             [w => Promise.reject(`No filter key found for ${key}!`), w => this._search_filter && key && !w.getRes(4).length],
             [w => w.getRes(4)[0].click(), w => this._search_filter && key && w.getRes(4).length],
-            [w => this.parent.fillInput(this._search, typeof term === 'string' ? term.replace(/'/g, '\'\'') : term, this.parent.options.clearUsingKey)],
+            [w => new Promise((resolve, reject) => {
+                if (Array.isArray(this._search) && !Array.isArray(term)) {
+                    return reject('Search term must be an array!');
+                }
+                const searches = Array.isArray(this._search) ? this._search : [this._search];
+                const terms = Array.isArray(this._search) ? term : [term];
+                const queues = [];
+                for (let i = 0; i < searches.length; i++) {
+                    queues.push({el: searches[i], value: terms[i]});
+                }
+                const q = new Queue(queues, s => {
+                    this.parent.fillInput(s.el,
+                        typeof s.value === 'string' ? s.value.replace(/'/g, '\'\'') : s.value,
+                        this.parent.options.clearUsingKey)
+                        .then(() => q.next())
+                        .catch(err => reject(err));
+                });
+                q.once('done', () => resolve());
+            })],
             [w => this._search_submit.click(), w => this._search_submit],
             [w => this.parent.sleep(this.parent.opdelay)],
             [w => this.setup()],

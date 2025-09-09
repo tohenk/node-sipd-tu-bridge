@@ -67,9 +67,15 @@ class SipdQueryBase extends SipdQuery {
     }
 
     getFilterSelector(placeholder = null) {
+        let input;
         placeholder = placeholder ?? this.placeholder;
+        if (Array.isArray(placeholder)) {
+            input = placeholder.map(placeholder => By.xpath(`//*[contains(@placeholder,"Cari ${placeholder}")]`));
+        } else {
+            input = By.xpath(`//*[contains(@placeholder,"Cari ${placeholder}")]`);
+        }
         return {
-            input: By.xpath(`//*[contains(@placeholder,"Cari ${placeholder}")]`),
+            input,
             submit: By.xpath('//button[text()="Cari Sekarang"]'),
             toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
         }
@@ -170,9 +176,12 @@ class SipdVoterPegawai extends SipdVoter {
 class SipdVoterRekanan extends SipdVoter {
 
     doInitialize() {
-        const perusahaan = this.jenis === this.constructor.REKANAN_USAHA;
         this.options.title = 'Daftar Rekanan';
-        this.placeholder = perusahaan ? 'perusahaan' : 'nama rekanan';
+        this.search = [this.data.value];
+        this.placeholder = this.usaha ? 'perusahaan' : 'nama rekanan';
+        if (Array.isArray(this.data.value)) {
+            this.placeholder = [this.placeholder, 'nik'];
+        }
         this.pagerOptions = {
             selector: '//h1[contains(@class,"card-title")]/h1[text()="%TITLE%"]/../../../..',
             search: this.getFilterSelector(),
@@ -185,16 +194,19 @@ class SipdVoterRekanan extends SipdVoter {
         }
         const rekanan = Array.isArray(this.data.value) ? this.data.value[0] : this.data.value;
         const nik = Array.isArray(this.data.value) ? this.data.value[1] : null;
-        this.search = [rekanan];
         this.diffs = [
-            [perusahaan ? 'usaha' : 'nama', rekanan],
+            [this.usaha ? 'usaha' : 'nama', rekanan],
             nik ? ['nik', nik] : null,
-            perusahaan ? ['nama', null, false] : null,
+            this.usaha ? ['nama', null, false] : null,
         ].filter(Boolean);
     }
 
     get jenis() {
         return this.options.jenis ?? this.constructor.REKANAN_USAHA;
+    }
+
+    get usaha() {
+        return this.jenis === this.constructor.REKANAN_USAHA;
     }
 
     static get REKANAN_USAHA() { return 'usaha' }
@@ -248,9 +260,8 @@ class SipdQueryRekanan extends SipdVoterRekanan {
         this.actionEnabled = false;
         this.dialog = false;
         this.options.jenis = this.data.getMappedData('info.jenis');
-        const perusahaan = this.jenis === this.constructor.REKANAN_USAHA;
         this.data.value = [
-            SipdUtil.getSafeStr(this.data.getMappedData(perusahaan ? 'info.usaha' : 'info.rekanan')),
+            SipdUtil.getSafeStr(this.data.getMappedData(this.usaha ? 'info.usaha' : 'info.rekanan')),
             this.data.getMappedData('info.nik'),
         ];
     }
