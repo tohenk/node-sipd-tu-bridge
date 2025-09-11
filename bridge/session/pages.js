@@ -416,7 +416,7 @@ class SipdQuerySpp extends SipdQueryBase {
                 untuk: [5, SipdColumnQuery.COL_SINGLE, true],
                 nom: 6,
                 status: [2, SipdColumnQuery.COL_STATUS],
-                action: [7, SipdColumnQuery.COL_ACTION],
+                action: [8, SipdColumnQuery.COL_ACTION],
             },
             [this.SPM]: {
                 no: [1, SipdColumnQuery.COL_TIPPY],
