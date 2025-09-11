@@ -425,7 +425,12 @@ class SipdSession {
                         }
                         for (const arg of args) {
                             if (arg[2]) {
-                                const okay = arg[0] == arg[1];
+                                let okay;
+                                if (typeof arg[0] === 'string' && typeof arg[1] === 'string') {
+                                    okay = arg[0].toLowerCase() === arg[1].toLowerCase();
+                                } else {
+                                    okay = arg[0] == arg[1];
+                                }
                                 res.states.push(okay);
                                 res.info.push(dbg(arg[1], okay));
                             } else {
