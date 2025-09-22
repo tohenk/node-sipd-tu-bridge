@@ -287,6 +287,7 @@ class SipdSession {
         return this.works([
             [w => this.waitUntilReady(), w => !this.sipd.ready],
             [w => this.doStartup(), w => this.options.startup],
+            [w => this.sipd.getDriver()],
             [w => this.sipd.handlePageLoad()],
             [w => this.sipd.open()],
         ]);
@@ -311,7 +312,7 @@ class SipdSession {
      * @returns {Promise<string>}
      */
     getTippy(el) {
-        return this.sipd.getDriver().executeScript(
+        return this.sipd.driver.executeScript(
             function(el) {
                 if (el._tippy && el._tippy.popper) {
                     return el._tippy.popper.innerText;
@@ -553,7 +554,7 @@ class SipdSession {
     fillDatePicker2(el, value) {
         return this.works([
             [w => Promise.reject(`Date "${value}" is not valid!`), w => value instanceof Date && isNaN(value)],
-            [w => this.sipd.getDriver().executeScript(
+            [w => this.sipd.driver.executeScript(
                 function(el, date) {
                     if (el._flatpickr) {
                         el._flatpickr.setDate(date);
@@ -967,7 +968,7 @@ class SipdSession {
                         break;
                     // fill value using javascript
                     case f.flags.includes('$'):
-                        data.onfill = (el, value) => this.sipd.getDriver().executeScript(
+                        data.onfill = (el, value) => this.sipd.driver.executeScript(
                             function(el, value) {
                                 $(el).val(value);
                             }, el, value);

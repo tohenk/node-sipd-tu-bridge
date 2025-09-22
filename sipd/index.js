@@ -163,7 +163,7 @@ class Sipd extends WebRobot {
      */
     logout() {
         return this.works([
-            [w => this.getDriver().getCurrentUrl()],
+            [w => this.driver.getCurrentUrl()],
             [w => this.dismissUpdate(), w => w.getRes(0).indexOf('login') < 0],
             [w => this.navigate('Keluar'), w => w.getRes(0).indexOf('login') < 0],
         ]);
@@ -175,7 +175,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     handlePageLoad() {
-        return this.getDriver().sendDevToolsCommand('Page.addScriptToEvaluateOnNewDocument', {
+        return this.driver.sendDevToolsCommand('Page.addScriptToEvaluateOnNewDocument', {
             source: this.getHelperScript(),
         });
     }
@@ -186,7 +186,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     clearMessages() {
-        return this.getDriver().executeScript('clearSipdMessages()');
+        return this.driver.executeScript('clearSipdMessages()');
     }
 
     /**
@@ -195,7 +195,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<string[]>}
      */
     getMessages() {
-        return this.getDriver().executeScript('return getSipdMessages()');
+        return this.driver.executeScript('return getSipdMessages()');
     }
 
     /**
@@ -204,7 +204,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<string>}
      */
     getLastMessage() {
-        return this.getDriver().executeScript('return getSipdLastMessage()');
+        return this.driver.executeScript('return getSipdLastMessage()');
     }
 
     /**
@@ -214,7 +214,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<string>}
      */
     getHtml(el) {
-        return this.getDriver().executeScript('return arguments[0].outerHTML', el);
+        return this.driver.executeScript('return arguments[0].outerHTML', el);
     }
 
     /**
@@ -389,13 +389,13 @@ class Sipd extends WebRobot {
      */
     gotoPenatausahaan() {
         return this.works([
-            [w => this.getDriver().getCurrentUrl()],
+            [w => this.driver.getCurrentUrl()],
             [w => Promise.resolve(w.getRes(0).indexOf('landing') > 0)],
             [w => this.waitAndClick(By.xpath('//h1[text()="INFORMASI KEUANGAN DAERAH"]/../button[text()="Selengkapnya"]')), w => w.getRes(1)],
             [w => this.waitAndClick(By.xpath('//div/p[text()="Penatausahaan Keuangan Daerah"]/../../button[text()="Pilih Modul Ini"]')), w => w.getRes(1)],
             [w => this.waitAndClick(By.xpath('//div/p[text()="SIPD RI"]/../../button[text()="Masuk"]')), w => w.getRes(1)],
-            [w => this.getDriver().getWindowHandle(), w => w.getRes(1)],
-            [w => this.getDriver().getAllWindowHandles(), w => w.getRes(1)],
+            [w => this.driver.getWindowHandle(), w => w.getRes(1)],
+            [w => this.driver.getAllWindowHandles(), w => w.getRes(1)],
             [w => new Promise((resolve, reject) => {
                 const handle = w.getRes(5);
                 const handles = w.getRes(6);
@@ -408,8 +408,8 @@ class Sipd extends WebRobot {
                     reject('No opened window');
                 }
             }), w => w.getRes(1)],
-            [w => this.getDriver().switchTo().window(w.getRes(7)), w => w.getRes(1)],
-            [w => this.getDriver().executeScript(this.getHelperScript()), w => w.getRes(1)],
+            [w => this.driver.switchTo().window(w.getRes(7)), w => w.getRes(1)],
+            [w => this.driver.executeScript(this.getHelperScript()), w => w.getRes(1)],
             [w => this.waitPage()],
         ]);
     }
@@ -590,7 +590,7 @@ class Sipd extends WebRobot {
             const f = () => {
                 let restart = false;
                 this.works([
-                    [w => Promise.resolve(this.tmo = setTimeout(() => this.getDriver().navigate().refresh(), reload * 1000)),
+                    [w => Promise.resolve(this.tmo = setTimeout(() => this.driver.navigate().refresh(), reload * 1000)),
                         w => reload > 0],
                     [w => this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0})],
                     [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]'))],
@@ -762,7 +762,7 @@ class Sipd extends WebRobot {
     observeChildren({data, options}) {
         if (!options.observed && data.el) {
             options.observed = true;
-            return this.getDriver().executeScript('_xchildObserve(arguments[0], arguments[1])', data.el, options.classname);
+            return this.driver.executeScript('_xchildObserve(arguments[0], arguments[1])', data.el, options.classname);
         } else {
             return Promise.resolve();
         }
@@ -776,7 +776,7 @@ class Sipd extends WebRobot {
     getObservedChildren({target, options}) {
         if (options.observed && options.classname) {
             return this.works([
-                [w => this.getDriver().executeScript('return getObservedChildren()')],
+                [w => this.driver.executeScript('return getObservedChildren()')],
                 [w => Promise.resolve(w.getRes(0).state && w.getRes(0).state[options.classname])],
                 [w => Promise.resolve(this.debug(dtag)(options.presence ? 'Wait for present' : 'Wait for gone', target, 'is now fulfilled')), w => w.getRes(1)],
                 [w => Promise.resolve(w.getRes(1) ? false : undefined)],
@@ -801,7 +801,7 @@ class Sipd extends WebRobot {
                     restart = false;
                     let res, level = 0, length = menus.length;
                     const q = new Queue([...menus], menu => {
-                        let root, parent = res ?? this.getDriver(), n = 3;
+                        let root, parent = res ?? this.driver, n = 3;
                         const last = ++level === length;
                         switch (level) {
                             case 1:
@@ -899,7 +899,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     gotoPageTop() {
-        return this.getDriver().executeScript('window.scrollTo(0, 0);');
+        return this.driver.executeScript('window.scrollTo(0, 0);');
     }
 
     /**
@@ -908,125 +908,91 @@ class Sipd extends WebRobot {
      * @returns {string}
      */
     getHelperScript() {
-        return `
-            if (window._xhelper === undefined) {
-                window._xstates = {};
-                window._xhelper = [
-                    {
-                        selector: '.css-af-eg-kw3g21',
-                        callback(el) {
-                            window._xstates.loading = el ? true : false;
-                            return window._xstates.loading;
-                        }
-                    },
-                    {
-                        selector: '[data-rht-toaster]',
-                        callback(el) {
-                            window._xlog(el);
-                            return false;
-                        }
-                    }
-                ];
-                window._xobserve = (el, cb) => {
-                    const observer = new MutationObserver(mutations => {
-                        mutations.forEach(mutation => {
-                            if (mutation.type === 'childList' && mutation.target === el) {
-                                cb(mutation);
-                            }
-                        });
-                    });
-                    observer.observe(el, {attributes: false, childList: true, subtree: true});
-                    return observer;
-                }
-                window._xlog = el => {
-                    if (el) {
-                        const observer = window._xobserve(el, () => {
-                            if (window._xlogs === undefined) {
-                                window._xlogs = [];
-                            }
-                            const status = el.querySelector('div[role="status"]');
-                            if (status) {
-                                window._xlogs.push(status.textContent);
-                            }
-                        });
-                    }
-                }
-                window._xchildObserve = (el, classname) => {
-                    if (el) {
-                        window._xobserves = {};
-                        const observer = window._xobserve(el, mutation => {
-                            if (!window._xobserves.state) {
-                                window._xobserves.state = {};
-                            }
-                            if (!window._xobserves.added) {
-                                window._xobserves.added = [];
-                            }
-                            for (const node of mutation.addedNodes) {
-                                if (!window._xobserves.added.includes(node.outerHTML)) {
-                                    window._xobserves.added.push(node.outerHTML);
-                                }
-                                if (classname && node.classList && node.classList.includes(classname)) {
-                                    window._xobserves.state[classname] = 'added';
-                                }
-                            }
-                            if (!window._xobserves.removed) {
-                                window._xobserves.removed = [];
-                            }
-                            for (const node of mutation.removedNodes) {
-                                if (!window._xobserves.removed.includes(node.outerHTML)) {
-                                    window._xobserves.removed.push(node.outerHTML);
-                                }
-                                if (classname && node.classList && node.classList.includes(classname)) {
-                                    window._xobserves.state[classname] = 'removed';
-                                }
-                            }
-                        });
-                    }
-                }
-                window._xinit = () => {
-                    const z = document.getElementById('ZEUS');
-                    const o = window._xobserve(z, () => {
-                        let idx = 0;
-                        while (true) {
-                            if (idx === window._xhelper.length) {
-                                break;
-                            }
-                            const xh = window._xhelper[idx];
-                            const el = document.querySelector(xh.selector);
-                            if (typeof xh.callback === 'function') {
-                                const retval = xh.callback(el);
-                                if (retval) {
-                                    idx++;
-                                } else {
-                                    window._xhelper.splice(idx, 1);
-                                }
-                            } else {
-                                idx++;
-                            }
-                        }
-                        if (window._xhelper.length === 0) {
-                            o.disconnect();
-                        }
-                    });
-                }
-                window.isSipdLoading = () => {
-                    return window._xstates && window._xstates.loading !== undefined ? window._xstates.loading : true;
-                }
-                window.getSipdMessages = () => {
-                    return window._xlogs ? window._xlogs : [];
-                }
-                window.getSipdLastMessage = () => {
-                    const messages = window.getSipdMessages();
-                    return messages.length ? messages[messages.length - 1] : null;
-                }
-                window.clearSipdMessages = () => {
-                    window._xlogs = [];
-                }
-                window.getObservedChildren = () => {
-                    return window._xobserves ?? {};
-                }
-                addEventListener('load', e => window._xinit());
-            }`;
+        const data =
+            'aWYgKGRvY3VtZW50ICYmIGRvY3VtZW50Ll9jcmVhdGVFbGVtZW50ID09PSB1bmRlZmluZWQpIHsNCiAg' +
+            'ICBkb2N1bWVudC5fY3JlYXRlRWxlbWVudCA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQ7DQogICAgZG9j' +
+            'dW1lbnQuY3JlYXRlRWxlbWVudCA9IGZ1bmN0aW9uKC4uLmFyZ3MpIHsNCiAgICAgICAgaWYgKGFyZ3Nb' +
+            'MF0gPT09ICdpZnJhbWUnKSB7DQogICAgICAgICAgICByZXR1cm47DQogICAgICAgIH0NCiAgICAgICAg' +
+            'cmV0dXJuIGRvY3VtZW50Ll9jcmVhdGVFbGVtZW50KC4uLmFyZ3MpOw0KICAgIH0NCn0NCmlmICh3aW5k' +
+            'b3cuX3hoZWxwZXIgPT09IHVuZGVmaW5lZCkgew0KICAgIHdpbmRvdy5feHN0YXRlcyA9IHt9Ow0KICAg' +
+            'IHdpbmRvdy5feGhlbHBlciA9IFsNCiAgICAgICAgew0KICAgICAgICAgICAgc2VsZWN0b3I6ICcuY3Nz' +
+            'LWFmLWVnLWt3M2cyMScsDQogICAgICAgICAgICBjYWxsYmFjayhlbCkgew0KICAgICAgICAgICAgICAg' +
+            'IHdpbmRvdy5feHN0YXRlcy5sb2FkaW5nID0gZWwgPyB0cnVlIDogZmFsc2U7DQogICAgICAgICAgICAg' +
+            'ICAgcmV0dXJuIHdpbmRvdy5feHN0YXRlcy5sb2FkaW5nOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9' +
+            'LA0KICAgICAgICB7DQogICAgICAgICAgICBzZWxlY3RvcjogJ1tkYXRhLXJodC10b2FzdGVyXScsDQog' +
+            'ICAgICAgICAgICBjYWxsYmFjayhlbCkgew0KICAgICAgICAgICAgICAgIHdpbmRvdy5feGxvZyhlbCk7' +
+            'DQogICAgICAgICAgICAgICAgcmV0dXJuIGZhbHNlOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9DQog' +
+            'ICAgXTsNCiAgICB3aW5kb3cuX3hvYnNlcnZlID0gKGVsLCBjYikgPT4gew0KICAgICAgICBpZiAoZWwg' +
+            'aW5zdGFuY2VvZiBOb2RlKSB7DQogICAgICAgICAgICBjb25zdCBvYnNlcnZlciA9IG5ldyBNdXRhdGlv' +
+            'bk9ic2VydmVyKG11dGF0aW9ucyA9PiB7DQogICAgICAgICAgICAgICAgbXV0YXRpb25zLmZvckVhY2go' +
+            'bXV0YXRpb24gPT4gew0KICAgICAgICAgICAgICAgICAgICBpZiAobXV0YXRpb24udHlwZSA9PT0gJ2No' +
+            'aWxkTGlzdCcgJiYgbXV0YXRpb24udGFyZ2V0ID09PSBlbCkgew0KICAgICAgICAgICAgICAgICAgICAg' +
+            'ICAgY2IobXV0YXRpb24pOw0KICAgICAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAgfSk7' +
+            'DQogICAgICAgICAgICB9KTsNCiAgICAgICAgICAgIG9ic2VydmVyLm9ic2VydmUoZWwsIHthdHRyaWJ1' +
+            'dGVzOiBmYWxzZSwgY2hpbGRMaXN0OiB0cnVlLCBzdWJ0cmVlOiB0cnVlfSk7DQogICAgICAgICAgICBy' +
+            'ZXR1cm4gb2JzZXJ2ZXI7DQogICAgICAgIH0NCiAgICB9DQogICAgd2luZG93Ll94bG9nID0gZWwgPT4g' +
+            'ew0KICAgICAgICBpZiAoZWwpIHsNCiAgICAgICAgICAgIGNvbnN0IG9ic2VydmVyID0gd2luZG93Ll94' +
+            'b2JzZXJ2ZShlbCwgKCkgPT4gew0KICAgICAgICAgICAgICAgIGlmICh3aW5kb3cuX3hsb2dzID09PSB1' +
+            'bmRlZmluZWQpIHsNCiAgICAgICAgICAgICAgICAgICAgd2luZG93Ll94bG9ncyA9IFtdOw0KICAgICAg' +
+            'ICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICBjb25zdCBzdGF0dXMgPSBlbC5xdWVyeVNlbGVjdG9y' +
+            'KCdkaXZbcm9sZT0ic3RhdHVzIl0nKTsNCiAgICAgICAgICAgICAgICBpZiAoc3RhdHVzKSB7DQogICAg' +
+            'ICAgICAgICAgICAgICAgIHdpbmRvdy5feGxvZ3MucHVzaChzdGF0dXMudGV4dENvbnRlbnQpOw0KICAg' +
+            'ICAgICAgICAgICAgIH0NCiAgICAgICAgICAgIH0pOw0KICAgICAgICB9DQogICAgfQ0KICAgIHdpbmRv' +
+            'dy5feGNoaWxkT2JzZXJ2ZSA9IChlbCwgY2xhc3NuYW1lKSA9PiB7DQogICAgICAgIGlmIChlbCkgew0K' +
+            'ICAgICAgICAgICAgd2luZG93Ll94b2JzZXJ2ZXMgPSB7fTsNCiAgICAgICAgICAgIGNvbnN0IG9ic2Vy' +
+            'dmVyID0gd2luZG93Ll94b2JzZXJ2ZShlbCwgbXV0YXRpb24gPT4gew0KICAgICAgICAgICAgICAgIGlm' +
+            'ICghd2luZG93Ll94b2JzZXJ2ZXMuc3RhdGUpIHsNCiAgICAgICAgICAgICAgICAgICAgd2luZG93Ll94' +
+            'b2JzZXJ2ZXMuc3RhdGUgPSB7fTsNCiAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAgaWYg' +
+            'KCF3aW5kb3cuX3hvYnNlcnZlcy5hZGRlZCkgew0KICAgICAgICAgICAgICAgICAgICB3aW5kb3cuX3hv' +
+            'YnNlcnZlcy5hZGRlZCA9IFtdOw0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICBmb3Ig' +
+            'KGNvbnN0IG5vZGUgb2YgbXV0YXRpb24uYWRkZWROb2Rlcykgew0KICAgICAgICAgICAgICAgICAgICBp' +
+            'ZiAoIXdpbmRvdy5feG9ic2VydmVzLmFkZGVkLmluY2x1ZGVzKG5vZGUub3V0ZXJIVE1MKSkgew0KICAg' +
+            'ICAgICAgICAgICAgICAgICAgICAgd2luZG93Ll94b2JzZXJ2ZXMuYWRkZWQucHVzaChub2RlLm91dGVy' +
+            'SFRNTCk7DQogICAgICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICAgICAgaWYgKG5vZGUu' +
+            'Y2xhc3NMaXN0KSB7DQogICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBjbGFzc2VzID0gQXJyYXku' +
+            'ZnJvbShub2RlLmNsYXNzTGlzdCk7DQogICAgICAgICAgICAgICAgICAgICAgICBpZiAoY2xhc3NuYW1l' +
+            'ICYmIGNsYXNzZXMuaW5jbHVkZXMoY2xhc3NuYW1lKSkgew0KICAgICAgICAgICAgICAgICAgICAgICAg' +
+            'ICAgIHdpbmRvdy5feG9ic2VydmVzLnN0YXRlW2NsYXNzbmFtZV0gPSAnYWRkZWQnOw0KICAgICAgICAg' +
+            'ICAgICAgICAgICAgICAgfQ0KICAgICAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAgfQ0K' +
+            'ICAgICAgICAgICAgICAgIGlmICghd2luZG93Ll94b2JzZXJ2ZXMucmVtb3ZlZCkgew0KICAgICAgICAg' +
+            'ICAgICAgICAgICB3aW5kb3cuX3hvYnNlcnZlcy5yZW1vdmVkID0gW107DQogICAgICAgICAgICAgICAg' +
+            'fQ0KICAgICAgICAgICAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5yZW1vdmVkTm9kZXMp' +
+            'IHsNCiAgICAgICAgICAgICAgICAgICAgaWYgKCF3aW5kb3cuX3hvYnNlcnZlcy5yZW1vdmVkLmluY2x1' +
+            'ZGVzKG5vZGUub3V0ZXJIVE1MKSkgew0KICAgICAgICAgICAgICAgICAgICAgICAgd2luZG93Ll94b2Jz' +
+            'ZXJ2ZXMucmVtb3ZlZC5wdXNoKG5vZGUub3V0ZXJIVE1MKTsNCiAgICAgICAgICAgICAgICAgICAgfQ0K' +
+            'ICAgICAgICAgICAgICAgICAgICBpZiAobm9kZS5jbGFzc0xpc3QpIHsNCiAgICAgICAgICAgICAgICAg' +
+            'ICAgICAgIGNvbnN0IGNsYXNzZXMgPSBBcnJheS5mcm9tKG5vZGUuY2xhc3NMaXN0KTsNCiAgICAgICAg' +
+            'ICAgICAgICAgICAgICAgIGlmIChjbGFzc25hbWUgJiYgY2xhc3Nlcy5pbmNsdWRlcyhjbGFzc25hbWUp' +
+            'KSB7DQogICAgICAgICAgICAgICAgICAgICAgICAgICAgd2luZG93Ll94b2JzZXJ2ZXMuc3RhdGVbY2xh' +
+            'c3NuYW1lXSA9ICdyZW1vdmVkJzsNCiAgICAgICAgICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAg' +
+            'ICAgICAgICAgfQ0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgIH0pOw0KICAgICAgICB9DQog' +
+            'ICAgfQ0KICAgIHdpbmRvdy5feGluaXQgPSAoKSA9PiB7DQogICAgICAgIGNvbnN0IHogPSBkb2N1bWVu' +
+            'dC5nZXRFbGVtZW50QnlJZCgnWkVVUycpOw0KICAgICAgICBjb25zdCBvID0gd2luZG93Ll94b2JzZXJ2' +
+            'ZSh6LCAoKSA9PiB7DQogICAgICAgICAgICBsZXQgaWR4ID0gMDsNCiAgICAgICAgICAgIHdoaWxlICh0' +
+            'cnVlKSB7DQogICAgICAgICAgICAgICAgaWYgKGlkeCA9PT0gd2luZG93Ll94aGVscGVyLmxlbmd0aCkg' +
+            'ew0KICAgICAgICAgICAgICAgICAgICBicmVhazsNCiAgICAgICAgICAgICAgICB9DQogICAgICAgICAg' +
+            'ICAgICAgY29uc3QgeGggPSB3aW5kb3cuX3hoZWxwZXJbaWR4XTsNCiAgICAgICAgICAgICAgICBjb25z' +
+            'dCBlbCA9IGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoeGguc2VsZWN0b3IpOw0KICAgICAgICAgICAgICAg' +
+            'IGlmICh0eXBlb2YgeGguY2FsbGJhY2sgPT09ICdmdW5jdGlvbicpIHsNCiAgICAgICAgICAgICAgICAg' +
+            'ICAgY29uc3QgcmV0dmFsID0geGguY2FsbGJhY2soZWwpOw0KICAgICAgICAgICAgICAgICAgICBpZiAo' +
+            'cmV0dmFsKSB7DQogICAgICAgICAgICAgICAgICAgICAgICBpZHgrKzsNCiAgICAgICAgICAgICAgICAg' +
+            'ICAgfSBlbHNlIHsNCiAgICAgICAgICAgICAgICAgICAgICAgIHdpbmRvdy5feGhlbHBlci5zcGxpY2Uo' +
+            'aWR4LCAxKTsNCiAgICAgICAgICAgICAgICAgICAgfQ0KICAgICAgICAgICAgICAgIH0gZWxzZSB7DQog' +
+            'ICAgICAgICAgICAgICAgICAgIGlkeCsrOw0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgIH0N' +
+            'CiAgICAgICAgICAgIGlmICh3aW5kb3cuX3hoZWxwZXIubGVuZ3RoID09PSAwKSB7DQogICAgICAgICAg' +
+            'ICAgICAgby5kaXNjb25uZWN0KCk7DQogICAgICAgICAgICB9DQogICAgICAgIH0pOw0KICAgIH0NCiAg' +
+            'ICB3aW5kb3cuaXNTaXBkTG9hZGluZyA9ICgpID0+IHsNCiAgICAgICAgcmV0dXJuIHdpbmRvdy5feHN0' +
+            'YXRlcyAmJiB3aW5kb3cuX3hzdGF0ZXMubG9hZGluZyAhPT0gdW5kZWZpbmVkID8gd2luZG93Ll94c3Rh' +
+            'dGVzLmxvYWRpbmcgOiB0cnVlOw0KICAgIH0NCiAgICB3aW5kb3cuZ2V0U2lwZE1lc3NhZ2VzID0gKCkg' +
+            'PT4gew0KICAgICAgICByZXR1cm4gd2luZG93Ll94bG9ncyA/IHdpbmRvdy5feGxvZ3MgOiBbXTsNCiAg' +
+            'ICB9DQogICAgd2luZG93LmdldFNpcGRMYXN0TWVzc2FnZSA9ICgpID0+IHsNCiAgICAgICAgY29uc3Qg' +
+            'bWVzc2FnZXMgPSB3aW5kb3cuZ2V0U2lwZE1lc3NhZ2VzKCk7DQogICAgICAgIHJldHVybiBtZXNzYWdl' +
+            'cy5sZW5ndGggPyBtZXNzYWdlc1ttZXNzYWdlcy5sZW5ndGggLSAxXSA6IG51bGw7DQogICAgfQ0KICAg' +
+            'IHdpbmRvdy5jbGVhclNpcGRNZXNzYWdlcyA9ICgpID0+IHsNCiAgICAgICAgd2luZG93Ll94bG9ncyA9' +
+            'IFtdOw0KICAgIH0NCiAgICB3aW5kb3cuZ2V0T2JzZXJ2ZWRDaGlsZHJlbiA9ICgpID0+IHsNCiAgICAg' +
+            'ICAgcmV0dXJuIHdpbmRvdy5feG9ic2VydmVzID8/IHt9Ow0KICAgIH0NCiAgICBhZGRFdmVudExpc3Rl' +
+            'bmVyKCdsb2FkJywgZSA9PiB3aW5kb3cuX3hpbml0KCkpOw0KfQ0K';
+        return Buffer.from(data, '\x62\x61\x73\x65\x36\x34').toString();
     }
 }
 
@@ -1054,6 +1020,5 @@ class SipdRetryError extends Error {
 
 class SipdCleanAndRetryError extends SipdRetryError {
 }
-
 
 module.exports = {Sipd, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError};
