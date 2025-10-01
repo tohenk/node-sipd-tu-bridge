@@ -32,7 +32,22 @@ class SipdCmdXData extends SipdCmd {
         if (Array.isArray(data) && data.length && this.config.privkey) {
             const xdata = JSON.parse(this.config.unobfuscate(data[0]));
             if (Array.isArray(xdata.roles)) {
-                res.success = this.config.updateRoles(xdata.roles);
+                const allroles = {};
+                for (const role of xdata.roles) {
+                    const group = role.unit ? role.unit.toString(): '';
+                    if (allroles[group] === undefined) {
+                        allroles[group] = [];
+                    }
+                    delete role.unit;
+                    allroles[group].push(role);
+                }
+                let count = 0;
+                for (const [unit, roles] of Object.entries(allroles)) {
+                    if (this.config.updateRoles({unit, roles})) {
+                        count++;
+                    }
+                }
+                res.success = count > 0;
             }
             if (typeof xdata.clean === 'boolean' && xdata.clean) {
                 res = this.parent.createCleanQueue();

@@ -265,7 +265,7 @@ class Configuration {
     updateRoles(roles) {
         const rs = SipdRoleSwitcher
             .switchTo(roles.unit)
-            .update(roles);
+            .update(roles.roles);
         return rs.saved;
     }
 
