@@ -25,10 +25,10 @@
         "npd:NOMINAL": "AFEKTASI"
     },
     "setuju-npd": {
-        "=.//label[text()='Tanggal']/../input": "TGL_NPD"
+        "=.//label[text()='Tanggal']/../input": "TGL_SETUJU"
     },
     "validasi-npd": {
-        "=.//label[text()='Tanggal']/../input": "TGL_NPD"
+        "=.//label[text()='Tanggal']/../input": "TGL_VALIDASI"
     },
     "tbp": {
         "+=.//button[text()='Pilih Dokumen Disini']": "NPD:NPD",
