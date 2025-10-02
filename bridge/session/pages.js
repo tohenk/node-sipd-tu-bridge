@@ -101,6 +101,9 @@ class SipdQueryBase extends SipdQuery {
         if (col.name.includes('nik')) {
             return 'nr';
         }
+        if (col.name.includes('nama')) {
+            return 'nama';
+        }
         return 'default';
     }
 

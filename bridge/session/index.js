@@ -65,6 +65,15 @@ class SipdSession {
             num: value => parseInt(SipdUtil.pickNumber(value)),
             nom: value => parseFloat(SipdUtil.pickCurr(value)),
             nr: value => SipdUtil.pickNumber(value),
+            nama: value => {
+                if (typeof value === 'string') {
+                    value = SipdUtil.getSafeStr(value);
+                    if (value.includes('\n')) {
+                        value = value.split('\n')[0];
+                    }
+                }
+                return value;
+            },
             default: value => typeof value === 'string' ? SipdUtil.getSafeStr(value) : value,
         }
         const stringables = {
