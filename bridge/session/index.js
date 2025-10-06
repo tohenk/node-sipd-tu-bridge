@@ -97,7 +97,7 @@ class SipdSession {
     }
 
     debug(tag) {
-        return require('debug')([this.bridge.name, tag].join(':'));
+        return this.sipd.debug(tag);
     }
 
     onStateChange(handler) {

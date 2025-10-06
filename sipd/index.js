@@ -25,6 +25,7 @@
 const util = require('util');
 const Queue = require('@ntlab/work/queue');
 const WebRobot = require('@ntlab/webrobot');
+const SipdLogger = require('./logger');
 const SipdUtil = require('./util');
 const { By, error, WebElement } = require('selenium-webdriver');
 
@@ -63,7 +64,7 @@ class Sipd extends WebRobot {
      * @returns {Function}
      */
     debug(tag) {
-        return require('debug')([this.options.tag ?? 'sipd', tag].join(':'));
+        return SipdLogger.logger(tag, this.options);
     }
 
     /**
@@ -213,15 +214,14 @@ class Sipd extends WebRobot {
      * @param {By} submit Form submit selector
      * @param {Array} values Form values
      * @param {object} options Submit options
+     * @param {number} options.wait Wait timeout
+     * @param {string|null} options.spinner Spinner class name
      * @returns {Promise<WebElement>}
      */
     formSubmit(form, submit, values, options = null) {
         options = options || {};
         if (options.wait === undefined) {
             options.wait = 0;
-        }
-        if (options.dismiss === undefined) {
-            options.dismiss = true;
         }
         return this.works([
             [w => this.sleep(this.opdelay)],
@@ -241,6 +241,7 @@ class Sipd extends WebRobot {
      *
      * @param {By} clicker The confirm clicker
      * @param {object} options Submit options
+     * @param {string} options.spinner Spinner class name
      * @returns {Promise<WebElement>}
      */
     confirmSubmission(clicker, options = null) {
@@ -624,6 +625,8 @@ class Sipd extends WebRobot {
     /**
      * Wait for SIPD Penatausahaan until the spinner is done.
      *
+     * @param {WebElement} el Spinner container element
+     * @param {string|null} spinner Spinner class name
      * @returns {Promise<any>}
      */
     waitSpinner(el, spinner = null) {
@@ -704,6 +707,10 @@ class Sipd extends WebRobot {
     /**
      * Get the waiting state of selector.
      *
+     * @param {object} param0
+     * @param {object|By} param0.data Element to wait for
+     * @param {object} param0.options The options
+     * @param {number} param0.options.timeout Wait timeout, pass 0 for unlimited
      * @returns {Promise<boolean>}
      */
     isWaiting({data, options}) {
@@ -746,6 +753,11 @@ class Sipd extends WebRobot {
     /**
      * Observes children mutation.
      *
+     * @param {object} param0
+     * @param {object} param0.data The data
+     * @param {WebElement} param0.data.el The element
+     * @param {object} param0.options The Options
+     * @param {string} param0.options.classname Children classname to observe
      * @returns {Promise<any>}
      */
     observeChildren({data, options}) {

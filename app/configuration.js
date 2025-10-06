@@ -27,6 +27,7 @@ const fs = require('fs');
 const path = require('path');
 const Cmd = require('@ntlab/ntlib/cmd');
 const { SipdRoleSwitcher } = require('../sipd/role');
+const SipdLogger = require('../sipd/logger');
 
 Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
 Cmd.addVar('mode', 'm', 'Set bridge mode, spp, lpj, or util', 'bridge-mode');
@@ -110,6 +111,9 @@ class Configuration {
             const year = new Date().getFullYear();
             this.bridges = {[`sipd-${year}`]: {year}};
         }
+        SipdLogger
+            .setDefaults(SipdLogger.FILE, {logdir: path.join(this.workdir, 'logs')})
+            .create(SipdLogger.FILE);
         this.initialized = true;
     }
 
