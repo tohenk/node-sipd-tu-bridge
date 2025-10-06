@@ -206,11 +206,13 @@ class SipdRoleSwitcher {
      * @returns {SipdRoleSwitcher}
      */
     static switchTo(unit = null) {
-        const filename = `${unit ?? 'roles'}.json`;
+        const filename = `${unit ? unit : 'roles'}.json`;
         if (this._items === undefined) {
             this._items = {};
         }
-        unit = unit ?? '_';
+        if (!unit) {
+            unit = '_';
+        }
         if (this._items[unit] === undefined) {
             this._items[unit] = new this();
         }
