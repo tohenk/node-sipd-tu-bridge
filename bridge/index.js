@@ -26,6 +26,7 @@ const util = require('util');
 const Work = require('@ntlab/work/work');
 const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
+const SipdLogger = require('../sipd/logger');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { Sipd, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const { error } = require('selenium-webdriver');
@@ -57,7 +58,10 @@ class SipdBridge {
         this.options = options;
         this.state = this.STATE_NONE;
         this.autoClose = this.options.autoClose !== undefined ? this.options.autoClose : true;
-        this.loginfo = {tag: this.name};
+        this.loginfo = {
+            tag: this.name,
+            onerror: () => SipdLogger.logger('error', this.loginfo),
+        }
     }
 
     selfTest() {
@@ -208,7 +212,7 @@ class SipdBridge {
      */
     works(w, options) {
         return new Promise((resolve, reject) => {
-            Work.works(w, Sipd.WorkErrorLogger.create(this).onerror(options || {}))
+            Work.works(w, Sipd.WorkErrorLogger.create(this.loginfo).onerror(options || {}))
                 .then(res => resolve(res))
                 .catch(err => {
                     if (err instanceof error.WebDriverError && err.message.includes('net::ERR_CONNECTION_TIMED_OUT')) {
