@@ -70,16 +70,11 @@ class SipdLogger {
             const logger = new Logger(logFile);
             this._loggers[logTag] = {
                 logger,
-                fn: (...args) => {
-                    if (logger.tag) {
-                        args.unshift(logger.tag);
-                    }
-                    logger.log(...args);
-                }
+                log: (...args) => logger.log(...args)
             }
         }
         this._loggers[logTag].logger.tag = tag;
-        return this._loggers[logTag].fn;
+        return this._loggers[logTag].log;
     }
 
     /**

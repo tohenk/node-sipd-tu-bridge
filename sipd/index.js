@@ -52,6 +52,7 @@ class Sipd extends WebRobot {
         this.opdelay = this.options.opdelay || 400;
         this.typedelay = this.options.typedelay || 5;
         this.loopdelay = this.options.loopdelay || 25;
+        this.onerror = () => this.debug('error');
         super.constructor.expectErr(error.StaleElementReferenceError);
         super.constructor.expectErr(SipdAnnouncedError);
         super.constructor.expectErr(SipdRetryError);
