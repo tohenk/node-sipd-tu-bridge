@@ -166,7 +166,7 @@ class Configuration {
             const cmd = require('@ntlab/ntlib/command')(this.captchaSolver, {});
             this.solver = (captcha, options) => {
                 if (captcha && fs.existsSync(captcha)) {
-                    const debug = require('debug')([options && options.tag ? options.tag : 'sipd', 'config'].join(':'));
+                    const debug = SipdLogger.logger('config', options);
                     debug('Resolving captcha', captcha);
                     return new Promise((resolve, reject) => {
                         let stdout, stderr;
