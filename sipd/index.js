@@ -230,8 +230,10 @@ class Sipd extends WebRobot {
                 values,
                 form,
                 () => this.confirmSubmission(submit, options),
-                options.wait,
-                form => this.waitSpinner(form))],
+                {
+                    wait: options.wait,
+                    prefillCallback: form => this.waitSpinner(form),
+                })],
             [w => this.sleep(this.opdelay)],
             [w => Promise.resolve(w.getRes(1))],
         ]);

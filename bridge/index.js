@@ -27,7 +27,7 @@ const Work = require('@ntlab/work/work');
 const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
-const { SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
+const { Sipd, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const { error } = require('selenium-webdriver');
 
 /**
@@ -75,7 +75,7 @@ class SipdBridge {
             role = Object.keys(rs.roles)[0];
         }
         if (role) {
-            return Work.works([
+            return this.works([
                 ['role', s => Promise.resolve(this.switchRole(role))],
                 ['bp', s => this.doAs(SipdRole.BP)],
                 ['done', s => Promise.resolve(f())],
@@ -198,13 +198,37 @@ class SipdBridge {
     }
 
     /**
+     * A proxy function for Work.works.
+     *
+     * @param {Array} w Work list
+     * @param {object} options Work options
+     * @returns {Promise<any>}
+     * @see Work.works
+     */
+    works(w, options) {
+        return new Promise((resolve, reject) => {
+            Work.works(w, Sipd.WorkErrorLogger.create(this).onerror(options || {}))
+                .then(res => resolve(res))
+                .catch(err => {
+                    if (err instanceof error.WebDriverError && err.message.includes('net::ERR_CONNECTION_TIMED_OUT')) {
+                        err = new SipdRetryError(err.message);
+                    }
+                    if (err instanceof error.SessionNotCreatedError) {
+                        err = new SipdCleanAndRetryError(err.message);
+                    }
+                    reject(err);
+                });
+        });
+    }
+
+    /**
      * Check if queue has a role defined.
      *
      * @param {SipdQueue} queue Queue to check
      * @returns {Promise<void>}
      */
     checkRole(queue) {
-        return Work.works([
+        return this.works([
             [m => Promise.resolve(queue.getMappedData('info.role'))],
             [m => Promise.reject('Invalid queue, no role specified!'), m => !m.getRes(0)],
             [m => Promise.resolve(this.switchRole(m.getRes(0), queue.getMappedData('info.unit')))],
@@ -248,7 +272,7 @@ class SipdBridge {
     saveCaptcha(dir) {
         for (const session of this.getSessions()) {
             if (session.state().captcha) {
-                return Work.works([
+                return session.works([
                     [w => session.captchaImage()],
                     [w => Promise.resolve(session.saveCaptcha(w.getRes(0), dir))],
                 ]);
@@ -302,35 +326,23 @@ class SipdBridge {
         if (typeof works === 'function') {
             _works.push(works);
         }
-        return new Promise((resolve, reject) => {
-            Work.works(_works, {
-                done: (w, err) => {
-                    if (err instanceof SipdAnnouncedError && err._queue) {
-                        const queue = err._queue;
-                        const callbackQueue = SipdQueue.createCallbackQueue({id: queue.getMappedData('info.id'), error: err.message}, queue.callback);
-                        SipdQueue.addQueue(callbackQueue);
-                    }
-                    if (typeof callback === 'function') {
-                        return Work.works(callback(w, err));
+        return this.works(_works, {
+            done: (w, err) => {
+                if (err instanceof SipdAnnouncedError && err._queue) {
+                    const queue = err._queue;
+                    const callbackQueue = SipdQueue.createCallbackQueue({id: queue.getMappedData('info.id'), error: err.message}, queue.callback);
+                    SipdQueue.addQueue(callbackQueue);
+                }
+                if (typeof callback === 'function') {
+                    return this.works(callback(w, err));
+                } else {
+                    if (err) {
+                        return Promise.reject(err);
                     } else {
-                        if (err) {
-                            return Promise.reject(err);
-                        } else {
-                            return Promise.resolve();
-                        }
+                        return Promise.resolve();
                     }
                 }
-            })
-            .then(res => resolve(res))
-            .catch(err => {
-                if (err instanceof error.WebDriverError && err.message.includes('net::ERR_CONNECTION_TIMED_OUT')) {
-                    err = new SipdRetryError(err.message);
-                }
-                if (err instanceof error.SessionNotCreatedError) {
-                    err = new SipdCleanAndRetryError(err.message);
-                }
-                reject(err);
-            });
+            }
         });
     }
 
@@ -342,7 +354,7 @@ class SipdBridge {
                 [m => session.stop(), m => stop],
             );
         }
-        return Work.works(works);
+        return this.works(works);
     }
 
     noop(queue) {
