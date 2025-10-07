@@ -47,7 +47,7 @@ class SipdSession {
     constructor(options) {
         this.options = options;
         this.bridge = options.bridge;
-        this.sipd = new Sipd({...options, tag: this.bridge.name});
+        this.sipd = new Sipd(options);
         this.works = this.sipd.works;
         this.initialize();
         this.doInitialize();

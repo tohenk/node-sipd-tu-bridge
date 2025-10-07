@@ -73,6 +73,9 @@ class SipdLogger {
                 log: (...args) => logger.log(...args)
             }
         }
+        if (options.role) {
+            tag = [options.role, tag]
+        }
         this._loggers[logTag].logger.tag = tag;
         return this._loggers[logTag].log;
     }
@@ -87,7 +90,7 @@ class SipdLogger {
     static debugLogger(tag, options) {
         const defaults = this.getDefaults(this.DEBUG);
         const logTag = options.tag ?? (defaults.tag ?? 'sipd');
-        return debug([options.tag ?? logTag, tag].join(':'));
+        return debug([options.tag ?? logTag, options.role, tag].filter(Boolean).join(':'));
     }
 
     /**

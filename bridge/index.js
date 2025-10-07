@@ -57,6 +57,7 @@ class SipdBridge {
         this.options = options;
         this.state = this.STATE_NONE;
         this.autoClose = this.options.autoClose !== undefined ? this.options.autoClose : true;
+        this.loginfo = {tag: this.name};
     }
 
     selfTest() {
@@ -174,7 +175,7 @@ class SipdBridge {
      */
     getSession(name, seq) {
         name = name.replace(/\s/g, '');
-        const options = {...this.options, bridge: this};
+        const options = {...this.options, bridge: this, loginfo: this.loginfo};
         const sess = [];
         for (const s of [options.session, name, seq ? seq.toString() : null]) {
             if (s) {
@@ -291,15 +292,16 @@ class SipdBridge {
             try {
                 const user = this.getUser(role);
                 if (user) {
-                    role = user.role ?? this.getRoleTitle(role);
+                    let title = user.role ?? this.getRoleTitle(role);
                     let idx = 0;
-                    const p = role.indexOf(':');
+                    const p = title.indexOf(':');
                     if (p > 1) {
-                        idx = parseInt(role.substr(p + 1).trim()) - 1;
-                        role = role.substr(0, p);
+                        idx = parseInt(title.substr(p + 1).trim()) - 1;
+                        title = title.substr(0, p);
                     }
                     this.session = this.getSession(user.username, idx);
-                    this.session.cred = {username: user.username, password: user.password, role, idx};
+                    this.session.cred = {username: user.username, password: user.password, role: title, idx};
+                    this.loginfo.role = role;
                     resolve(this.session);
                 } else {
                     reject(util.format('Role not found: %s!', role));

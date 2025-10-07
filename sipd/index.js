@@ -65,7 +65,7 @@ class Sipd extends WebRobot {
      * @returns {Function}
      */
     debug(tag) {
-        return SipdLogger.logger(tag, this.options);
+        return SipdLogger.logger(tag, this.options.loginfo);
     }
 
     /**
