@@ -54,6 +54,7 @@ class SipdDequeue extends EventEmitter {
     }
 
     setConsumer(consumer) {
+        /** @type {SipdConsumer[]} */
         this.consumers = Array.isArray(consumer) ? consumer : [consumer];
         for (consumer of this.consumers) {
             consumer
@@ -73,19 +74,26 @@ class SipdDequeue extends EventEmitter {
     processQueue() {
         if (this.consumers) {
             if (this.queues.length) {
-                // query idle consumer
-                const consumers = this.consumers
-                    .filter(consumer => !consumer.queue)
-                    .sort((a, b) => a.priority - b.priority);
-                for (const consumer of consumers) {
-                    const queue = this.pick(consumer);
-                    if (queue) {
-                        // move queue to processing
-                        this.queues.splice(this.queues.indexOf(queue), 1);
-                        this.processing.push(queue);
-                        // hand the queue to consumer
-                        queue.maxretry = this.retry;
-                        consumer.consume(queue);
+                for (const queue of this.queues) {
+                    // query idle consumer
+                    const consumers = this.consumers
+                        .sort((a, b) => a.priority - b.priority)
+                        .filter(consumer => !consumer.queue && consumer.isAccepted(queue));
+                    if (consumers.length) {
+                        const pickedConsumers = consumers
+                            .filter(consumer => consumer.priority === consumers[0].priority);
+                        if (pickedConsumers.length) {
+                            const idx = Math.floor(Math.random() * (pickedConsumers.length - 1));
+                            const consumer = pickedConsumers[idx];
+                            // move queue to processing
+                            this.queues.splice(this.queues.indexOf(queue), 1);
+                            this.processing.push(queue);
+                            // hand the queue to consumer
+                            queue.maxretry = this.retry;
+                            consumer.consume(queue);
+                            // start over
+                            break;
+                        }
                     }
                 }
             }
