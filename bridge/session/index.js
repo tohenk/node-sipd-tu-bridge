@@ -251,6 +251,16 @@ class SipdSession {
     }
 
     /**
+     * Get form submit number of retry.
+     *
+     * @param {object} queue The queue
+     * @returns {number}
+     */
+    getRetry(queue) {
+        return Array.isArray(queue.files) && queue.files.length ? 3 : 0;
+    }
+
+    /**
      * Wait for state to be ready.
      *
      * @returns {Promise<any>}
@@ -1090,7 +1100,7 @@ class SipdSession {
             [w => this.fillForm(queue, 'rekanan',
                 By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
                 By.xpath('//button[text()="Konfirmasi"]')), w => (!w.getRes(0) || forceEdit) && allowChange],
-            [w => this.sipd.confirmSubmission(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!w.getRes(0) || forceEdit) && allowChange],
+            [w => this.sipd.confirmSubmission(By.xpath('//section/footer/button[1]'), {spinner: true, retry: this.getRetry(queue)}), w => (!w.getRes(0) || forceEdit) && allowChange],
         ]);
     }
 }

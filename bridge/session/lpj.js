@@ -54,7 +54,7 @@ class SipdLpjSession extends SipdSession {
             [w => this.fillForm(queue, 'npd',
                 By.xpath('//h1[text()="Pengajuan | Nota Pencairan Dana"]/../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],
-            [w => this.sipd.confirmSubmission(By.xpath('//button[text()="Tambah Sekarang"]'), {spinner: true}), w => !w.getRes(0) && allowChange],
+            [w => this.sipd.confirmSubmission(By.xpath('//button[text()="Tambah Sekarang"]'), {spinner: true, retry: this.getRetry(queue)}), w => !w.getRes(0) && allowChange],
             [w => this.queryNpd(queue), w => !w.getRes(0) && allowChange],
         ]);
     }
@@ -104,7 +104,7 @@ class SipdLpjSession extends SipdSession {
             [w => this.fillForm(queue, 'tbp',
                 By.xpath('//h1[text()="Tanda Bukti Pembayaran (TBP)"]/../../../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],
-            [w => this.sipd.confirmSubmission(By.xpath('//button[text()="Tambah Sekarang"]'), {spinner: true}), w => !w.getRes(0) && allowChange],
+            [w => this.sipd.confirmSubmission(By.xpath('//button[text()="Tambah Sekarang"]'), {spinner: true, retry: this.getRetry(queue)}), w => !w.getRes(0) && allowChange],
             [w => this.queryTbp(queue), w => !w.getRes(0) && allowChange],
         ]);
     }

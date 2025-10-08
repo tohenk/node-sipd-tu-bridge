@@ -216,6 +216,7 @@ class Sipd extends WebRobot {
      * @param {object} options Submit options
      * @param {number} options.wait Wait timeout
      * @param {string|null} options.spinner Spinner class name
+     * @param {number} options.retry Number of retry, default to once
      * @returns {Promise<WebElement>}
      */
     formSubmit(form, submit, values, options = null) {
@@ -244,6 +245,7 @@ class Sipd extends WebRobot {
      * @param {By} clicker The confirm clicker
      * @param {object} options Submit options
      * @param {string} options.spinner Spinner class name
+     * @param {number} options.retry Number of retry, default to once
      * @returns {Promise<WebElement>}
      */
     confirmSubmission(clicker, options = null) {
@@ -253,16 +255,32 @@ class Sipd extends WebRobot {
                 message.toLowerCase().includes('berhasil') ||
                 message.toLowerCase().includes('dibuat');
         }
-        return this.works([
-            [w => this.clearMessages()],
-            [w => this.waitAndClick(clicker)],
-            [w => this.waitSpinner(w.getRes(1), typeof options.spinner === 'string' ? options.spinner : null), w => options.spinner],
-            [w => this.sleep(this.opdelay)],
-            [w => this.getLastMessage()],
-            [w => Promise.resolve(this.debug(dtag)('Form submit return:', w.getRes(4))), w => w.getRes(4)],
-            [w => Promise.resolve(w.getRes(1)), w => success(w.getRes(4))],
-            [w => Promise.reject(w.getRes(4)), w => !w.getRes(6)],
-        ]);
+        let retry = options.retry || 1;
+        return new Promise((resolve, reject) => {
+            const f = () => {
+                retry--;
+                this.works([
+                    [w => this.clearMessages()],
+                    [w => this.waitAndClick(clicker)],
+                    [w => this.waitSpinner(w.getRes(1), typeof options.spinner === 'string' ? options.spinner : null), w => options.spinner],
+                    [w => this.sleep(this.opdelay)],
+                    [w => this.getLastMessage()],
+                    [w => Promise.resolve(this.debug(dtag)('Form submit return', w.getRes(4))), w => w.getRes(4)],
+                    [w => Promise.resolve(w.getRes(1)), w => success(w.getRes(4))],
+                    [w => Promise.reject(w.getRes(4)), w => !w.getRes(6)],
+                ])
+                .then(res => resolve(res))
+                .catch(err => {
+                    if (retry === 0) {
+                        reject(err);
+                    } else {
+                        this.debug(dtag)('Retrying form submit in %d ms...', this.wait);
+                        setTimeout(f, this.wait);
+                    }
+                });
+            }
+            f();
+        });
     }
 
     /**
