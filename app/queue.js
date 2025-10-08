@@ -367,6 +367,7 @@ class SipdConsumer extends EventEmitter
         }
         const doit = () => {
             try {
+                this.emit('pre-queue', queue);
                 queue.start();
                 this.emit('queue-start', queue);
                 this.doConsume(queue)
@@ -393,6 +394,9 @@ class SipdBridgeConsumer extends SipdConsumer
     constructor(bridge, priority) {
         super(priority);
         this.bridge = bridge;
+        this.on('pre-queue', queue => {
+            debug('%s is handling queue %s', this.bridge.name, queue);
+        });
     }
 
     initialize() {
