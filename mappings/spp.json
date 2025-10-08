@@ -10,7 +10,7 @@
     },
     "spp": {
         "=.//label[text()='Tanggal']/../input": "TGL_SPP",
-        "=.//label[text()='Penandatangan']/../div/button": "ROLE:pptk",
+        "+=.//label[text()='Penandatangan']/../div/button": "ROLE:pptk",
         "=.//label[text()='Tujuan Pembayaran']/../textarea": "FORMAT:%1% (%2%)|UNTUK|KODE",
         "+=.//label[text()='Rekanan']/../div/p": "REKANAN:LEMBAGA|NIK",
         "#nama_tujuan": "NO_KONTRAK",
