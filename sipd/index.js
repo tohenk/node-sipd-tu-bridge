@@ -217,6 +217,7 @@ class Sipd extends WebRobot {
      * @param {number} options.wait Wait timeout
      * @param {string|null} options.spinner Spinner class name
      * @param {number} options.retry Number of retry, default to once
+     * @param {Function} options.postfillCallback Post form fill callback
      * @returns {Promise<WebElement>}
      */
     formSubmit(form, submit, values, options = null) {
@@ -233,6 +234,7 @@ class Sipd extends WebRobot {
                 {
                     wait: options.wait,
                     prefillCallback: form => this.waitSpinner(form),
+                    postfillCallback: options.postfillCallback,
                 })],
             [w => this.sleep(this.opdelay)],
             [w => Promise.resolve(w.getRes(1))],

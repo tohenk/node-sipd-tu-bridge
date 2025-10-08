@@ -958,6 +958,7 @@ class SipdSession {
                                 if (!Buffer.isBuffer(value)) {
                                     reject('To upload file, value must be Buffer!');
                                 } else {
+                                    queue.filesize = value.byteLength;
                                     this.saveFile(docfile, value);
                                     el.sendKeys(docfile)
                                         .then(() => resolve(true))
@@ -1071,7 +1072,24 @@ class SipdSession {
         if (!queue.files) {
             queue.files = [];
         }
-        return this.sipd.formSubmit(form, submit, this.handleFormFill(name, queue, queue.files), options);
+        delete queue.filesize;
+        return this.sipd.formSubmit(form,
+            submit,
+            this.handleFormFill(name, queue, queue.files),
+            {
+                ...(options || {}),
+                postfillCallback: form => {
+                    if (queue.filesize) {
+                        const multiplier = Math.ceil(queue.filesize / (100 * 1024));
+                        const ms = this.sipd.delay * multiplier;
+                        this.debug(dtag)('Wait for file upload in', ms, 'ms');
+                        return this.sipd.sleep(ms);
+                    } else {
+                        return Promise.resolve();
+                    }
+                },
+            }
+        );
     }
 
     cleanFiles(queue) {
@@ -1100,7 +1118,7 @@ class SipdSession {
             [w => this.fillForm(queue, 'rekanan',
                 By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
                 By.xpath('//button[text()="Konfirmasi"]')), w => (!w.getRes(0) || forceEdit) && allowChange],
-            [w => this.sipd.confirmSubmission(By.xpath('//section/footer/button[1]'), {spinner: true, retry: this.getRetry(queue)}), w => (!w.getRes(0) || forceEdit) && allowChange],
+            [w => this.sipd.confirmSubmission(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!w.getRes(0) || forceEdit) && allowChange],
         ]);
     }
 }
