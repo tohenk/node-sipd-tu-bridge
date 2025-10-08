@@ -291,6 +291,33 @@ class SipdUtil {
         }
         return s;
     }
+
+    /**
+     * Convert bytes shorthand of T, G, M, K into bytes.
+     *
+     * @param {string} bytes Bytes shorthand
+     * @returns {number}
+     */
+    static getBytes(bytes) {
+        if (bytes) {
+            const matches = bytes.toLowerCase().match(/^(\d+)([tgmk]?)$/);
+            let value = parseInt(matches[1]);
+            switch (matches[2]) {
+                case 't':
+                    value *= 1024;
+                    // no break
+                case 'g':
+                    value *= 1024;
+                    // no break
+                case 'm':
+                    value *= 1024;
+                    // no break
+                case 'k':
+                    value *= 1024;
+            }
+            return value;
+        }
+    }
 }
 
 module.exports = SipdUtil;

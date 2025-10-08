@@ -789,6 +789,9 @@ class SipdSession {
         const result = [];
         const maps = queue.getMap(name);
         const trunc = (s, len = 100) => {
+            if (Array.isArray(s)) {
+                s = s.map(s => trunc(s, len));
+            }
             if (s instanceof Buffer) {
                 s = s.toString();
             }
@@ -951,19 +954,28 @@ class SipdSession {
                         files.push(docfile);
                         data.onfill = (el, value) => new Promise((resolve, reject) => {
                             if (value) {
+                                let maxsize;
+                                if (Array.isArray(value)) {
+                                    if (value.length > 1) {
+                                        maxsize = value[1];
+                                    }
+                                    value = value[0];
+                                }
                                 // is it saved buffer?
                                 if (typeof value === 'object' && value.type === 'Buffer' && value.data) {
                                     value = Buffer.from(value.data);
                                 }
                                 if (!Buffer.isBuffer(value)) {
-                                    reject('To upload file, value must be Buffer!');
-                                } else {
-                                    queue.filesize = value.byteLength;
-                                    this.saveFile(docfile, value);
-                                    el.sendKeys(docfile)
-                                        .then(() => resolve(true))
-                                        .catch(err => reject(err));
+                                    return reject('Value of PDF must be buffer!');
                                 }
+                                if (maxsize && value.byteLength > SipdUtil.getBytes(maxsize)) {
+                                    return reject(`PDF size is larger than allowable of ${maxsize}!`);
+                                }
+                                queue.filesize = value.byteLength;
+                                this.saveFile(docfile, value);
+                                el.sendKeys(docfile)
+                                    .then(() => resolve(true))
+                                    .catch(err => reject(err));
                             } else {
                                 resolve();
                             }
@@ -1079,7 +1091,7 @@ class SipdSession {
             {
                 ...(options || {}),
                 postfillCallback: form => {
-                    if (queue.filesize) {
+                    if (this.options.waitFileUpload && queue.filesize) {
                         const multiplier = Math.ceil(queue.filesize / (100 * 1024));
                         const ms = this.sipd.delay * multiplier;
                         this.debug(dtag)('Wait for file upload in', ms, 'ms');
