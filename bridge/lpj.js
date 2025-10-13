@@ -83,11 +83,11 @@ class SipdLpjBridge extends SipdBridge {
                 // --- PA ---
                 ['pa', w => this.doAs(SipdRole.PA)],
                 ['pa-login', w => w.pa.login()],
-                ['pa-setuju', w => w.pa.setujuiNpd(queue)],
+                ['pa-setuju-npd', w => w.pa.setujuiNpd(queue)],
                 // --- BP ---
                 ['bp', w => this.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
-                ['bp-validasi', w => w.bp.validasiNpd(queue)],
+                ['bp-validasi-npd', w => w.bp.validasiNpd(queue)],
                 ['bp-rekanan', w => w.bp.createRekanan(queue, this.alwaysEditRekanan)],
                 ['bp-tbp', w => w.bp.createTbp(queue)],
             ],
@@ -100,8 +100,8 @@ class SipdLpjBridge extends SipdBridge {
             works: [
                 ['bp', w => this.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
-                ['bp-npd', w => w.bp.checkNpd(queue)],
-                ['bp-tbp', w => w.bp.checkTbp(queue)],
+                ['bp-cek-npd', w => w.bp.checkNpd(queue)],
+                ['bp-cek-tbp', w => w.bp.checkTbp(queue)],
             ],
         });
     }

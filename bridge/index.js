@@ -125,6 +125,7 @@ class SipdBridge {
             [SipdRole.BP]: 'Bendahara Pengeluaran',
             [SipdRole.PA]: 'Pengguna Anggaran',
             [SipdRole.PPK]: 'PPK SKPD',
+            [SipdRole.PPTK]: 'Pejabat Pelaksana Teknis Kegiatan',
         }
         return roles[role];
     }
@@ -212,7 +213,17 @@ class SipdBridge {
      */
     works(w, options) {
         return new Promise((resolve, reject) => {
-            Work.works(w, Sipd.WorkErrorLogger.create(this.loginfo).onerror(options || {}))
+            Work.works(w, Sipd.WorkErrorLogger.create(this.loginfo).onerror({
+                    onwork: (worker, w) => {
+                        if (worker.name && worker.name.includes('-')) {
+                            const role = worker.name.substr(0, worker.name.indexOf('-'));
+                            if ([SipdRole.BP, SipdRole.PA, SipdRole.PPK, SipdRole.PPTK].includes(role)) {
+                                this.loginfo.action = worker.name.substr(worker.name.indexOf('-') + 1);
+                            }
+                        }
+                    },
+                    ...(options || {})
+                }))
                 .then(res => resolve(res))
                 .catch(err => {
                     if (err instanceof error.WebDriverError && err.message.includes('net::ERR_CONNECTION_TIMED_OUT')) {

@@ -91,12 +91,12 @@ class SipdSppBridge extends SipdBridge {
                 // --- PPK ---
                 ['ppk', w => this.doAs(SipdRole.PPK)],
                 ['ppk-login', w => w.ppk.login()],
-                ['ppk-verif', w => w.ppk.verifikasiSpp(queue)],
+                ['ppk-verif-spp', w => w.ppk.verifikasiSpp(queue)],
                 // --- PA ---
                 ['pa', w => this.doAs(SipdRole.PA)],
                 ['pa-login', w => w.pa.login()],
-                ['pa-verif', w => w.pa.verifikasiSpm(queue)],
-                ['pa-sp2d', w => w.pa.checkSp2d(queue)],
+                ['pa-setuju-spm', w => w.pa.verifikasiSpm(queue)],
+                ['pa-cek-sp2d', w => w.pa.checkSp2d(queue)],
             ],
         });
     }
@@ -107,9 +107,9 @@ class SipdSppBridge extends SipdBridge {
             works: [
                 ['bp', w => this.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
-                ['bp-spp', w => w.bp.checkSpp(queue)],
-                ['bp-spm', w => w.bp.checkSpm(queue)],
-                ['bp-sp2d', w => w.bp.checkSp2d(queue)],
+                ['bp-cek-spp', w => w.bp.checkSpp(queue)],
+                ['bp-cek-spm', w => w.bp.checkSpm(queue)],
+                ['bp-cek-sp2d', w => w.bp.checkSp2d(queue)],
             ],
         });
     }
