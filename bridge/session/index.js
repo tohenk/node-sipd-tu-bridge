@@ -1100,6 +1100,7 @@ class SipdSession {
                         return Promise.resolve();
                     }
                 },
+                onerror: message => `Form ${name} failed: ${message}!`,
             }
         );
     }

@@ -150,7 +150,16 @@ class Sipd extends WebRobot {
                     {target: By.id('ed_username'), value: username},
                     {target: By.id('ed_password'), value: password},
                 ],
-                {spinner: true})],
+                {
+                    spinner: true,
+                    onerror: message => {
+                        if (this.options.loginfo.actor) {
+                            return `Login failed for ${this.options.loginfo.actor}: ${message}!`;
+                        } else {
+                            return `Login failed: ${message}!`;
+                        }
+                    }
+                })],
             [w => this.selectAccount(role)],
             [w => this.waitCaptcha()],
             [w => this.waitLoader()],
@@ -218,6 +227,7 @@ class Sipd extends WebRobot {
      * @param {string|null} options.spinner Spinner class name
      * @param {number} options.retry Number of retry, default to once
      * @param {Function} options.postfillCallback Post form fill callback
+     * @param {Function} options.onerror Form submission error callback
      * @returns {Promise<WebElement>}
      */
     formSubmit(form, submit, values, options = null) {
@@ -248,6 +258,7 @@ class Sipd extends WebRobot {
      * @param {object} options Submit options
      * @param {string} options.spinner Spinner class name
      * @param {number} options.retry Number of retry, default to once
+     * @param {Function} options.onerror Callback when error occured on form submission
      * @returns {Promise<WebElement>}
      */
     confirmSubmission(clicker, options = null) {
@@ -257,6 +268,7 @@ class Sipd extends WebRobot {
                 message.toLowerCase().includes('berhasil') ||
                 message.toLowerCase().includes('dibuat');
         }
+        const errmsg = message => typeof options.onerror === 'function' ? options.onerror(message) : message;
         let retry = options.retry || 1;
         return new Promise((resolve, reject) => {
             const f = () => {
@@ -269,7 +281,7 @@ class Sipd extends WebRobot {
                     [w => this.getLastMessage()],
                     [w => Promise.resolve(this.debug(dtag)('Form submit return', w.getRes(4))), w => w.getRes(4)],
                     [w => Promise.resolve(w.getRes(1)), w => success(w.getRes(4))],
-                    [w => Promise.reject(w.getRes(4)), w => !w.getRes(6)],
+                    [w => Promise.reject(errmsg(w.getRes(4))), w => !w.getRes(6)],
                 ])
                 .then(res => resolve(res))
                 .catch(err => {

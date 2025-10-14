@@ -317,6 +317,7 @@ class SipdBridge {
                     this.session = this.getSession(user.username, idx);
                     this.session.cred = {username: user.username, password: user.password, role: title, idx};
                     this.loginfo.role = role;
+                    this.loginfo.actor = title;
                     resolve(this.session);
                 } else {
                     reject(util.format('Role not found: %s!', role));
