@@ -150,16 +150,7 @@ class Sipd extends WebRobot {
                     {target: By.id('ed_username'), value: username},
                     {target: By.id('ed_password'), value: password},
                 ],
-                {
-                    spinner: true,
-                    onerror: message => {
-                        if (this.options.loginfo.actor) {
-                            return `Login failed for ${this.options.loginfo.actor}: ${message}!`;
-                        } else {
-                            return `Login failed: ${message}!`;
-                        }
-                    }
-                })],
+                {spinner: true})],
             [w => this.selectAccount(role)],
             [w => this.waitCaptcha()],
             [w => this.waitLoader()],

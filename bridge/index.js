@@ -228,9 +228,14 @@ class SipdBridge {
                 .catch(err => {
                     if (err instanceof error.WebDriverError && err.message.includes('net::ERR_CONNECTION_TIMED_OUT')) {
                         err = new SipdRetryError(err.message);
-                    }
-                    if (err instanceof error.SessionNotCreatedError) {
+                    } else if (err instanceof error.SessionNotCreatedError) {
                         err = new SipdCleanAndRetryError(err.message);
+                    } else if (this.loginfo.actor && this.loginfo.action) {
+                        if (err instanceof Error) {
+                            err = new Error(`${this.loginfo.actor} ${this.loginfo.action}: ${err.message}`);
+                        } else {
+                            err = `${this.loginfo.actor} ${this.loginfo.action}: ${err}`;
+                        }
                     }
                     reject(err);
                 });
