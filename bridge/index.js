@@ -232,9 +232,9 @@ class SipdBridge {
                         err = new SipdCleanAndRetryError(err.message);
                     } else if (this.loginfo.actor && this.loginfo.action) {
                         if (err instanceof Error) {
-                            err = new Error(`${this.loginfo.actor} ${this.loginfo.action}: ${err.message}`);
+                            err = new Error(`${this.loginfo.actor} (${this.loginfo.action}): ${err.message}`);
                         } else {
-                            err = `${this.loginfo.actor} ${this.loginfo.action}: ${err}`;
+                            err = `${this.loginfo.actor} (${this.loginfo.action}): ${err}`;
                         }
                     }
                     reject(err);
@@ -322,7 +322,15 @@ class SipdBridge {
                     this.session = this.getSession(user.username, idx);
                     this.session.cred = {username: user.username, password: user.password, role: title, idx};
                     this.loginfo.role = role;
-                    this.loginfo.actor = title;
+                    this.loginfo.actor = {
+                        'Pengguna Anggaran': 'PA',
+                        'Kuasa Pengguna Anggaran': 'KPA',
+                        'Bendahara Pengeluaran': 'BP',
+                        'Bendahara Pengeluaran Pembantu': 'BPP',
+                        'PPK SKPD': 'PPK',
+                        'PPK Unit SKPD': 'PPK',
+                        'PPTK': 'PPTK',
+                    }[title];
                     resolve(this.session);
                 } else {
                     reject(util.format('Role not found: %s!', role));

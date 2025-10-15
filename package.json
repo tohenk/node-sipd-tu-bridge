@@ -1,10 +1,23 @@
 {
   "name": "sipd-tu-bridge",
-  "version": "4.0.0",
+  "version": "4.2.0",
   "description": "SIPD Penatausahaan Kemendagri automation tools",
   "author": "Toha <tohenk@yahoo.com>",
   "license": "MIT",
   "main": "main.js",
+  "keywords": [
+    "sipd",
+    "penatausahaan",
+    "kemendagri",
+    "spp",
+    "spp-ls",
+    "lpj",
+    "npd",
+    "tbp",
+    "otomasi",
+    "selenium",
+    "socket.io"
+  ],
   "dependencies": {
     "@ntlab/ntlib": "^2.7.0",
     "@ntlab/urllib": "^1.1.0",
