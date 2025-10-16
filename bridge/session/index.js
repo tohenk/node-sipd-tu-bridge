@@ -1038,6 +1038,9 @@ class SipdSession {
                         });
                     }
                 }
+                data.prefill = (el, value) => {
+                    this.debug(dtag)(`Do fill ${name + '->' + key} with ${trunc(value)}`);
+                }
                 data.afterfill = el => this.works([
                     [w => this.sipd.isStale(el)],
                     [w => this.getError(el), w => !w.getRes(0)],

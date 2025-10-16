@@ -1,6 +1,6 @@
 # SIPD Penatausahaan Kemendagri Automation
 
-This tool provides automation to create SPP-LS and create LPJ (NPD, and TBP) on SIPD Penatausahaan Kemendagri.
+This tool provides automation to create SPP-LS and create LPJ (NPD and TBP) on SIPD Penatausahaan Kemendagri.
 It's designed as backend service which serves the functionality to client using socket.io.
 
 ## Quickstart
