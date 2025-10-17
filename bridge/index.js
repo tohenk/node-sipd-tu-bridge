@@ -231,10 +231,13 @@ class SipdBridge {
                     } else if (err instanceof error.SessionNotCreatedError) {
                         err = new SipdCleanAndRetryError(err.message);
                     } else if (this.loginfo.actor && this.loginfo.action) {
-                        if (err instanceof Error) {
-                            err = new Error(`${this.loginfo.actor} (${this.loginfo.action}): ${err.message}`);
-                        } else {
-                            err = `${this.loginfo.actor} (${this.loginfo.action}): ${err}`;
+                        const e = err;
+                        err = `${this.loginfo.actor} (${this.loginfo.action}): ${e instanceof Error ? e.message : e}`;
+                        if (e instanceof Error) {
+                            if (e.cause) {
+                                err = `${err} ${e.cause.toString()}`;
+                            }
+                            err = new Error(err);
                         }
                     }
                     reject(err);
