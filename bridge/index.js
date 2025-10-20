@@ -233,11 +233,8 @@ class SipdBridge {
                     } else if (this.loginfo.actor && this.loginfo.action) {
                         const e = err;
                         err = `${this.loginfo.actor} (${this.loginfo.action}): ${e instanceof Error ? e.message : e}`;
-                        if (e instanceof Error) {
-                            if (e.cause) {
-                                err = `${err} ${e.cause.toString()}`;
-                            }
-                            err = new Error(err);
+                        if (e instanceof Error && e.cause) {
+                            err = `${err} ${e.cause.toString()}`;
                         }
                     }
                     reject(err);
