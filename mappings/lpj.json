@@ -8,7 +8,8 @@
         "usaha": "USAHA",
         "rekanan": "NAMA",
         "nik": "NIK",
-        "check": "NPD"
+        "check": "NPD",
+        "operasi": "OP"
     },
     "npd": {
         "=.//label[text()='Tanggal']/../input": "TGL_NPD",

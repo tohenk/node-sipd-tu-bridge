@@ -35,6 +35,19 @@ class SipdLpjBridge extends SipdBridge {
         return new SipdLpjSession(options);
     }
 
+    checkOp(queue, op) {
+        /** @type {string} */
+        const queueOp = queue.getMappedData('info.operasi');
+        if (queueOp) {
+            const ops = queueOp
+                .toLowerCase()
+                .split(',')
+                .map(s => s.trim());
+            return ops.includes(op);
+        }
+        return true;
+    }
+
     processLpj({queue, works}) {
         return this.do([
             // switch role
@@ -73,35 +86,39 @@ class SipdLpjBridge extends SipdBridge {
     }
 
     createLpj(queue) {
+        const npd = this.checkOp(queue, 'npd');
+        const tbp = this.checkOp(queue, 'tbp');
         return this.processLpj({
             queue,
             works: [
                 // --- PPTK ---
-                ['pptk', w => this.doAs(SipdRole.PPTK)],
-                ['pptk-login', w => w.pptk.login()],
-                ['pptk-npd', w => w.pptk.createNpd(queue)],
+                ['pptk', w => this.doAs(SipdRole.PPTK), w => npd],
+                ['pptk-login', w => w.pptk.login(), w => npd],
+                ['pptk-npd', w => w.pptk.createNpd(queue), w => npd],
                 // --- PA ---
-                ['pa', w => this.doAs(SipdRole.PA)],
-                ['pa-login', w => w.pa.login()],
-                ['pa-setuju-npd', w => w.pa.setujuiNpd(queue)],
+                ['pa', w => this.doAs(SipdRole.PA), w => tbp],
+                ['pa-login', w => w.pa.login(), w => tbp],
+                ['pa-setuju-npd', w => w.pa.setujuiNpd(queue), w => tbp],
                 // --- BP ---
-                ['bp', w => this.doAs(SipdRole.BP)],
-                ['bp-login', w => w.bp.login()],
-                ['bp-validasi-npd', w => w.bp.validasiNpd(queue)],
-                ['bp-rekanan', w => w.bp.createRekanan(queue, this.alwaysEditRekanan)],
-                ['bp-tbp', w => w.bp.createTbp(queue)],
+                ['bp', w => this.doAs(SipdRole.BP), w => tbp],
+                ['bp-login', w => w.bp.login(), w => tbp],
+                ['bp-validasi-npd', w => w.bp.validasiNpd(queue), w => tbp],
+                ['bp-rekanan', w => w.bp.createRekanan(queue, this.alwaysEditRekanan), w => tbp],
+                ['bp-tbp', w => w.bp.createTbp(queue), w => tbp],
             ],
         });
     }
 
     queryLpj(queue) {
+        const npd = this.checkOp(queue, 'npd');
+        const tbp = this.checkOp(queue, 'tbp');
         return this.processLpj({
             queue,
             works: [
                 ['bp', w => this.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
-                ['bp-cek-npd', w => w.bp.checkNpd(queue)],
-                ['bp-cek-tbp', w => w.bp.checkTbp(queue)],
+                ['bp-cek-npd', w => w.bp.checkNpd(queue), w => npd],
+                ['bp-cek-tbp', w => w.bp.checkTbp(queue), w => tbp],
             ],
         });
     }

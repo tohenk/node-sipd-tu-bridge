@@ -1,4 +1,5 @@
 {
+    "OP": "Operasi yang akan dilakukan dipisahkan dengan tanda koma (npd/tbp)",
     "ID": "Identifikasi unik",
     "NO_NPD": "Nomor NPD",
     "TGL_NPD": "Tanggal NPD",
