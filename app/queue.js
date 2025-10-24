@@ -46,8 +46,11 @@ class SipdDequeue extends EventEmitter {
     constructor() {
         super();
         this.time = new Date();
+        /** @type {SipdQueue[]} */
         this.queues = [];
+        /** @type {SipdQueue[]} */
         this.processing = [];
+        /** @type {SipdQueue[]} */
         this.completes = [];
         this.timeout = 10 * 60 * 1000;
         this.retry = 3;
@@ -198,14 +201,23 @@ class SipdDequeue extends EventEmitter {
         return status;
     }
 
-    getLogs(raw = false) {
+    getLogs(flags = 0) {
         return [...this.completes, ...this.processing, ...this.queues]
             .sort((a, b) => a.cmp(b))
-            .map(queue => queue.getLog(raw));
+            .filter(queue => {
+                if ((flags & this.constructor.LOG_AS_LOG) === this.constructor.LOG_AS_LOG) {
+                    return queue.isLoggable();
+                }
+                if ((flags & this.constructor.LOG_AS_QUEUE) === this.constructor.LOG_AS_QUEUE) {
+                    return queue.isSaveable();
+                }
+                return true;
+            })
+            .map(queue => queue.getLog((flags & this.constructor.LOG_RAW) === this.constructor.LOG_RAW));
     }
 
     saveLogs() {
-        const logs = this.getLogs(true).filter(log => log.isLoggable());
+        const logs = this.getLogs(this.constructor.LOG_RAW | this.constructor.LOG_AS_LOG);
         if (logs.length) {
             const queueDir = path.join(process.cwd(), 'queue');
             if (!fs.existsSync(queueDir)) {
@@ -264,6 +276,10 @@ class SipdDequeue extends EventEmitter {
         });
         return result;
     }
+
+    static get LOG_RAW() { return 1 }
+    static get LOG_AS_LOG() { return 2 }
+    static get LOG_AS_QUEUE() { return 4 }
 }
 
 /**
