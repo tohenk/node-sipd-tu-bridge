@@ -232,7 +232,11 @@ class SipdBridge {
                         err = new SipdCleanAndRetryError(err.message);
                     } else if (this.loginfo.actor && this.loginfo.action) {
                         const e = err;
-                        err = `${this.loginfo.actor} (${this.loginfo.action}): ${e instanceof Error ? e.message : e}`;
+                        const prefix = `${this.loginfo.actor} (${this.loginfo.action}):`;
+                        err = e instanceof Error ? e.message : `${e}`;
+                        if (!err.startsWith(prefix)) {
+                            err = `${prefix} ${err}`;
+                        }
                         if (e instanceof Error && e.cause) {
                             err = `${err} ${e.cause.toString()}`;
                         }
@@ -240,6 +244,14 @@ class SipdBridge {
                     reject(err);
                 });
         });
+    }
+
+    /**
+     * Clear loginfo.
+     */
+    clearLoginfo() {
+        delete this.loginfo.actor;
+        delete this.loginfo.action;
     }
 
     /**
@@ -350,7 +362,9 @@ class SipdBridge {
      * @returns {Promise<any>}
      */
     do(works, callback = null) {
-        const _works = [];
+        const _works = [
+            [w => Promise.resolve(this.clearLoginfo())]
+        ];
         if (Array.isArray(works)) {
             _works.push(...works);
         }
