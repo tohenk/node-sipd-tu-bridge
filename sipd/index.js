@@ -115,9 +115,10 @@ class Sipd extends WebRobot {
         return new Promise((resolve, reject) => {
             this.works([
                 [w => this.gotoPenatausahaan()],
+                [w => this.isInMaintenance()],
                 [w => this.isLoggedIn()],
                 [w => this.logout(), w => force],
-                [w => this.doLogin(username, password, role), w => force || !w.getRes(1)],
+                [w => this.doLogin(username, password, role), w => force || !w.getRes(2)],
                 [w => this.waitSidebar()],
                 [w => this.dismissStatuses()],
                 [w => this.checkMessages()],
@@ -430,6 +431,18 @@ class Sipd extends WebRobot {
     }
 
     /**
+     * Check if in maintenance mode?
+     *
+     * @returns {Promise<undefined>}
+     */
+    isInMaintenance() {
+        return this.works([
+            [w => this.waitForPresence(By.xpath('//h1[contains(@class,"css-n-ca-jf-qawac") and text()="Maintenance"]'), {timeout: this.delay})],
+            [w => Promise.reject('SIPD Penatausahaan is in maintenance!'), w => w.getRes(0)],
+        ]);
+    }
+
+    /**
      * Is user currently logged in?
      *
      * @returns {Promise<boolean>}
@@ -472,7 +485,7 @@ class Sipd extends WebRobot {
                 for (const fail of ['gagal', 'failed']) {
                     for (const msg of w.getRes(0)) {
                         if (msg.includes(fail)) {
-                            return reject(`SIPD Penatausahaan mengalami gangguan: ${msg}!`);
+                            return reject(`SIPD Penatausahaan is experiencing problem: ${msg}!`);
                         }
                     }
                 }
