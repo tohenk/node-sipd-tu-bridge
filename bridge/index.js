@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
-const util = require('util');
 const Work = require('@ntlab/work/work');
+const Queue = require('@ntlab/work/queue');
 const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
 const SipdLogger = require('../sipd/logger');
@@ -58,6 +58,7 @@ class SipdBridge {
         this.options = options;
         this.state = this.STATE_NONE;
         this.autoClose = this.options.autoClose !== undefined ? this.options.autoClose : true;
+        this.stopSessionEarly = this.options.stopSessionEarly !== undefined ? this.options.stopSessionEarly : true;
         this.loginfo = {
             tag: this.name,
             onerror: () => SipdLogger.logger('error', this.loginfo),
@@ -331,21 +332,36 @@ class SipdBridge {
                         idx = parseInt(title.substr(p + 1).trim()) - 1;
                         title = title.substr(0, p);
                     }
-                    this.session = this.getSession(user.username, idx);
-                    this.session.cred = {username: user.username, password: user.password, role: title, idx};
-                    this.loginfo.role = role;
-                    this.loginfo.actor = {
-                        'Pengguna Anggaran': 'PA',
-                        'Kuasa Pengguna Anggaran': 'KPA',
-                        'Bendahara Pengeluaran': 'BP',
-                        'Bendahara Pengeluaran Pembantu': 'BPP',
-                        'PPK SKPD': 'PPK',
-                        'PPK Unit SKPD': 'PPK',
-                        'PPTK': 'PPTK',
-                    }[title];
-                    resolve(this.session);
+                    const sess = this.getSession(user.username, idx);
+                    if (sess) {
+                        sess.cred = {username: user.username, password: user.password, role: title, idx};
+                        this.loginfo.role = role;
+                        this.loginfo.actor = {
+                            'Pengguna Anggaran': 'PA',
+                            'Kuasa Pengguna Anggaran': 'KPA',
+                            'Bendahara Pengeluaran': 'BP',
+                            'Bendahara Pengeluaran Pembantu': 'BPP',
+                            'PPK SKPD': 'PPK',
+                            'PPK Unit SKPD': 'PPK',
+                            'PPTK': 'PPTK',
+                        }[title];
+                        if (this.stopSessionEarly) {
+                            const sessions = this.getSessions()
+                                .filter(s => s !== sess);
+                            const q = new Queue(sessions, s => {
+                                s.stop()
+                                    .then(() => q.next())
+                                    .catch(() => q.next());
+                            });
+                            q.once('done', () => resolve(sess));
+                        } else {
+                            resolve(sess);
+                        }
+                    } else {
+                        reject(`Unable to create session for ${user.username}!`);
+                    }
                 } else {
-                    reject(util.format('Role not found: %s!', role));
+                    reject(`Role not found: ${role}!`);
                 }
             }
             catch (err) {
