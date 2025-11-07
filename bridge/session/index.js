@@ -627,7 +627,7 @@ class SipdSession {
                         [x => Promise.resolve(itemText = x.getRes(1))],
                     ])
                     .then(() => {
-                        this.debug(dtag)(`fill activity: ${itemText}, done = ${fulfilled ? 'yes' : 'no'}`);
+                        this.debug(dtag)(`Fill activity: ${itemText}, done = ${fulfilled ? 'yes' : 'no'}`);
                         if (fulfilled) {
                             q.done();
                         } else {
@@ -954,27 +954,12 @@ class SipdSession {
                         files.push(docfile);
                         data.onfill = (el, value) => new Promise((resolve, reject) => {
                             if (value) {
-                                let maxsize;
-                                if (Array.isArray(value)) {
-                                    if (value.length > 1) {
-                                        maxsize = value[1];
-                                    }
-                                    value = value[0];
-                                }
-                                // is it saved buffer?
-                                if (typeof value === 'object' && value.type === 'Buffer' && value.data) {
-                                    value = Buffer.from(value.data);
-                                }
-                                if (!Buffer.isBuffer(value)) {
-                                    return reject('Value of PDF must be buffer!');
-                                }
-                                if (maxsize && value.byteLength > SipdUtil.getBytes(maxsize)) {
-                                    return reject(`PDF size is larger than allowable of ${maxsize}!`);
-                                }
-                                queue.filesize = value.byteLength;
-                                this.saveFile(docfile, value);
-                                el.sendKeys(docfile)
-                                    .then(() => resolve(true))
+                                this.optimizePdf(queue, value, docfile)
+                                    .then(() => {
+                                        el.sendKeys(docfile)
+                                            .then(() => resolve(true))
+                                            .catch(err => reject(err));
+                                    })
                                     .catch(err => reject(err));
                             } else {
                                 resolve();
@@ -1122,6 +1107,76 @@ class SipdSession {
         } else {
             return Promise.resolve();
         }
+    }
+
+    optimizePdf(queue, value, pdfFile) {
+        return new Promise((resolve, reject) => {
+            let maxSize, maxSizeByte, pdfSize, saved = false;
+            if (Array.isArray(value)) {
+                if (value.length > 1) {
+                    maxSize = value[1];
+                }
+                value = value[0];
+            }
+            // is it saved buffer?
+            if (typeof value === 'object' && value.type === 'Buffer' && value.data) {
+                value = Buffer.from(value.data);
+            }
+            if (!Buffer.isBuffer(value)) {
+                return reject('Value of PDF must be buffer!');
+            }
+            pdfSize = value.byteLength;
+            const done = () => {
+                if (maxSizeByte && pdfSize > maxSizeByte) {
+                    reject(`PDF size is larger than allowable of ${maxSize}!`);
+                } else {
+                    queue.filesize = pdfSize;
+                    if (!saved) {
+                        this.saveFile(pdfFile, value);
+                    }
+                    resolve();
+                }
+            }
+            if (maxSize) {
+                const maxSizeByte = SipdUtil.getBytes(maxSize);
+                // {
+                //     "global": {
+                //         "pdfOptimize": "gs -q -dNOPAUSE -dBATCH -dSAFER -dSimulateOverprint=true -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dEmbedAllFonts=true -dSubsetFonts=true -dAutoRotatePages=/None -dColorImageDownsampleType=/Bicubic -dColorImageResolution=100 -dGrayImageDownsampleType=/Bicubic -dGrayImageResolution=100 -dMonoImageDownsampleType=/Bicubic -dMonoImageResolution=100 -sOutputFile=\"%OUT%\" \"%IN%\""
+                //     }
+                // }
+                if (pdfSize > maxSizeByte && this.options.pdfOptimize) {
+                    saved = true;
+                    const tmpfile = this.genFilename('doctmp', `${queue.id}.orig.pdf`);
+                    this.saveFile(tmpfile, value);
+                    const exec = require('child_process').exec;
+                    const cmd = this.options.pdfOptimize
+                        .replace(/%IN%/g, tmpfile)
+                        .replace(/%OUT%/g, pdfFile);
+                    exec(cmd, (err, stdout, stderr) => {
+                        if (!err && fs.existsSync(pdfFile)) {
+                            fs.unlinkSync(tmpfile);
+                            pdfSize = fs.statSync(pdfFile).size;
+                            this.debug(dtag)(`Optimized PDF size ${pdfSize}, original was ${value.byteLength}`);
+                            done();
+                        } else {
+                            let msg = err instanceof Error ? err.toString() : err;
+                            if (!msg) {
+                                msg = stderr.toString().trim();
+                            }
+                            if (msg) {
+                                reject(`Unable to optimize PDF: ${msg}!`);
+                            } else {
+                                reject(`An error occured while optimizing PDF!`);
+                            }
+                        }
+                    });
+                } else {
+                    done();
+                }
+            } else {
+                done();
+            }
+        });
     }
 
     createRekanan(queue, forceEdit = false) {
