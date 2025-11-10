@@ -39,7 +39,7 @@ const dtag = 'core';
 class Sipd extends WebRobot {
 
     LOGIN_FORM = '//div[contains(@class,"auth-box")]/form'
-    CAPTCHA_MODAL = '//div[contains(@class,"chakra-modal__body")]/h4[contains(text(),"CAPTCHA")]/..'
+    CAPTCHA_CONTAINER = '//div[contains(@class,"css-S-k-eg4wgs")]'
 
     SPINNER_CHAKRA = 'chakra-spinner'
     SPINNER_ANIMATE = 'animate-spin'
@@ -151,9 +151,8 @@ class Sipd extends WebRobot {
                     {target: By.id('ed_username'), value: username},
                     {target: By.id('ed_password'), value: password},
                 ],
-                {spinner: true})],
+                {spinner: true, prefillCallback: () => this.waitCaptcha()})],
             [w => this.selectAccount(role)],
-            [w => this.waitCaptcha()],
             [w => this.waitLoader()],
         ]);
     }
@@ -218,7 +217,8 @@ class Sipd extends WebRobot {
      * @param {number} options.wait Wait timeout
      * @param {string|null} options.spinner Spinner class name
      * @param {number} options.retry Number of retry, default to once
-     * @param {Function} options.postfillCallback Post form fill callback
+     * @param {Function} options.prefillCallback Form pre fill callback
+     * @param {Function} options.postfillCallback Form post fill callback
      * @param {Function} options.onerror Form submission error callback
      * @returns {Promise<WebElement>}
      */
@@ -227,6 +227,13 @@ class Sipd extends WebRobot {
         if (options.wait === undefined) {
             options.wait = 0;
         }
+        const prefillCallback = form => {
+            return this.works([
+                [x => this.waitSpinner(form)],
+                [x => options.prefillCallback(form), x => typeof options.prefillCallback === 'function'],
+            ]);
+        }
+        const postfillCallback = options.postfillCallback;
         return this.works([
             [w => this.sleep(this.opdelay)],
             [w => this.fillInForm(
@@ -235,8 +242,8 @@ class Sipd extends WebRobot {
                 () => this.confirmSubmission(submit, options),
                 {
                     wait: options.wait,
-                    prefillCallback: form => this.waitSpinner(form),
-                    postfillCallback: options.postfillCallback,
+                    prefillCallback,
+                    postfillCallback,
                 })],
             [w => this.sleep(this.opdelay)],
             [w => Promise.resolve(w.getRes(1))],
@@ -296,21 +303,53 @@ class Sipd extends WebRobot {
      */
     waitCaptcha() {
         return this.works([
-            [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
-            [w => this.waitSolvedCaptcha(), w => w.getRes(0).length],
+            [w => this.findElements(By.xpath(this.CAPTCHA_CONTAINER))],
+            [w => this.waitSolvedCaptcha(w.getRes(0)[0]), w => w.getRes(0).length],
         ]);
     }
 
     /**
      * Wait for captcha to be solved.
      *
+     * @param {WebElement} container Captcha container
      * @returns {Promise<any>}
      */
-    waitSolvedCaptcha() {
+    waitSolvedCaptcha(container) {
         return this.works([
             [w => Promise.resolve(this.debug(dtag)('Awaiting captcha to be solved...'))],
             [w => Promise.resolve(this.setState({captcha: true}))],
-            [w => this.waitForPresence(By.xpath(this.CAPTCHA_MODAL), {presence: false, timeout: 0})],
+            [w => new Promise((resolve, reject) => {
+                const f = () => {
+                    this.works([
+                        [x => container.findElements(By.xpath('.//input[@data-index]'))],
+                        [x => new Promise((resolve, reject) => {
+                            let fulfilled = true;
+                            const q = new Queue(x.getRes(0), digit => {
+                                digit.getAttribute('value')
+                                    .then(val => {
+                                        if (!val) {
+                                            fulfilled = false;
+                                            q.done();
+                                        } else {
+                                            q.next();
+                                        }
+                                    })
+                                    .catch(err => reject(err));
+                            });
+                            q.once('done', () => resolve(fulfilled));
+                        })]
+                    ])
+                    .then(res => {
+                        if (res) {
+                            resolve();
+                        } else {
+                            setTimeout(f, this.loopdelay);
+                        }
+                    })
+                    .catch(err => reject(err));
+                }
+                f();
+            })],
             [w => Promise.resolve(this.setState({captcha: false}))],
         ]);
     }
@@ -322,7 +361,7 @@ class Sipd extends WebRobot {
      */
     captchaImage() {
         return this.works([
-            [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
+            [w => this.findElements(By.xpath(this.CAPTCHA_CONTAINER))],
             [w => new Promise((resolve, reject) => {
                 const f = () => {
                     w.getRes(0)[0].findElements(By.xpath('.//img'))
@@ -350,10 +389,9 @@ class Sipd extends WebRobot {
     solveCaptcha(code) {
         code = SipdUtil.pickNumber(code);
         return this.works([
-            [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
+            [w => this.findElements(By.xpath(this.CAPTCHA_CONTAINER))],
             [w => w.getRes(0)[0].findElements(By.xpath('.//input[@data-index]')), w => w.getRes(0).length],
             [w => Promise.resolve(w.getRes(1).length === code.length), w => w.getRes(0).length],
-            [w => this.clearMessages(), w => w.getRes(2)],
             [w => new Promise((resolve, reject) => {
                 const q = new Queue(w.getRes(1), el => {
                     this.works([
@@ -366,9 +404,6 @@ class Sipd extends WebRobot {
                 });
                 q.once('done', () => resolve());
             }), w => w.getRes(2)],
-            [w => this.sleep(this.opdelay), w => w.getRes(2)],
-            [w => this.getLastMessage(), w => w.getRes(2)],
-            [w => Promise.resolve(null === w.getRes(6) || !w.getRes(6).includes('invalid') ? true : false), w => w.getRes(2)],
         ]);
     }
 
@@ -379,23 +414,10 @@ class Sipd extends WebRobot {
      */
     reloadCaptcha() {
         return this.works([
-            [w => this.findElements(By.xpath(this.CAPTCHA_MODAL))],
+            [w => this.findElements(By.xpath(this.CAPTCHA_CONTAINER))],
             [w => w.getRes(0)[0].findElements(By.xpath('.//div[@class="custom-tippy"]')), w => w.getRes(0).length],
             [w => w.getRes(1)[0].click(), w => w.getRes(0).length],
         ]);
-    }
-
-    /**
-     * Dismiss captcha.
-     *
-     * @returns {Promise<any>}
-     */
-    cancelCaptcha() {
-        if (this.state.captcha) {
-            return this.waitAndClick(By.xpath('//footer/button[2]/span/span[text()="Batalkan"]/../..'));
-        } else {
-            return Promise.resolve();
-        }
     }
 
     /**

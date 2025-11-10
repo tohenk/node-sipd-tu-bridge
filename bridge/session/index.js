@@ -42,7 +42,7 @@ const dtag = 'session';
  */
 class SipdSession {
 
-    fn = ['stop', 'sleep', 'captchaImage', 'solveCaptcha', 'reloadCaptcha', 'cancelCaptcha']
+    fn = ['stop', 'sleep', 'captchaImage', 'solveCaptcha', 'reloadCaptcha']
 
     constructor(options) {
         this.options = options;

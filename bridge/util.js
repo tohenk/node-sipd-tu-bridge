@@ -38,13 +38,10 @@ class SipdUtilBridge extends SipdBridge {
                     this._captcha = true;
                     const f = () => {
                         this._captcha = false;
-                        sess.cancelCaptcha()
-                            .then(() => console.log('Captcha cancelled!'))
-                            .catch(err => console.error(err));
                     }
                     this.getCaptchas(sess, count)
                         .then(() => f())
-                        .catch(err => f());
+                        .catch(() => f());
                 }
                 if (typeof oldOnState === 'function') {
                     oldOnState(s);
