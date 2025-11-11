@@ -139,19 +139,34 @@ class Sipd extends WebRobot {
      */
     doLogin(username, password, role) {
         return this.works([
-            [w => this.formSubmit(
-                By.xpath(this.LOGIN_FORM),
-                By.xpath('//button[@type="submit"]'),
-                [
-                    {
-                        target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'),
-                        value: this.year,
-                        onfill: (el, value) => this.reactSelect(el, value, 'Tahun anggaran tidak tersedia!')
-                    },
-                    {target: By.id('ed_username'), value: username},
-                    {target: By.id('ed_password'), value: password},
-                ],
-                {spinner: true, prefillCallback: () => this.waitCaptcha()})],
+            [w => new Promise((resolve, reject) => {
+                const f = () => {
+                    this.formSubmit(
+                        By.xpath(this.LOGIN_FORM),
+                        By.xpath('//button[@type="submit"]'),
+                        [
+                            {
+                                target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'),
+                                value: this.year,
+                                onfill: (el, value) => this.reactSelect(el, value, 'Tahun anggaran tidak tersedia!')
+                            },
+                            {target: By.id('ed_username'), value: username},
+                            {target: By.id('ed_password'), value: password},
+                        ],
+                        {spinner: true, prefillCallback: () => this.waitCaptcha()}
+                    )
+                    .then(() => resolve())
+                    .catch(err => {
+                        // retry on invalid captcha
+                        if (typeof err === 'string' && err.toLowerCase().includes('invalid captcha')) {
+                            setTimeout(f, this.loopdelay);
+                        } else {
+                            reject(err);
+                        }
+                    });
+                }
+                f();
+            })],
             [w => this.selectAccount(role)],
             [w => this.waitLoader()],
         ]);
