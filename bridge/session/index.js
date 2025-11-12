@@ -1148,7 +1148,7 @@ class SipdSession {
 
     storeFile(queue, value, ext) {
         return new Promise((resolve, reject) => {
-            let maxSize, tmpdirname = 'temp';
+            let maxSize, tmpdirname = this.options.tmpdirname;
             if (Array.isArray(value)) {
                 if (value.length > 1) {
                     maxSize = value[1];

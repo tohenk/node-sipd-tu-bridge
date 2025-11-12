@@ -74,6 +74,9 @@ class Configuration {
         if (!this.workdir) {
             this.workdir = rootDir;
         }
+        if (!this.tmpdirname) {
+            this.tmpdirname = 'tmp';
+        }
         if (this.mode) {
             this.initialize();
         }

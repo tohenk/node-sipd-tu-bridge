@@ -106,4 +106,4 @@ dist
 # app
 /captcha/
 /profile/
-/temp/
+/tmp/

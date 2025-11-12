@@ -326,7 +326,7 @@ class App {
                         bridge.captchaSolving = true;
                         const f = () => {
                             Work.works([
-                                [w => bridge.saveCaptcha('tmp')],
+                                [w => bridge.saveCaptcha(this.config.tmpdirname)],
                                 [w => this.config.solver(w.getRes(0), bridge.loginfo), w => w.getRes(0)],
                                 [w => bridge.solveCaptcha(w.getRes(1)), w => w.getRes(1)],
                             ])
