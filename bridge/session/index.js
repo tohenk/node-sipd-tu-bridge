@@ -91,6 +91,41 @@ class SipdSession {
                 SipdColumnQuery.stringables[stringable] = fn;
             }
         }
+        // PDF optimizer using Ghostscript:
+        // {
+        //     "global": {
+        //         "pdfOptimize": {
+        //           "bin": "gs",
+        //           "args": [
+        //              "-q",
+        //              "-dNOPAUSE",
+        //              "-dBATCH",
+        //              "-dSAFER",
+        //              "-dSimulateOverprint=true",
+        //              "-sDEVICE=pdfwrite",
+        //              "-dCompatibilityLevel=1.4",
+        //              "-dPDFSETTINGS=/ebook",
+        //              "-dEmbedAllFonts=true",
+        //              "-dSubsetFonts=true",
+        //              "-dAutoRotatePages=/None",
+        //              "-dColorImageDownsampleType=/Bicubic",
+        //              "-dColorImageResolution=100",
+        //              "-dGrayImageDownsampleType=/Bicubic",
+        //              "-dGrayImageResolution=100",
+        //              "-dMonoImageDownsampleType=/Bicubic",
+        //              "-dMonoImageResolution=100",
+        //              "-sOutputFile=\"%OUT%\"",
+        //              "\"%IN%\""
+        //           ]
+        //     }
+        // }
+        if (this.options.pdfOptimize) {
+            let pdfOptimizer = this.options.pdfOptimize;
+            if (pdfOptimizer.bin && Array.isArray(pdfOptimizer.args)) {
+                pdfOptimizer = `${pdfOptimizer.bin} ${pdfOptimizer.args.join(' ')}`;
+            }
+            this.pdfOptimizer = pdfOptimizer;
+        }
     }
 
     doInitialize() {
@@ -1139,17 +1174,12 @@ class SipdSession {
             }
             if (maxSize) {
                 const maxSizeByte = SipdUtil.getBytes(maxSize);
-                // {
-                //     "global": {
-                //         "pdfOptimize": "gs -q -dNOPAUSE -dBATCH -dSAFER -dSimulateOverprint=true -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dEmbedAllFonts=true -dSubsetFonts=true -dAutoRotatePages=/None -dColorImageDownsampleType=/Bicubic -dColorImageResolution=100 -dGrayImageDownsampleType=/Bicubic -dGrayImageResolution=100 -dMonoImageDownsampleType=/Bicubic -dMonoImageResolution=100 -sOutputFile=\"%OUT%\" \"%IN%\""
-                //     }
-                // }
-                if (pdfSize > maxSizeByte && this.options.pdfOptimize) {
+                if (pdfSize > maxSizeByte && typeof this.pdfOptimizer === 'string') {
                     saved = true;
                     const tmpfile = this.genFilename('doctmp', `${queue.id}.orig.pdf`);
                     this.saveFile(tmpfile, value);
                     const exec = require('child_process').exec;
-                    const cmd = this.options.pdfOptimize
+                    const cmd = this.pdfOptimizer
                         .replace(/%IN%/g, tmpfile)
                         .replace(/%OUT%/g, pdfFile);
                     exec(cmd, (err, stdout, stderr) => {
