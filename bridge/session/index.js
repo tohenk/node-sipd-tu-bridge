@@ -985,13 +985,15 @@ class SipdSession {
                         }
                         break;
                     case 'FILE':
-                        const docfile = this.genFilename('doctmp', `${queue.id}.pdf`);
-                        files.push(docfile);
+                    case 'PDF':
                         data.onfill = (el, value) => new Promise((resolve, reject) => {
                             if (value) {
-                                this.optimizePdf(queue, value, docfile)
-                                    .then(() => {
-                                        el.sendKeys(docfile)
+                                this.storeFile(queue, value, vtype === 'PDF' ? 'pdf' : 'tmp')
+                                    .then(filename => {
+                                        if (!files.includes(filename)) {
+                                            files.push(filename);
+                                        }
+                                        el.sendKeys(filename)
                                             .then(() => resolve(true))
                                             .catch(err => reject(err));
                                     })
@@ -1144,9 +1146,9 @@ class SipdSession {
         }
     }
 
-    optimizePdf(queue, value, pdfFile) {
+    storeFile(queue, value, ext) {
         return new Promise((resolve, reject) => {
-            let maxSize, maxSizeByte, pdfSize, saved = false;
+            let maxSize, tmpdirname = 'temp';
             if (Array.isArray(value)) {
                 if (value.length > 1) {
                     maxSize = value[1];
@@ -1158,37 +1160,55 @@ class SipdSession {
                 value = Buffer.from(value.data);
             }
             if (!Buffer.isBuffer(value)) {
-                return reject('Value of PDF must be buffer!');
+                return reject('Value for file upload must be buffer!');
             }
-            pdfSize = value.byteLength;
+            let storedFile = this.genFilename(tmpdirname, `${queue.id}.${ext}`);
+            let storedSize = value.byteLength;
+            let maxSizeByte, saved = false;
             const done = () => {
-                if (maxSizeByte && pdfSize > maxSizeByte) {
-                    reject(`PDF size is larger than allowable of ${maxSize}!`);
+                if (maxSizeByte && storedSize > maxSizeByte) {
+                    reject(`File size is larger than ${maxSize}!`);
                 } else {
-                    queue.filesize = pdfSize;
                     if (!saved) {
-                        this.saveFile(pdfFile, value);
+                        this.saveFile(storedFile, value);
                     }
-                    resolve();
+                    if (fs.existsSync(storedFile)) {
+                        queue.filesize = storedSize;
+                        resolve(storedFile);
+                    } else {
+                        reject(`File not found ${storedFile}!`);
+                    }
                 }
             }
             if (maxSize) {
-                const maxSizeByte = SipdUtil.getBytes(maxSize);
-                if (pdfSize > maxSizeByte && typeof this.pdfOptimizer === 'string') {
-                    saved = true;
-                    const tmpfile = this.genFilename('doctmp', `${queue.id}.orig.pdf`);
+                maxSizeByte = SipdUtil.getBytes(maxSize);
+                // optimize PDF when size is larger than expected
+                if (ext === 'pdf' && storedSize > maxSizeByte && typeof this.pdfOptimizer === 'string') {
+                    const tmpfile = this.genFilename(tmpdirname, `${queue.id}.orig.${ext}`);
                     this.saveFile(tmpfile, value);
                     const exec = require('child_process').exec;
                     const cmd = this.pdfOptimizer
                         .replace(/%IN%/g, tmpfile)
-                        .replace(/%OUT%/g, pdfFile);
+                        .replace(/%OUT%/g, storedFile);
                     exec(cmd, (err, stdout, stderr) => {
-                        if (!err && fs.existsSync(pdfFile)) {
-                            fs.unlinkSync(tmpfile);
-                            pdfSize = fs.statSync(pdfFile).size;
-                            this.debug(dtag)(`Optimized PDF size ${pdfSize}, original was ${value.byteLength}`);
+                        if (!err && fs.existsSync(storedFile)) {
+                            saved = true;
+                            const newSize = fs.statSync(storedFile).size;
+                            this.debug(dtag)(`Optimized PDF size ${newSize}, original was ${storedSize}`);
+                            // is optimized PDF reduced in size?
+                            if (newSize < storedSize) {
+                                fs.unlinkSync(tmpfile);
+                                storedSize = newSize;
+                            } else {
+                                // use original
+                                fs.unlinkSync(storedFile);
+                                storedFile = tmpfile;
+                            }
                             done();
                         } else {
+                            if (fs.existsSync(tmpfile)) {
+                                fs.unlinkSync(tmpfile);
+                            }
                             let msg = err instanceof Error ? err.toString() : err;
                             if (!msg) {
                                 msg = stderr.toString().trim();

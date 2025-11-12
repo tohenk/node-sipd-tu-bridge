@@ -14,7 +14,7 @@
         "=.//label[text()='Tujuan Pembayaran']/../textarea": "FORMAT:%1% (%2%)|UNTUK|KODE",
         "+=.//label[text()='Rekanan']/../div/p": "REKANAN:LEMBAGA|NIK",
         "#nama_tujuan": "NO_KONTRAK",
-        "filepond": "FILE:BUKTI|50k",
+        "filepond": "PDF:BUKTI|50k",
         "=.//p[text()='Pilih Salah Satu Kegiatan Disini']/../../button": "KEG:KEG",
         "+=.//p/span[text()='Sub Kegiatan']/../../../button": "KEG:KEG",
         "=.//p[contains(@class,'form-label') and text()='Belanja']/../div[2]": "AFEKTASI:AFEKTASI",

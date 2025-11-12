@@ -36,7 +36,7 @@
         "=.//label[text()='Tanggal']/../input": "TGL_NPD",
         "~=.//p[text()='Tunai']": "BAYAR=tunai?DO:CLICK",
         "=.//label[text()='Nomor Kwitansi']/../div/div/input": "NOBUKTI",
-        "filepond": "FILE:BUKTI|2m",
+        "filepond": "PDF:BUKTI|50k",
         "+=.//label[text()='Rekanan']/../div/p": "JENIS=usaha?REKANAN:USAHA|NIK,REKANAN:NAMA|NIK"
     },
     "rekanan": {
