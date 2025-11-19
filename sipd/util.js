@@ -53,6 +53,22 @@ class SipdUtil {
     }
 
     /**
+     * Escape search term.
+     *
+     * @param {any} s Search term
+     * @returns {any}
+     */
+    static escapeTerm(s) {
+        if (typeof s === 'string') {
+            if (s.includes('\n')) {
+                s = s.split('\n')[0];
+            }
+            s = s.replace(/'/g, '\'\'');
+        }
+        return s;
+    }
+
+    /**
      * Ensure date is a date object.
      *
      * @param {string|number|Date} date The date

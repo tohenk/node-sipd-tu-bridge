@@ -202,6 +202,9 @@ class SipdColumnQuery {
             if (typeof this.toStr === 'function') {
                 value = this.toStr(value);
             }
+            if (typeof value === 'string' && value.includes('\n')) {
+                value = value.split('\n').join(' ');
+            }
         }
         return value;
     }

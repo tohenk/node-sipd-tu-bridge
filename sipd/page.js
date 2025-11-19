@@ -23,6 +23,7 @@
  */
 
 const Queue = require('@ntlab/work/queue');
+const SipdUtil = require('./util');
 const { Sipd } = require('.');
 const { By, WebElement } = require('selenium-webdriver');
 
@@ -326,7 +327,7 @@ class SipdPage {
                 const q = new Queue(queues, s => {
                     const data = {
                         elements: [s.el],
-                        value: typeof s.value === 'string' ? s.value.replace(/'/g, '\'\'') : s.value,
+                        value: SipdUtil.escapeTerm(s.value),
                         clearUsingKey: this.parent.options.clearUsingKey,
                     }
                     this.parent.fillFormValue(data)
