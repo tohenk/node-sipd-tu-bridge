@@ -324,9 +324,12 @@ class SipdPage {
                     queues.push({el: searches[i], value: terms[i]});
                 }
                 const q = new Queue(queues, s => {
-                    this.parent.fillInput(s.el,
-                        typeof s.value === 'string' ? s.value.replace(/'/g, '\'\'') : s.value,
-                        this.parent.options.clearUsingKey)
+                    const data = {
+                        elements: [s.el],
+                        value: typeof s.value === 'string' ? s.value.replace(/'/g, '\'\'') : s.value,
+                        clearUsingKey: this.parent.options.clearUsingKey,
+                    }
+                    this.parent.fillFormValue(data)
                         .then(() => q.next())
                         .catch(err => reject(err));
                 });
