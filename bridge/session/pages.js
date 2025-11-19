@@ -390,7 +390,7 @@ class SipdQuerySpp extends SipdQueryBase {
             } else {
                 tgl = SipdUtil.getDate(this.data.getMappedData('spp.spp:TGL'));
                 nominal = this.data.getMappedData('spp.spp:NOMINAL');
-                untuk = SipdUtil.getSafeStr(this.data.getMappedData('spp.spp:UNTUK'));
+                untuk = this.data.getMappedData('spp.spp:UNTUK');
             }
             this.placeholder = 'keterangan';
             this.search.push(untuk);
@@ -398,7 +398,7 @@ class SipdQuerySpp extends SipdQueryBase {
                 this.diffs.push(['tgl', tgl]);
             }
             this.diffs.push(
-                ['untuk', untuk],
+                ['untuk', SipdUtil.getSafeStr(untuk)],
                 ['nom', nominal],
             );
         }
@@ -408,6 +408,13 @@ class SipdQuerySpp extends SipdQueryBase {
             this.data[`${nomor}_TGL`] = this.data.values.tgl;
             this.data[`${nomor}_UNTUK`] = this.data.values.untuk;
             this.data[`${nomor}_NOM`] = this.data.values.nom;
+        }
+        // for SPP number query, column `untuk` must retained as is
+        if (no) {
+            const col = this.columns.find(column => column.name === 'untuk');
+            if (col) {
+                delete col.normalizer;
+            }
         }
     }
 
