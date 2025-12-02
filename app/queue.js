@@ -74,6 +74,50 @@ class SipdDequeue extends EventEmitter {
         return this;
     }
 
+    createNewQueue(data) {
+        let queue;
+        switch (data.type) {
+            case SipdQueue.QUEUE_SPP:
+                queue = SipdQueue.createSppQueue(data.data, data.callback);
+                break;
+            case SipdQueue.QUEUE_SPP_QUERY:
+                queue = SipdQueue.createSppQueryQueue(data.data, data.callback);
+                break;
+            case SipdQueue.QUEUE_LPJ:
+                queue = SipdQueue.createLpjQueue(data.data, data.callback);
+                break;
+            case SipdQueue.QUEUE_LPJ_QUERY:
+                queue = SipdQueue.createLpjQueryQueue(data.data, data.callback);
+                break;
+            case SipdQueue.QUEUE_REKANAN:
+                queue = SipdQueue.createRekananQueue(data.data, data.callback);
+                break;
+            case SipdQueue.QUEUE_CAPTCHA:
+                queue = SipdQueue.createCaptchaQueue(data.data);
+                break;
+            case SipdQueue.QUEUE_NOOP:
+                queue = SipdQueue.createNoopQueue(data.data);
+                break;
+            case SipdQueue.QUEUE_CLEAN:
+                queue = SipdQueue.createCleanQueue(data.data);
+                break;
+        }
+        if (queue) {
+            if (queue.isFlagged('m') && typeof this.setMaps === 'function') {
+                this.setMaps(queue);
+            } else {
+                queue.info = null;
+            }
+            if (queue.isFlagged('r')) {
+                queue.retry = true;
+            }
+            if (queue.isFlagged('-')) {
+                queue.readonly = true;
+            }
+        }
+        return queue;
+    }
+
     processQueue() {
         if (this.consumers) {
             if (this.queues.length) {
@@ -421,6 +465,7 @@ class SipdBridgeConsumer extends SipdConsumer
             SipdQueue.QUEUE_SPP_QUERY,
             SipdQueue.QUEUE_LPJ,
             SipdQueue.QUEUE_LPJ_QUERY,
+            SipdQueue.QUEUE_REKANAN,
             SipdQueue.QUEUE_CAPTCHA,
             SipdQueue.QUEUE_NOOP,
         ];
@@ -478,6 +523,8 @@ class SipdBridgeConsumer extends SipdConsumer
                 return this.bridge.createLpj(queue);
             case SipdQueue.QUEUE_LPJ_QUERY:
                 return this.bridge.queryLpj(queue);
+            case SipdQueue.QUEUE_REKANAN:
+                return this.bridge.queryRekanan(queue);
             case SipdQueue.QUEUE_CAPTCHA:
                 return this.bridge.fetchCaptcha(queue);
             case SipdQueue.QUEUE_NOOP:
@@ -730,16 +777,20 @@ class SipdQueue
         }
     }
 
-    isExportable() {
-        return ![SipdQueue.QUEUE_CALLBACK, SipdQueue.QUEUE_CLEAN].includes(this.type);
+    isFlagged(flag) {
+        const metadata = this.constructor.QUEUE_METADATA;
+        if (typeof metadata[this.type] === 'string') {
+            return metadata[this.type].includes(flag) ? true : false;
+        }
+        return false;
     }
 
     isSaveable() {
-        return this.isExportable() && [SipdQueue.STATUS_NEW].includes(this.status);
+        return this.isFlagged('e') && [SipdQueue.STATUS_NEW].includes(this.status);
     }
 
     isLoggable() {
-        return this.isExportable() && ![SipdQueue.STATUS_NEW, SipdQueue.STATUS_PROCESSING].includes(this.status);
+        return this.isFlagged('e') && ![SipdQueue.STATUS_NEW, SipdQueue.STATUS_PROCESSING].includes(this.status);
     }
 
     toString() {
@@ -771,6 +822,10 @@ class SipdQueue
 
     static createLpjQueryQueue(data, callback = null) {
         return this.create(SipdQueue.QUEUE_LPJ_QUERY, data, callback);
+    }
+
+    static createRekananQueue(data, callback = null) {
+        return this.create(SipdQueue.QUEUE_REKANAN, data, callback);
     }
 
     static createCallbackQueue(data, callback = null) {
@@ -815,10 +870,25 @@ class SipdQueue
         return false;
     }
 
+    static get QUEUE_METADATA() {
+        // e: can be exported
+        // m: can have map
+        // r: can be retried
+        // -: readonly
+        return {
+            [this.QUEUE_SPP]: 'emr',
+            [this.QUEUE_SPP_QUERY]: 'em-',
+            [this.QUEUE_LPJ]: 'emr',
+            [this.QUEUE_LPJ_QUERY]: 'em-',
+            [this.QUEUE_REKANAN]: 'em-',
+        }
+    }
+
     static get QUEUE_SPP() { return 'spp' }
     static get QUEUE_SPP_QUERY() { return 'spp-query' }
     static get QUEUE_LPJ() { return 'lpj' }
     static get QUEUE_LPJ_QUERY() { return 'lpj-query' }
+    static get QUEUE_REKANAN() { return 'rekanan' }
     static get QUEUE_CALLBACK() { return 'callback' }
     static get QUEUE_CAPTCHA() { return 'captcha' }
     static get QUEUE_NOOP() { return 'noop' }

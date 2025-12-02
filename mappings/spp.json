@@ -4,8 +4,8 @@
         "unit": "UNIT",
         "role": "KEG",
         "title": "FORMAT:%1% (%2%)|LEMBAGA|ID",
-        "usaha": "LEMBAGA",
         "nik": "NIK",
+        "rekanan": "LEMBAGA",
         "check": "SPP"
     },
     "spp": {

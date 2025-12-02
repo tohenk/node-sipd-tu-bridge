@@ -5,9 +5,8 @@
         "role": "KEG",
         "title": "FORMAT:%1% (%2%)|URAIAN|ID",
         "jenis": "JENIS",
-        "usaha": "USAHA",
-        "rekanan": "NAMA",
         "nik": "NIK",
+        "rekanan": "NAMA",
         "check": "NPD",
         "operasi": "OP"
     },

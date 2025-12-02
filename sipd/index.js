@@ -54,6 +54,7 @@ class Sipd extends WebRobot {
         this.loopdelay = this.options.loopdelay || 25;
         super.constructor.expectErr(error.StaleElementReferenceError);
         super.constructor.expectErr(SipdAnnouncedError);
+        super.constructor.expectErr(SipdRestartError);
         super.constructor.expectErr(SipdRetryError);
     }
 
@@ -620,10 +621,14 @@ class Sipd extends WebRobot {
      * Click the element and wait until it's expanded.
      *
      * @param {WebElement} el The element
+     * @param {string|boolean} state Expected state
      * @returns {Promise<any>}
      */
-    clickExpanded(el) {
+    clickExpanded(el, state = true) {
         let click = true;
+        if (typeof state === 'boolean') {
+            state = true === state ? 'true' : 'false';
+        }
         return new Promise((resolve, reject) => {
             const f = () => {
                 this.works([
@@ -632,7 +637,7 @@ class Sipd extends WebRobot {
                 ])
                 .then(res => {
                     click = false;
-                    if (res === 'true') {
+                    if (res === state) {
                         resolve();
                     } else {
                         setTimeout(f, this.loopdelay);
@@ -1091,10 +1096,13 @@ class SipdAnnouncedError extends Error {
     }
 }
 
+class SipdRestartError extends Error {
+}
+
 class SipdRetryError extends Error {
 }
 
 class SipdCleanAndRetryError extends SipdRetryError {
 }
 
-module.exports = {Sipd, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError};
+module.exports = {Sipd, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdCleanAndRetryError};

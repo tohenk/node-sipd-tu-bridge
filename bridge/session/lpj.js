@@ -24,7 +24,7 @@
 
 const SipdSession = require('.');
 const { SipdNpdKegActivitySelector, SipdNpdSubKegActivitySelector } = require('./activity');
-const { SipdQueryNpd, SipdQueryTbp } = require('./pages');
+const { SipdQueryNpd, SipdQueryTbp } = require('./query');
 const { By } = require('selenium-webdriver');
 
 class SipdLpjSession extends SipdSession {
@@ -33,7 +33,6 @@ class SipdLpjSession extends SipdSession {
         this.createAfektasi('npd');
         this.kegSelector = new SipdNpdKegActivitySelector();
         this.subkegSelector = new SipdNpdSubKegActivitySelector();
-        this.progressInitialValue = 'Baru';
     }
 
     queryNpd(queue, options) {

@@ -1,0 +1,24 @@
+{
+    "info": {
+        "unit": "UNIT",
+        "role": "KEG",
+        "title": "NIK",
+        "jenis": "JENIS",
+        "nik": "NIK"
+    },
+    "rekanan": {
+        "?~=.//p[text()='Perusahaan']/..": "STATE:JENIS,usaha,css-i3t0fewa",
+        "?~=.//p[text()='NON PNS']/..": "STATE:JENIS,orang,css-i3t0fewa",
+        "?~=.//p[text()='PNS']/..": "STATE:JENIS,pns,css-i3t0fewa",
+        "?nama_tujuan": "NAMA",
+        "?nik": "NIK",
+        "?nama_perusahaan": "USAHA",
+        "?npwp": "NPWP",
+        "?telepon_perusahaan": "TELEPON",
+        "?alamat_perusahaan": "ALAMAT",
+        "?nomor_rekening": "BANK_REK",
+        "?nama_rekening": "BANK_NAMA",
+        "?=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']": "BANK",
+        "?cabang_bank": "BANK_CAB"
+    }
+}

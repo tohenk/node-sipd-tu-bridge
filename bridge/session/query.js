@@ -22,10 +22,14 @@
  * SOFTWARE.
  */
 
+const Queue = require('@ntlab/work/queue');
 const SipdPage = require('../../sipd/page');
 const SipdUtil = require('../../sipd/util');
+const { SipdAnnouncedError, SipdRestartError } = require('../../sipd');
 const { SipdQuery, SipdColumnQuery } = require('../../sipd/query');
-const { By } = require('selenium-webdriver');
+const { By, WebElement } = require('selenium-webdriver');
+
+const dtag = 'query';
 
 /**
  * Provides initialization mechanism for data paging.
@@ -35,7 +39,9 @@ const { By } = require('selenium-webdriver');
 class SipdQueryBase extends SipdQuery {
 
     initialize() {
+        this.mode = this.constructor.MODE_MATCH;
         this.actionEnabled = false;
+        this.progressInitialValue = 'Baru';
         this.doPreInitialize();
         this.doInitialize();
         this.doPostInitialize();
@@ -122,6 +128,308 @@ class SipdQueryBase extends SipdQuery {
         }
         return 'default';
     }
+
+    /**
+     * Get tippy text content.
+     *
+     * @param {WebElement} el Tippy element
+     * @returns {Promise<string>}
+     */
+    getTippy(el) {
+        return this.parent.driver.executeScript(
+            function(el) {
+                if (el._tippy && el._tippy.popper) {
+                    return el._tippy.popper.innerText;
+                }
+            }, el);
+    }
+
+    /**
+     * Get progress value.
+     *
+     * @param {WebElement} el Progress element
+     * @returns {Promise<string>}
+     */
+    getProgress(el, selector) {
+        let res;
+        return this.parent.works([
+            [w => el.findElements(selector)],
+            [w => new Promise((resolve, reject) => {
+                const q = new Queue([...w.getRes(0).reverse()], p => {
+                    if (!res) {
+                        this.parent.works([
+                            [x => p.getAttribute('innerHTML')],
+                            [x => p.findElement(By.xpath('../*[@class="stepProgressBar__step__button__label"]'))],
+                            [x => x.getRes(1).getAttribute('innerText')],
+                            [x => Promise.resolve(res = x.getRes(2)), x => x.getRes(0)],
+                        ])
+                        .then(() => q.next())
+                        .catch(err => reject(err));
+                    } else {
+                        q.next();
+                    }
+                });
+                q.once('done', () => resolve(res ?? (w.getRes(0).length ? this.progressInitialValue : null)));
+            })],
+        ]);
+    }
+
+    /**
+     * Get row data for data paging colums.
+     *
+     * @param {SipdColumnQuery[]} columns Columns data
+     * @param {WebElement} el The Element
+     * @returns {Promise<object>}
+     */
+    getRowData(columns, el) {
+        return new Promise((resolve, reject) => {
+            const res = {};
+            const q = new Queue([...columns], col => {
+                const works = [];
+                switch (col.type) {
+                    case SipdColumnQuery.COL_ACTION:
+                        works.push(...[
+                            [w => this.parent.findElement({el, data: col.xpath})]
+                        ]);
+                        break;
+                    case SipdColumnQuery.COL_PROGRESS:
+                        works.push(...[
+                            [w => this.getProgress(el, col.xpath)]
+                        ]);
+                        break;
+                    default:
+                        const tippy = col.tippyXpath;
+                        if (tippy) {
+                            works.push(...[
+                                [w => el.findElements(tippy)],
+                                [w => this.getTippy(w.res[0]), w => w.res.length],
+                            ]);
+                        } else {
+                            works.push(...[
+                                [w => this.parent.getText([col.xpath], el)],
+                                [w => Promise.resolve(w.res[0])],
+                            ]);
+                        }
+                        break;
+                }
+                this.parent.works([
+                    ...works,
+                    [w => Promise.resolve(res[col.name] = typeof w.res === 'string' ? col.normalize(w.res) : w.res)],
+                ])
+                .then(() => q.next())
+                .catch(err => reject(err));
+            });
+            q.once('done', () => resolve(res));
+        });
+    }
+
+    /**
+     * Perform row data match.
+     *
+     * @param {WebElement} el Row element
+     * @param {Object} values Row values
+     * @param {Object} result Match result
+     * @returns {Promise<any>}
+     */
+    doMatch(el, values, result) {
+        return new Promise((resolve, reject) => {
+            const dbg = (l, s) => `${l} (${s ? '✓' : '✗'})`;
+            const f = (...args) => {
+                const res = {
+                    states: [],
+                    info: [],
+                }
+                for (const arg of args) {
+                    if (arg[2]) {
+                        let okay;
+                        if (typeof arg[0] === 'string' && typeof arg[1] === 'string') {
+                            okay = arg[0].toLowerCase() === arg[1].toLowerCase();
+                        } else {
+                            okay = arg[0] == arg[1];
+                        }
+                        res.states.push(okay);
+                        res.info.push(dbg(arg[1], okay));
+                    } else {
+                        res.info.push(arg[1]);
+                    }
+                }
+                res.okay = true;
+                res.states.forEach(state => {
+                    if (!state) {
+                        res.okay = false;
+                        return true;
+                    }
+                });
+                return res;
+            }
+            const compares = [];
+            for (const [col, value, required] of this.diffs) {
+                const column = this.columns.find(column => column.name === col);
+                if (column) {
+                    compares.push([column.asString(value), column.asString(values[col]), required !== undefined ? required : true]);
+                }
+            }
+            result.expectedValue = compares
+                .filter(v => v[2])
+                .map(v => v[0])
+                .join('-');
+            result.statusCol = this.columns.find(column => [SipdColumnQuery.COL_STATUS, SipdColumnQuery.COL_PROGRESS]
+                .includes(column.type));
+            result.actionCol = this.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
+            let status;
+            if (result.statusCol) {
+                status = values[result.statusCol.name];
+            }
+            const states = f(...compares);
+            const rowstate = `[${states.okay ? '✓' : '✗'}]`;
+            if (status !== undefined) {
+                this.parent.debug(dtag)('Row state:', rowstate, `<${status}>`, ...states.info);
+            } else {
+                this.parent.debug(dtag)('Row state:', rowstate, ...states.info);
+            }
+            if (states.okay) {
+                result.retval = el;
+                if (this.isActionEnabled() && result.actionCol) {
+                    result.clicker = values[result.actionCol.name];
+                }
+                if (status !== undefined) {
+                    this.data.STATUS = status;
+                }
+                this.data.values = values;
+                if (typeof this.onResult === 'function') {
+                    this.onResult();
+                }
+                reject(SipdPage.stop());
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    /**
+     * Perform row data iteration.
+     *
+     * @param {WebElement} el Row element
+     * @param {Object} values Row values
+     * @param {Object} result Match result
+     * @returns {Promise<any>}
+     */
+    doIterate(el, values, result) {
+        return new Promise((resolve, reject) => {
+            if (result.retval === undefined) {
+                result.retval = [];
+            }
+            if (this.isActionEnabled() && typeof this.onIterate === 'function') {
+                this.onIterate(el, values, result)
+                    .then(res => {
+                        result.retval.push(res);
+                        reject(new SipdRestartError());
+                    })
+                    .catch(err => reject(err));
+            } else {
+                const actionCol = this.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
+                if (actionCol) {
+                    delete values[actionCol.name];
+                }
+                result.retval.push(values);
+                resolve();
+            }
+        });
+    }
+
+    /**
+     * Walk through the data rows and perform matching or iteration.
+     *
+     * @returns {Promise<any>}
+     */
+    walk() {
+        let result = {};
+        const searchable = search => {
+            if (search) {
+                if (Array.isArray(search)) {
+                    return search
+                        .filter(a => a !== undefined && a !== null)
+                        .length ? true : false;
+                }
+                return true;
+            }
+            return false;
+        }
+        const iterator = el => {
+            switch (this.mode) {
+                case this.constructor.MODE_MATCH:
+                    return [
+                        [x => this.getRowData(this.columns, el)],
+                        [x => this.doMatch(el, x.getRes(0), result)],
+                    ];
+                case this.constructor.MODE_ITERATE:
+                    return [
+                        [x => this.getRowData(this.columns, el)],
+                        [x => this.doIterate(el, x.getRes(0), result)],
+                    ];
+            }
+        }
+        const resolver = res => {
+            return new Promise((resolve, reject) => {
+                switch (this.mode) {
+                    case this.constructor.MODE_MATCH:
+                        if (!this.actionEnabled) {
+                            resolve(res.retval);
+                        } else if (res.clicker) {
+                            res.clicker.click()
+                                .then(() => resolve())
+                                .catch(err => reject(err));
+                        } else {
+                            reject(new SipdAnnouncedError(`${this.options.title}: ${res.expectedValue} not found!`));
+                        }
+                        break;
+                    case this.constructor.MODE_ITERATE:
+                        resolve(res.retval || []);
+                        break;
+                }
+            });
+        }
+        return this.parent.works([
+            [w => this.parent.navigate(...this.navigates), w => this.navigates],
+            [w => this.parent.waitLoader()],
+            [w => new Promise((resolve, reject) => {
+                const options = {};
+                if (this.mode === this.constructor.MODE_ITERATE) {
+                    options.states = {};
+                }
+                const f = () => {
+                    this.parent.works([
+                        [x => this.parent.gotoPageTop(), x => this.group],
+                        [x => this.parent.subPageNav(...(Array.isArray(this.group) ? this.group : [this.group])), x => this.group],
+                        [x => this.page.setup()],
+                        [x => this.page.search(...(Array.isArray(this.search) ? this.search : [this.search])), x => searchable(this.search)],
+                        [x => this.page.each(options, iterator)],
+                    ])
+                    .then(() => resolve())
+                    .catch(err => {
+                        if (err instanceof SipdRestartError) {
+                            options.states.row++;
+                            if (options.states.row > options.states.rows) {
+                                options.states.row = 1;
+                                options.states.page++;
+                                if (options.states.page > options.states.pages) {
+                                    return resolve();
+                                }
+                            }
+                            setTimeout(f, 0);
+                        } else {
+                            reject(err);
+                        }
+                    });
+                }
+                f();
+            })],
+            [w => resolver(result)],
+        ]);
+    }
+
+    static get MODE_MATCH() { return 1 }
+    static get MODE_ITERATE() { return 2 }
 }
 
 /**
@@ -180,11 +488,25 @@ class SipdVoterRekanan extends SipdVoter {
 
     doInitialize() {
         this.options.title = 'Daftar Rekanan';
-        this.search = [this.data.value];
-        this.placeholder = this.usaha ? 'perusahaan' : 'nama rekanan';
-        if (Array.isArray(this.data.value)) {
-            this.placeholder = [this.placeholder, 'nik'];
+        this.diffs = [];
+        const rekanan = Array.isArray(this.data.value) ? this.data.value[0] : this.data.value;
+        const nik = Array.isArray(this.data.value) ? this.data.value[1] : null;
+        if (this.usaha) {
+            this.search = [rekanan];
+            this.placeholder = 'perusahaan';
+            this.diffs.push(['usaha', rekanan]);
+            if (nik) {
+                this.search.push(nik);
+                this.placeholder = [this.placeholder, 'nik'];
+            }
+        } else {
+            this.search = [nik];
+            this.placeholder = 'nik';
         }
+        if (nik) {
+            this.diffs.push(['nik', nik]);
+        }
+        this.diffs.push(['nama', null, false]);
         this.pagerOptions = {
             selector: '//h1[contains(@class,"card-title")]/h1[text()="%TITLE%"]/../../../..',
             search: this.getFilterSelector(),
@@ -195,13 +517,6 @@ class SipdVoterRekanan extends SipdVoter {
             usaha: {selector: './td[2]/div/div/div[2]/span[1]'},
             action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
         }
-        const rekanan = Array.isArray(this.data.value) ? this.data.value[0] : this.data.value;
-        const nik = Array.isArray(this.data.value) ? this.data.value[1] : null;
-        this.diffs = [
-            [this.usaha ? 'usaha' : 'nama', rekanan],
-            nik ? ['nik', nik] : null,
-            this.usaha ? ['nama', null, false] : null,
-        ].filter(Boolean);
     }
 
     get jenis() {
@@ -264,7 +579,7 @@ class SipdQueryRekanan extends SipdVoterRekanan {
         this.dialog = false;
         this.options.jenis = this.data.getMappedData('info.jenis');
         this.data.value = [
-            SipdUtil.getSafeStr(this.data.getMappedData(this.usaha ? 'info.usaha' : 'info.rekanan')),
+            SipdUtil.getSafeStr(this.data.getMappedData('info.rekanan')),
             this.data.getMappedData('info.nik'),
         ];
     }
@@ -273,7 +588,6 @@ class SipdQueryRekanan extends SipdVoterRekanan {
         this.defaultColumns.action.selector = './td[4]/a';
     }
 }
-
 
 /**
  * Handles NPD data paging.

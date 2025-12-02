@@ -23,7 +23,6 @@
  */
 
 const SipdBridge = require('.');
-const SipdQueue = require('../app/queue');
 const SipdSppSession = require('./session/spp');
 const { SipdRole } = require('../sipd/role');
 
@@ -35,52 +34,35 @@ class SipdSppBridge extends SipdBridge {
         return new SipdSppSession(options);
     }
 
-    processSpp({queue, works}) {
-        return this.do([
-            // switch role
-            ['role', w => this.checkRole(queue)],
-            // works
-            ...works,
-            // result
-            ['res', w => new Promise((resolve, reject) => {
-                let res;
-                if (queue.SPP && queue.SPP !== 'DRAFT') {
-                    res = {
-                        spp: queue.SPP,
-                        tglspp: queue.SPP_TGL,
-                    }
-                    if (queue.SPM) {
-                        res.spm = queue.SPM;
-                        res.tglspm = queue.SPM_TGL;
-                    }
-                    if (queue.SP2D) {
-                        res.sp2d = queue.SP2D;
-                        res.tglsp2d = queue.SP2D_TGL;
-                    }
-                    if (queue.CAIR) {
-                        res.cair = queue.CAIR;
-                    }
-                    if (queue.callback) {
-                        const data = {
-                            queue: queue.id,
-                            id: queue.getMappedData('info.id'),
-                            ...res,
-                        }
-                        const callbackQueue = SipdQueue.createCallbackQueue(data, queue.callback);
-                        SipdQueue.addQueue(callbackQueue);
-                    }
-                }
-                resolve(res ? res : false);
-            })],
-        ], (w, err) => {
-            return [
-                [e => this.end(queue, this.autoClose)],
-            ];
-        });
+    onResult(queue, result) {
+        let res = result, data;
+        if (queue.SPP && queue.SPP !== 'DRAFT') {
+            res = {
+                spp: queue.SPP,
+                tglspp: queue.SPP_TGL,
+            }
+            if (queue.SPM) {
+                res.spm = queue.SPM;
+                res.tglspm = queue.SPM_TGL;
+            }
+            if (queue.SP2D) {
+                res.sp2d = queue.SP2D;
+                res.tglsp2d = queue.SP2D_TGL;
+            }
+            if (queue.CAIR) {
+                res.cair = queue.CAIR;
+            }
+            data = {
+                queue: queue.id,
+                id: queue.getMappedData('info.id'),
+                ...res,
+            }
+        }
+        return [res, data];
     }
 
     createSpp(queue) {
-        return this.processSpp({
+        return this.processQueue({
             queue,
             works: [
                 // --- BP ---
@@ -102,7 +84,7 @@ class SipdSppBridge extends SipdBridge {
     }
 
     querySpp(queue) {
-        return this.processSpp({
+        return this.processQueue({
             queue,
             works: [
                 ['bp', w => this.doAs(SipdRole.BP)],

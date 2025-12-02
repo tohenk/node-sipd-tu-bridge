@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+const fs = require('fs');
 const Work = require('@ntlab/work/work');
 const Queue = require('@ntlab/work/queue');
 const SipdQueue = require('../app/queue');
@@ -416,6 +417,44 @@ class SipdBridge {
             );
         }
         return this.works(works);
+    }
+
+    processQueue({queue, works, done}) {
+        return this.do([
+            ['role', w => this.checkRole(queue)],
+            ...works,
+            ['done', w => new Promise((resolve, reject) => {
+                let res = w.res, reply;
+                if (typeof done === 'function') {
+                    [res, reply] = done(queue, res);
+                } else if (typeof this.onResult === 'function') {
+                    [res, reply] = this.onResult(queue, res);
+                }
+                if (reply && queue.callback) {
+                    const callbackQueue = SipdQueue.createCallbackQueue(reply, queue.callback);
+                    SipdQueue.addQueue(callbackQueue);
+                }
+                if (res && queue.filename) {
+                    fs.writeFileSync(queue.filename, JSON.stringify(res));
+                }
+                resolve(res ? res : false);
+            })],
+        ], (w, err) => {
+            return [
+                [e => this.end(queue, this.autoClose)],
+            ];
+        });
+    }
+
+    queryRekanan(queue) {
+        return this.processQueue({
+            queue,
+            works: [
+                ['bp', w => this.doAs(SipdRole.BP)],
+                ['bp-login', w => w.bp.login()],
+                ['bp-rekanan', w => w.bp.listRekanan(queue)],
+            ],
+        });
     }
 
     noop(queue) {

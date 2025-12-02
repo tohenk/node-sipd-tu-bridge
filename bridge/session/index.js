@@ -25,12 +25,11 @@
 const fs = require('fs');
 const path = require('path');
 const Queue = require('@ntlab/work/queue');
-const SipdPage = require('../../sipd/page');
 const SipdUtil = require('../../sipd/util');
-const { Sipd, SipdAnnouncedError } = require('../../sipd');
+const { Sipd } = require('../../sipd');
 const { SipdColumnQuery } = require('../../sipd/query');
 const { SipdActivitySelector } = require('./activity');
-const { SipdQueryBase, SipdVoterPegawai, SipdVoterRekanan, SipdQueryRekanan, SipdVoterNpd } = require('./pages');
+const { SipdQueryBase, SipdVoterPegawai, SipdVoterRekanan, SipdQueryRekanan, SipdVoterNpd } = require('./query');
 const { By, Key, WebElement } = require('selenium-webdriver');
 
 const dtag = 'session';
@@ -358,193 +357,20 @@ class SipdSession {
     }
 
     /**
-     * Get tippy text content.
-     *
-     * @param {WebElement} el Tippy element
-     * @returns {Promise<string>}
-     */
-    getTippy(el) {
-        return this.sipd.driver.executeScript(
-            function(el) {
-                if (el._tippy && el._tippy.popper) {
-                    return el._tippy.popper.innerText;
-                }
-            }, el);
-    }
-
-    /**
-     * Get progress value.
-     *
-     * @param {WebElement} el Progress element
-     * @returns {Promise<string>}
-     */
-    getProgress(el, selector) {
-        let res;
-        return this.works([
-            [w => el.findElements(selector)],
-            [w => new Promise((resolve, reject) => {
-                const q = new Queue([...w.getRes(0).reverse()], p => {
-                    if (!res) {
-                        this.works([
-                            [x => p.getAttribute('innerHTML')],
-                            [x => p.findElement(By.xpath('../*[@class="stepProgressBar__step__button__label"]'))],
-                            [x => x.getRes(1).getAttribute('innerText')],
-                            [x => Promise.resolve(res = x.getRes(2)), x => x.getRes(0)],
-                        ])
-                        .then(() => q.next())
-                        .catch(err => reject(err));
-                    } else {
-                        q.next();
-                    }
-                });
-                q.once('done', () => resolve(res ?? (w.getRes(0).length ? this.progressInitialValue : null)));
-            })],
-        ]);
-    }
-
-    /**
-     * Get row data for data paging colums.
-     *
-     * @param {SipdColumnQuery[]} columns Columns data
-     * @param {WebElement} el The Element
-     * @returns {Promise<object>}
-     */
-    getRowData(columns, el) {
-        return new Promise((resolve, reject) => {
-            const res = {};
-            const q = new Queue([...columns], col => {
-                let works;
-                switch (col.type) {
-                    case SipdColumnQuery.COL_ACTION:
-                        works = [
-                            [w => this.sipd.findElement({el, data: col.xpath})]
-                        ];
-                        break;
-                    case SipdColumnQuery.COL_PROGRESS:
-                        works = [
-                            [w => this.getProgress(el, col.xpath)]
-                        ];
-                        break;
-                    default:
-                        const tippy = col.tippyXpath;
-                        if (tippy) {
-                            works = [
-                                [w => el.findElements(tippy)],
-                                [w => this.getTippy(w.res[0]), w => w.res.length],
-                            ];
-                        } else {
-                            works = [
-                                [w => this.sipd.getText([col.xpath], el)],
-                                [w => Promise.resolve(w.res[0])],
-                            ];
-                        }
-                        break;
-                }
-                this.works([
-                    ...works,
-                    [w => Promise.resolve(res[col.name] = typeof w.res === 'string' ? col.normalize(w.res) : w.res)],
-                ])
-                .then(() => q.next())
-                .catch(err => reject(err));
-            });
-            q.once('done', () => resolve(res));
-        });
-    }
-
-    /**
      * Perform data query match operation.
      *
      * @param {SipdQueryBase} query Query data
+     * @param {Function} onIterate Data row iterator
      * @returns {Promise<WebElement|undefined>}
      */
-    doQuery(query) {
-        let result, clicker, statusCol, actionCol, expectedValue;
-        return this.works([
-            [w => this.sipd.navigate(...query.navigates), w => query.navigates],
-            [w => this.sipd.waitLoader()],
-            [w => this.sipd.gotoPageTop(), w => query.group],
-            [w => this.sipd.subPageNav(...(Array.isArray(query.group) ? query.group : [query.group])), w => query.group],
-            [w => query.page.setup()],
-            [w => query.page.search(...(Array.isArray(query.search) ? query.search : [query.search])), w => query.search],
-            [w => query.page.each(el => [
-                [x => this.getRowData(query.columns, el)],
-                [x => new Promise((resolve, reject) => {
-                    const values = x.getRes(0);
-                    const dbg = (l, s) => `${l} (${s ? '✓' : '✗'})`;
-                    const f = (...args) => {
-                        const res = {
-                            states: [],
-                            info: [],
-                        }
-                        for (const arg of args) {
-                            if (arg[2]) {
-                                let okay;
-                                if (typeof arg[0] === 'string' && typeof arg[1] === 'string') {
-                                    okay = arg[0].toLowerCase() === arg[1].toLowerCase();
-                                } else {
-                                    okay = arg[0] == arg[1];
-                                }
-                                res.states.push(okay);
-                                res.info.push(dbg(arg[1], okay));
-                            } else {
-                                res.info.push(arg[1]);
-                            }
-                        }
-                        res.okay = true;
-                        res.states.forEach(state => {
-                            if (!state) {
-                                res.okay = false;
-                                return true;
-                            }
-                        });
-                        return res;
-                    }
-                    const compares = [];
-                    for (const [col, value, required] of query.diffs) {
-                        const column = query.columns.find(column => column.name === col);
-                        if (column) {
-                            compares.push([column.asString(value), column.asString(values[col]), required !== undefined ? required : true]);
-                        }
-                    }
-                    expectedValue = compares
-                        .filter(v => v[2])
-                        .map(v => v[0])
-                        .join('-');
-                    statusCol = query.columns.find(column => [SipdColumnQuery.COL_STATUS, SipdColumnQuery.COL_PROGRESS].includes(column.type));
-                    actionCol = query.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
-                    let status;
-                    if (statusCol) {
-                        status = values[statusCol.name];
-                    }
-                    const states = f(...compares);
-                    const rowstate = `[${states.okay ? '✓' : '✗'}]`;
-                    if (status !== undefined) {
-                        this.debug(dtag)('Row state:', rowstate, `<${status}>`, ...states.info);
-                    } else {
-                        this.debug(dtag)('Row state:', rowstate, ...states.info);
-                    }
-                    if (states.okay) {
-                        result = el;
-                        if (query.isActionEnabled() && actionCol) {
-                            clicker = values[actionCol.name];
-                        }
-                        if (status !== undefined) {
-                            query.data.STATUS = status;
-                        }
-                        query.data.values = values;
-                        if (typeof query.onResult === 'function') {
-                            query.onResult();
-                        }
-                        reject(SipdPage.stop());
-                    } else {
-                        resolve();
-                    }
-                })],
-            ])],
-            [w => Promise.resolve(result), w => !query.isActionEnabled()],
-            [w => clicker.click(), w => query.isActionEnabled() && clicker],
-            [w => Promise.reject(new SipdAnnouncedError(`${query.options.title}: ${expectedValue} not found!`)), w => query.isActionEnabled() && actionCol && !clicker],
-        ]);
+    doQuery(query, onIterate = null) {
+        if (typeof onIterate === 'function') {
+            query.mode = SipdQueryBase.MODE_ITERATE;
+            query.onIterate = onIterate;
+        } else {
+            query.mode = SipdQueryBase.MODE_MATCH;
+        }
+        return query.walk();
     }
 
     executeAction(queue, action, status) {
@@ -564,11 +390,26 @@ class SipdSession {
     }
 
     readValue(el, value, queue) {
+        const store = queue.values ? queue.values : queue;
         return this.works([
             [w => el.getAttribute('type')],
             [w => el.getAttribute(w.getRes(0) === 'checkbox' ? 'checked' : 'value')],
-            [w => Promise.resolve(queue[value] = w.getRes(1))],
+            [w => Promise.resolve(store[value] = w.getRes(1))],
         ]);
+    }
+
+    readState(el, value, queue) {
+        const store = queue.values ? queue.values : queue;
+        const values = value.split(',');
+        if (values.length === 3) {
+            return this.works([
+                [w => el.getAttribute('class')],
+                [w => Promise.resolve(w.getRes(0).toLowerCase().split(' ').map(a => a.trim()))],
+                [w => Promise.resolve(store[values[0]] = values[1]), w => w.getRes(1).includes(values[2].toLowerCase())],
+            ]);
+        } else {
+            return Promise.reject('State requires three parameters (column, value, css)!');
+        }
     }
 
     fillComboBox(el, value) {
@@ -851,8 +692,12 @@ class SipdSession {
                     attr = 'name';
                     break;
             }
-            let value = queue.getMappedData([name, k]);
-            this.debug(dtag)(`Mapped value ${name + '->' + key} = ${trunc(value)}`);
+            let value;
+            // don't map value on read operation
+            if (!f.flags.includes('?')) {
+                value = queue.getMappedData([name, k]);
+                this.debug(dtag)(`Mapped value ${name + '->' + key} = ${trunc(value)}`);
+            }
             // fall back to non mapped value if undefined
             if (value === undefined) {
                 if (f.flags.includes('*')) {
@@ -1013,33 +858,39 @@ class SipdSession {
                         }
                         break;
                 }
-                switch (true) {
-                    // read operation
-                    case f.flags.includes('?'):
-                        data.onfill = (el, value) => this.readValue(el, value, queue);
-                        break;
-                    // fill value using javascript
-                    case f.flags.includes('$'):
-                        data.onfill = (el, value) => this.sipd.driver.executeScript(
-                            function(el, value) {
-                                $(el).val(value);
-                            }, el, value);
-                        break;
-                    // add waiting
-                    case f.flags.includes('+'):
-                        data.done = (d, next) => {
-                            this.debug(dtag)(`Wait ${this.sipd.opdelay} ms before continuing`);
-                            this.sipd.sleep(this.sipd.opdelay)
-                                .then(() => next())
-                                .catch(err => {
-                                    throw err;
-                                });
-                        }
-                        break;
-                    // optional
-                    case f.flags.includes('~'):
-                        data.optional = true;
-                        break;
+                for (const flag of f.flags) {
+                    switch (flag) {
+                        // read operation
+                        case '?':
+                            if (vtype === 'STATE') {
+                                data.onfill = (el, value) => this.readState(el, value, queue);
+                            } else {
+                                data.onfill = (el, value) => this.readValue(el, value, queue);
+                            }
+                            break;
+                        // fill value using javascript
+                        case '$':
+                            data.onfill = (el, value) => this.sipd.driver.executeScript(
+                                function(el, value) {
+                                    $(el).val(value);
+                                }, el, value);
+                            break;
+                        // add waiting
+                        case '+':
+                            data.done = (d, next) => {
+                                this.debug(dtag)(`Wait ${this.sipd.opdelay} ms before continuing`);
+                                this.sipd.sleep(this.sipd.opdelay)
+                                    .then(() => next())
+                                    .catch(err => {
+                                        throw err;
+                                    });
+                            }
+                            break;
+                        // optional
+                        case '~':
+                            data.optional = true;
+                            break;
+                    }
                 }
                 // generic handler of special tag
                 if (!data.onfill) {
@@ -1241,6 +1092,23 @@ class SipdSession {
                 By.xpath('//button[text()="Konfirmasi"]')), w => (!w.getRes(0) || forceEdit) && allowChange],
             [w => this.sipd.confirmSubmission(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!w.getRes(0) || forceEdit) && allowChange],
         ]);
+    }
+
+    listRekanan(queue) {
+        const query = new SipdQueryRekanan(this.sipd, queue, {navigates: ['Pengeluaran', 'Daftar Rekanan']});
+        const f = (el, values, result) => {
+            queue.values = {};
+            const actionCol = query.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
+            return this.works([
+                [w => values[actionCol.name].click()],
+                [w => this.fillForm(queue, 'rekanan',
+                    By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
+                    By.xpath('//button[text()="Kembali"]'))],
+                [w => Promise.resolve(queue.values)],
+            ]);
+        }
+        query.actionEnabled = true;
+        return this.doQuery(query, f);
     }
 }
 

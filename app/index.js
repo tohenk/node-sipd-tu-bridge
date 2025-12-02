@@ -78,42 +78,8 @@ class App {
             ready: () => this.ready ? 'Yes' : 'No',
             captcha: () => this.getCaptcha(),
         });
-        this.dequeue.createQueue = data => {
-            let queue;
-            switch (data.type) {
-                case SipdQueue.QUEUE_SPP:
-                    queue = SipdQueue.createSppQueue(data.data, data.callback);
-                    this.dequeue.setMaps(queue);
-                    queue.retry = true;
-                    break;
-                case SipdQueue.QUEUE_SPP_QUERY:
-                    queue = SipdQueue.createSppQueryQueue(data.data, data.callback);
-                    this.dequeue.setMaps(queue);
-                    queue.readonly = true;
-                    break;
-                case SipdQueue.QUEUE_LPJ:
-                    queue = SipdQueue.createLpjQueue(data.data, data.callback);
-                    this.dequeue.setMaps(queue);
-                    queue.retry = true;
-                    break;
-                case SipdQueue.QUEUE_LPJ_QUERY:
-                    queue = SipdQueue.createLpjQueryQueue(data.data, data.callback);
-                    this.dequeue.setMaps(queue);
-                    queue.readonly = true;
-                    break;
-                case SipdQueue.QUEUE_CAPTCHA:
-                    queue = SipdQueue.createCaptchaQueue(data.data);
-                    queue.info = null;
-                    break;
-                case SipdQueue.QUEUE_NOOP:
-                    queue = SipdQueue.createNoopQueue(data.data);
-                    queue.info = null;
-                    break;
-                case SipdQueue.QUEUE_CLEAN:
-                    queue = SipdQueue.createCleanQueue(data.data);
-                    queue.info = null;
-                    break;
-            }
+        this.dequeue.createQueue = (data, ret) => {
+            const queue = this.dequeue.createNewQueue(data);
             if (queue) {
                 if (data.id) {
                     queue.id = data.id;
@@ -125,7 +91,8 @@ class App {
                     return {message: `Antrian sudah dalam antrian atau sedang dalam proses!`};
                 }
                 console.log('📦 %s: %s', queue.type.toUpperCase(), queue.info);
-                return SipdQueue.addQueue(queue);
+                const res = SipdQueue.addQueue(queue);
+                return ret ? [res, queue] : res;
             }
         }
         this.dequeue.setMaps = queue => {
@@ -282,13 +249,17 @@ class App {
                 if (Cmd.get('clean')) {
                     this.createCleanQueue();
                 }
-                if (this._cmd) {
-                    const queue = SipdCmd.get(this._cmd.command).consume({data: this._cmd.data});
-                    this.dequeue.on('queue-done', q => {
+                if (this.payload) {
+                    const queue = SipdCmd.get(this.payload.command)
+                        .consume(this.payload.params || {});
+                    const closeOnCompleteOrError = q => {
                         if (q.id === queue.id && (this.config.autoClose === undefined || this.config.autoClose)) {
                             process.exit();
                         }
-                    });
+                    }
+                    this.dequeue
+                        .on('queue-done', closeOnCompleteOrError)
+                        .on('queue-error', closeOnCompleteOrError);
                 }
             } else {
                 if (now - this.startTime > readinessTimeout) {
@@ -386,28 +357,47 @@ class App {
             switch (this.config.mode) {
                 case Configuration.BRIDGE_UTIL:
                     serve = false;
-                    let command, data;
+                    let command, data = {}, filename, error;
                     switch (cmd) {
                         case 'captcha':
                             command = 'util:captcha';
-                            data = {
-                                year: new Date().getFullYear(),
-                                count: Cmd.get('count') ? parseInt(Cmd.get('count')) : 10,
-                                timeout: 0,
-                            }
+                            data.count = Cmd.get('count') ? parseInt(Cmd.get('count')) : 10;
                             break;
                         case 'noop':
                             command = 'util:noop';
-                            data = {
-                                year: new Date().getFullYear(),
-                                timeout: 0,
+                            break;
+                        case 'rekanan':
+                            if (Cmd.args.length) {
+                                command = cmd;
+                                data.JENIS = 'orang';
+                                data.KEG = Cmd.args[0];
+                                if (Cmd.args.length > 1) {
+                                    data.NIK = Cmd.args[1];
+                                }
+                                filename = path.join(this.config.workdir, 'rekanan.json');
+                            } else {
+                                error = 'Partner utility requires KEG and an optional NIK!';
                             }
                             break;
                     }
                     if (command) {
-                        this._cmd = {command, data: data ?? {}};
+                        this.payload = {
+                            command,
+                            params: {
+                                data: {
+                                    year: new Date().getFullYear(),
+                                    timeout: 0,
+                                    ...data
+                                },
+                                filename,
+                            }
+                        }
                     } else {
-                        console.log('Supported utility: captcha, noop');
+                        if (error) {
+                            console.error(error);
+                        } else {
+                            console.log('Supported utility: captcha, noop, rekanan');
+                        }
                         process.exit();
                     }
                     break;

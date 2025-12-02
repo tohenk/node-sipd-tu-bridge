@@ -50,6 +50,8 @@ class SipdPage {
         this.parent.constructor.expectErr(SipdStopError);
         this.works = this.parent.works;
         this.options = options;
+        this.autoHideSearch = this.options.autoHideSearch !== undefined ?
+            this.options.autoHideSearch : true;
     }
 
     /**
@@ -64,7 +66,6 @@ class SipdPage {
             [w => Promise.reject('Page title not specified!'), w => !this.options.title],
             [w => this.parent.findElement(By.xpath(selector.replace(/%TITLE%/, this.options.title)))],
             [w => Promise.resolve(this._wrapper = w.res)],
-            [w => this.parent.sleep(this.parent.opdelay)],
             [w => this.findResult()],
             [w => this.findPagination()],
             [w => this.findSearch(this.options.search), w => this.options.search],
@@ -248,7 +249,6 @@ class SipdPage {
                 }
             })],
             [w => w.res.click()],
-            [w => this.parent.sleep(this.parent.opdelay)],
             [w => this.setup()],
         ]);
     }
@@ -257,10 +257,22 @@ class SipdPage {
      * Iterate a function over data found on page.
      *
      * @param {number} page Page number
-     * @param {Function} onwork A callback to iterate data found on page
+     * @param {object} options Page iterate options
+     * @param {Function} options.onwork A callback to iterate data found on page
      * @returns {Promise<any>}
      */
-    eachPage(page, onwork) {
+    eachPage(page, options = {}) {
+        let onwork;
+        if (typeof options === 'function') {
+            onwork = options;
+            options = {};
+        }
+        if (typeof options.onwork === 'function') {
+            onwork = options.onwork;
+        }
+        if (typeof onwork !== 'function') {
+            throw new Error('Each page requires onwork handler!');
+        }
         return this.works([
             // get current page
             [w => this.getPage()],
@@ -270,7 +282,16 @@ class SipdPage {
             [w => this.getRows()],
             // process rows
             [w => new Promise((resolve, reject) => {
-                const q = new Queue(w.getRes(2), row => {
+                /** @type {WebElement[]} */
+                let rows = w.getRes(2);
+                if (options.states) {
+                    options.states.rows = rows.length;
+                    if (options.states.row === undefined) {
+                        options.states.row = 1;
+                    }
+                    rows = rows.slice(options.states.row - 1, options.states.row);
+                }
+                const q = new Queue(rows, row => {
                     try {
                         const works = onwork(row);
                         this.works(works)
@@ -337,8 +358,8 @@ class SipdPage {
                 q.once('done', () => resolve());
             })],
             [w => this._search_submit.click(), w => this._search_submit],
-            [w => this.parent.sleep(this.parent.opdelay)],
             [w => this.setup()],
+            [w => this.parent.clickExpanded(this._search_toggler, false), w => this._search_toggler && this.autoHideSearch],
         ]);
     }
 
@@ -359,11 +380,24 @@ class SipdPage {
             [w => this.getRows()],
             [w => this.getPages(), w => w.getRes(0).length],
             [w => new Promise((resolve, reject) => {
-                const pageCount = w.getRes(1);
-                const pages = Array.from({length: pageCount}, (x, i) => i + 1);
+                let pages, pageCount = w.getRes(1);
+                if (options.states) {
+                    if (options.states.pages === undefined) {
+                        options.states.pages = pageCount;
+                    }
+                    if (options.states.page === undefined) {
+                        options.states.page = 1;
+                    }
+                    if (options.states.pages !== pageCount) {
+                        pageCount = options.states.pages;
+                    }
+                    pages = [options.states.page];
+                } else {
+                    pages = Array.from({length: pageCount}, (x, i) => i + 1);
+                }
                 const q = new Queue(pages, page => {
                     this.parent.debug(dtag)(`Processing page ${this.options.title}: ${page} of ${pageCount}`);
-                    this.eachPage(page, callback)
+                    this.eachPage(page, {states: options.states, onwork: callback})
                         .then(() => q.next())
                         .catch(err => {
                             if (err instanceof SipdStopError) {

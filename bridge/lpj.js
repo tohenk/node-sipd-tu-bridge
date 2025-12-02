@@ -23,7 +23,6 @@
  */
 
 const SipdBridge = require('.');
-const SipdQueue = require('../app/queue');
 const SipdLpjSession = require('./session/lpj');
 const { SipdRole } = require('../sipd/role');
 
@@ -48,47 +47,30 @@ class SipdLpjBridge extends SipdBridge {
         return true;
     }
 
-    processLpj({queue, works}) {
-        return this.do([
-            // switch role
-            ['role', w => this.checkRole(queue)],
-            // works
-            ...works,
-            // result
-            ['res', w => new Promise((resolve, reject) => {
-                let res;
-                if (queue.NPD) {
-                    res = {
-                        npd: queue.NPD,
-                        tglnpd: queue.NPD_TGL,
-                    }
-                    if (queue.TBP) {
-                        res.tbp = queue.TBP;
-                        res.tgltbp = queue.TBP_TGL;
-                    }
-                    if (queue.callback) {
-                        const data = {
-                            queue: queue.id,
-                            id: queue.getMappedData('info.id'),
-                            ...res,
-                        }
-                        const callbackQueue = SipdQueue.createCallbackQueue(data, queue.callback);
-                        SipdQueue.addQueue(callbackQueue);
-                    }
-                }
-                resolve(res ? res : false);
-            })],
-        ], (w, err) => {
-            return [
-                [e => this.end(queue, this.autoClose)],
-            ];
-        });
+    onResult(queue, result) {
+        let res = result, data;
+        if (queue.NPD) {
+            res = {
+                npd: queue.NPD,
+                tglnpd: queue.NPD_TGL,
+            }
+            if (queue.TBP) {
+                res.tbp = queue.TBP;
+                res.tgltbp = queue.TBP_TGL;
+            }
+            data = {
+                queue: queue.id,
+                id: queue.getMappedData('info.id'),
+                ...res,
+            }
+        }
+        return [res, data];
     }
 
     createLpj(queue) {
         const npd = this.checkOp(queue, 'npd');
         const tbp = this.checkOp(queue, 'tbp');
-        return this.processLpj({
+        return this.processQueue({
             queue,
             works: [
                 // --- PPTK ---
@@ -112,7 +94,7 @@ class SipdLpjBridge extends SipdBridge {
     queryLpj(queue) {
         const npd = this.checkOp(queue, 'npd');
         const tbp = this.checkOp(queue, 'tbp');
-        return this.processLpj({
+        return this.processQueue({
             queue,
             works: [
                 ['bp', w => this.doAs(SipdRole.BP)],

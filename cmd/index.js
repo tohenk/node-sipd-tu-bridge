@@ -116,7 +116,8 @@ class SipdCmd {
         ns = (Array.isArray(ns) ? ns : [ns]).filter(Boolean);
         for (const entry of entries) {
             if (entry.isDirectory()) {
-                this.register(owner, prefix, path.join(dir, entry.name), [...ns, entry.name]);
+                this.register(owner, prefix, path.join(dir, entry.name),
+                    [...ns, entry.name !== 'all' ? entry.name : null].filter(Boolean));
             } else if (entry.name.endsWith('.js')) {
                 const cmd = entry.name.substr(0, entry.name.length - 3);
                 if (cmd !== 'index') {

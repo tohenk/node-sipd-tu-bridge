@@ -99,6 +99,7 @@ class Configuration {
         const mappings = {
             [Configuration.BRIDGE_SPP]: 'spp.json',
             [Configuration.BRIDGE_LPJ]: 'lpj.json',
+            [Configuration.BRIDGE_UTIL]: 'util.json',
         }
         if (mappings[this.mode] !== undefined) {
             filename = path.join(this.workdir, 'mappings', mappings[this.mode]);
