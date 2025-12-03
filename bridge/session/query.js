@@ -496,7 +496,7 @@ class SipdVoterRekanan extends SipdVoter {
             this.placeholder = 'perusahaan';
             this.diffs.push(['usaha', rekanan]);
             if (nik) {
-                this.search.push(nik);
+                this.search = [[rekanan, nik]];
                 this.placeholder = [this.placeholder, 'nik'];
             }
         } else {
