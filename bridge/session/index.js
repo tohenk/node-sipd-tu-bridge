@@ -59,37 +59,6 @@ class SipdSession {
                 return this.sipd[fn].apply(ctx, args);
             }
         }
-        const normalizers = {
-            tgl: value => SipdUtil.getDate(value),
-            num: value => parseInt(SipdUtil.pickNumber(value)),
-            nom: value => parseFloat(SipdUtil.pickCurr(value)),
-            nr: value => SipdUtil.pickNumber(value),
-            nama: value => {
-                if (typeof value === 'string') {
-                    value = SipdUtil.getSafeStr(value);
-                    if (value.includes('\n')) {
-                        value = value.split('\n')[0];
-                    }
-                }
-                return value;
-            },
-            default: value => typeof value === 'string' ? SipdUtil.getSafeStr(value) : value,
-        }
-        const stringables = {
-            tgl: value => SipdUtil.dateSerial(value),
-            nom: value => SipdUtil.fmtCurr(value),
-            default: value => value.toString(),
-        }
-        for (const [normalizer, fn] of Object.entries(normalizers)) {
-            if (SipdColumnQuery.normalizers[normalizer] === undefined) {
-                SipdColumnQuery.normalizers[normalizer] = fn;
-            }
-        }
-        for (const [stringable, fn] of Object.entries(stringables)) {
-            if (SipdColumnQuery.stringables[stringable] === undefined) {
-                SipdColumnQuery.stringables[stringable] = fn;
-            }
-        }
         // PDF optimizer using Ghostscript:
         // {
         //     "global": {

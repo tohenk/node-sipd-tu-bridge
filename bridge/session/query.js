@@ -28,6 +28,7 @@ const SipdUtil = require('../../sipd/util');
 const { SipdAnnouncedError, SipdRestartError } = require('../../sipd');
 const { SipdQuery, SipdColumnQuery } = require('../../sipd/query');
 const { By, WebElement } = require('selenium-webdriver');
+const _ = require('./fn');
 
 const dtag = 'query';
 
