@@ -115,11 +115,12 @@ class Sipd extends WebRobot {
     login(username, password, role, force = false) {
         return new Promise((resolve, reject) => {
             this.works([
-                [w => this.gotoPenatausahaan()],
+                [w => this.isWafError()],
                 [w => this.isInMaintenance()],
+                [w => this.gotoPenatausahaan()],
                 [w => this.isLoggedIn()],
                 [w => this.logout(), w => force],
-                [w => this.doLogin(username, password, role), w => force || !w.getRes(2)],
+                [w => this.doLogin(username, password, role), w => force || !w.getRes(3)],
                 [w => this.waitSidebar()],
                 [w => this.dismissStatuses()],
                 [w => this.checkMessages()],
@@ -469,6 +470,19 @@ class Sipd extends WebRobot {
     }
 
     /**
+     * Check if SIPD Penatausahaan is hit with reverse proxy error?
+     *
+     * @returns {Promise<undefined>}
+     */
+    isWafError() {
+        return this.works([
+            [w => this.waitForPresence(By.xpath('//div[@id="cf-error-details"]/header/h1'), {timeout: this.delay})],
+            [w => this.getText([By.xpath('.//span[@class="inline-block"]'), By.xpath('.//span[@class="code-label"]')], w.getRes(0)), w => w.getRes(0)],
+            [w => Promise.reject(`Cloudflare: ${w.getRes(1)[0]} (${w.getRes(1)[1]})`), w => w.getRes(0)],
+        ]);
+    }
+
+    /**
      * Check if in maintenance mode?
      *
      * @returns {Promise<undefined>}
@@ -811,7 +825,7 @@ class Sipd extends WebRobot {
             [w => new Promise((resolve, reject) => {
                 this.getHtml(options.res)
                     .then(html => {
-                        options.res = html;
+                        options.sres = html;
                         resolve();
                     })
                     .catch(() => resolve(true));
@@ -819,13 +833,13 @@ class Sipd extends WebRobot {
             [w => new Promise((resolve, reject) => {
                 options.res.getId()
                     .then(id => {
-                        options.res = `${options.res.constructor.name} (${id})`;
+                        options.sres = `${options.res.constructor.name} (${id})`;
                         resolve();
                     })
                     .catch(() => resolve());
             }), w => w.getRes(2) === true],
-            [w => Promise.resolve(options.sres = this.truncate(options.res)),
-                w => typeof options.res === 'string'],
+            [w => Promise.resolve(options.sres = this.truncate(options.sres)),
+                w => typeof options.sres === 'string'],
             [w => Promise.resolve(res)],
         ]);
     }
