@@ -237,6 +237,84 @@ class App {
         SipdCmd.register(this, prefixes[this.config.mode]);
     }
 
+    processArguments() {
+        let serve = true, res, command, data, opts, error;
+        if (Cmd.args.length) {
+            switch (this.config.mode) {
+                case Configuration.BRIDGE_SPP:
+                    res = this.doSppOp(...Cmd.args);
+                    break;
+                case Configuration.BRIDGE_LPJ:
+                    res = this.doLpjOp(...Cmd.args);
+                    break;
+                case Configuration.BRIDGE_UTIL:
+                    res = this.doUtilOp(...Cmd.args);
+                    break;
+            }
+        }
+        if (Array.isArray(res)) {
+            [serve, command, data, opts, error] = res;
+        }
+        if (command && !error) {
+            this.payload = {
+                command,
+                params: {
+                    data: {
+                        year: new Date().getFullYear(),
+                        timeout: 0,
+                        ...(data || {})
+                    },
+                    ...(opts || {})
+                }
+            }
+        } else if (error || !serve) {
+            if (error) {
+                console.error(error);
+            }
+            process.exit();
+        }
+        return serve;
+    }
+
+    doSppOp(...args) {
+    }
+
+    doLpjOp(...args) {
+    }
+
+    doUtilOp(...args) {
+        let command, data = {}, opts = {}, error;
+        const cmd = args.shift();
+        switch (cmd) {
+            case 'captcha':
+                command = 'util:captcha';
+                data.count = Cmd.get('count') ? parseInt(Cmd.get('count')) : 10;
+                break;
+            case 'noop':
+                command = 'util:noop';
+                break;
+            case 'rekanan':
+                if (args.length) {
+                    command = cmd;
+                    const queue = new SipdQueue();
+                    queue.maps = this.config.maps;
+                    data[queue.getMap('info.jenis')] = 'orang';
+                    data[queue.getMap('info.role')] = args[0];
+                    if (args.length > 1) {
+                        data[queue.getMap('info.nik')] = args[1];
+                    }
+                    opts.filename = Cmd.get('out') ?? path.join(this.config.workdir, 'out.json');
+                } else {
+                    error = 'Partner utility requires KEG and an optional NIK!';
+                }
+                break;
+            default:
+                error = 'Supported utility: captcha, noop, rekanan!';
+                break;
+        }
+        return [false, command, data, opts, error];
+    }
+
     checkReadiness() {
         const readinessTimeout = this.config.readinessTimeout || 30000; // 30 seconds
         this.startTime = Date.now();
@@ -335,6 +413,7 @@ class App {
         });
         return readyCnt;
     }
+
     getCaptcha() {
         const res = [];
         for (const bridge of this.bridges) {
@@ -347,61 +426,10 @@ class App {
 
     run() {
         if (this.initialize()) {
+            const serve = this.processArguments();
             this.createDequeuer();
             this.createBridges();
             this.registerCommands();
-            let cmd, serve = true;
-            if (Cmd.args.length) {
-                cmd = Cmd.args.shift();
-            }
-            switch (this.config.mode) {
-                case Configuration.BRIDGE_UTIL:
-                    serve = false;
-                    let command, data = {}, filename, error;
-                    switch (cmd) {
-                        case 'captcha':
-                            command = 'util:captcha';
-                            data.count = Cmd.get('count') ? parseInt(Cmd.get('count')) : 10;
-                            break;
-                        case 'noop':
-                            command = 'util:noop';
-                            break;
-                        case 'rekanan':
-                            if (Cmd.args.length) {
-                                command = cmd;
-                                data.JENIS = 'orang';
-                                data.KEG = Cmd.args[0];
-                                if (Cmd.args.length > 1) {
-                                    data.NIK = Cmd.args[1];
-                                }
-                                filename = path.join(this.config.workdir, 'rekanan.json');
-                            } else {
-                                error = 'Partner utility requires KEG and an optional NIK!';
-                            }
-                            break;
-                    }
-                    if (command) {
-                        this.payload = {
-                            command,
-                            params: {
-                                data: {
-                                    year: new Date().getFullYear(),
-                                    timeout: 0,
-                                    ...data
-                                },
-                                filename,
-                            }
-                        }
-                    } else {
-                        if (error) {
-                            console.error(error);
-                        } else {
-                            console.log('Supported utility: captcha, noop, rekanan');
-                        }
-                        process.exit();
-                    }
-                    break;
-            }
             this.createServer(serve);
             return true;
         } else {

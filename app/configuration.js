@@ -39,6 +39,7 @@ Cmd.addBool('clean', '', 'Clean profile directory');
 Cmd.addBool('queue', 'q', 'Enable queue saving and loading');
 Cmd.addBool('noop', '', 'Do not process queue');
 Cmd.addVar('count', '', 'Limit number of operation such as when fetching captcha', 'number');
+Cmd.addVar('out', '', 'Set the output filename for certain operation', 'filename');
 
 /**
  * Application configuration.
