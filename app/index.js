@@ -277,6 +277,16 @@ class App {
     }
 
     doSppOp(...args) {
+        let command = 'spp:query', data = {}, opts = {}, error;
+        if (args.length === 2) {
+            const queue = SipdQueue.createWithMap(this.config.maps);
+            data[queue.getMap('info.role')] = args[0];
+            data[queue.getMap('info.check')] = args[1];
+            opts.filename = Cmd.get('out') ?? path.join(this.config.workdir, 'out.json');
+        } else {
+            error = 'SPP query requires KEG and SPP/SPM/SP2D number!';
+        }
+        return [false, command, data, opts, error];
     }
 
     doLpjOp(...args) {
@@ -296,8 +306,7 @@ class App {
             case 'rekanan':
                 if (args.length) {
                     command = cmd;
-                    const queue = new SipdQueue();
-                    queue.maps = this.config.maps;
+                    const queue = SipdQueue.createWithMap(this.config.maps);
                     data[queue.getMap('info.jenis')] = 'orang';
                     data[queue.getMap('info.role')] = args[0];
                     if (args.length > 1) {

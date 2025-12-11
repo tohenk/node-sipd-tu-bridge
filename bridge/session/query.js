@@ -111,6 +111,9 @@ class SipdQueryBase extends SipdQuery {
         if (col.name.includes('nama')) {
             return 'nama';
         }
+        if (col.name.includes('ref')) {
+            return 'ref';
+        }
         return 'default';
     }
 
@@ -744,6 +747,7 @@ class SipdQuerySpp extends SipdQueryBase {
                 action: [8, SipdColumnQuery.COL_ACTION],
             },
             [this.SPM]: {
+                ref: [1, SipdColumnQuery.COL_ICON, true],
                 no: [1, SipdColumnQuery.COL_TIPPY],
                 tgl: 3,
                 untuk: [6, SipdColumnQuery.COL_SINGLE, true],
@@ -752,6 +756,7 @@ class SipdQuerySpp extends SipdQueryBase {
                 action: [9, SipdColumnQuery.COL_ACTION],
             },
             [this.SP2D]: {
+                ref: [1, SipdColumnQuery.COL_ICON, true],
                 no: [1, SipdColumnQuery.COL_TIPPY],
                 tgl: 3,
                 untuk: [9, SipdColumnQuery.COL_SINGLE, true],

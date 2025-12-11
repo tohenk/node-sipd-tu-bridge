@@ -359,6 +359,7 @@ class SipdPage {
             })],
             [w => this._search_submit.click(), w => this._search_submit],
             [w => this.setup()],
+            [w => this.parent.gotoPageTop(), w => this._search_toggler && this.autoHideSearch],
             [w => this.parent.clickExpanded(this._search_toggler, false), w => this._search_toggler && this.autoHideSearch],
         ]);
     }

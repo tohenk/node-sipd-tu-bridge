@@ -29,18 +29,21 @@ class SipdCmdLpjQuery extends SipdCmd {
 
     consume(payload) {
         let result;
-        const { socket, data } = payload;
+        const { socket, data, filename } = payload;
         const batch = Array.isArray(data.items);
         const items = batch ? data.items : [data];
         let cnt = 0;
         items.forEach(lpj => {
-            const res = this.dequeue.createQueue({
+            const [res, queue] = this.dequeue.createQueue({
                 type: SipdQueue.QUEUE_LPJ_QUERY,
                 data: lpj,
-                callback: socket.callback,
-            });
+                callback: socket?.callback,
+            }, true);
             cnt++;
             if (!batch) {
+                if (filename) {
+                    queue.filename = filename;
+                }
                 result = res;
             }
         });

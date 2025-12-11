@@ -77,6 +77,7 @@ class SipdFn {
                 nom: value => parseFloat(SipdUtil.pickCurr(value)),
                 nr: value => SipdUtil.pickNumber(value),
                 num: value => parseInt(SipdUtil.pickNumber(value)),
+                ref: value => SipdUtil.pickNr(value),
                 tgl: value => SipdUtil.getDate(value),
             }
             const stringables = {

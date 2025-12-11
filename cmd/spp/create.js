@@ -37,7 +37,7 @@ class SipdCmdSppCreate extends SipdCmd {
             const res = this.dequeue.createQueue({
                 type: SipdQueue.QUEUE_SPP,
                 data: spp,
-                callback: socket.callback,
+                callback: socket?.callback,
             });
             cnt++;
             if (!batch) {

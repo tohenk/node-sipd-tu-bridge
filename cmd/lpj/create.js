@@ -37,7 +37,7 @@ class SipdCmdLpjCreate extends SipdCmd {
             const res = this.dequeue.createQueue({
                 type: SipdQueue.QUEUE_LPJ,
                 data: spp,
-                callback: socket.callback,
+                callback: socket?.callback,
             });
             cnt++;
             if (!batch) {

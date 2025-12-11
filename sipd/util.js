@@ -284,6 +284,48 @@ class SipdUtil {
     }
 
     /**
+     * Parse SIPD number.
+     *
+     * @param {string} s SIPD number
+     * @param {object} filter Only returns matched number part
+     * @returns {Array}
+     */
+    static parseNr(s, filter = {}) {
+        filter = filter || {};
+        if (typeof s === 'string') {
+            return [...s.matchAll(/(?<PD>\d+\.\d+)\/(?<TYP>\d+\.\d+)\/(?<NR>\d+)\/(?<CAIR>[A-Z]+)\/(?<OPD>[0-9\.]+)\/(?<THP>[A-Z0-9]+)\/(?<BLN>\d+)\/(?<THN>\d+)/g)]
+                .filter(nr => {
+                    let res = true;
+                    for (let [k, v] of Object.entries(filter)) {
+                        k = k.toUpperCase();
+                        v = Array.isArray(v) ? v : [v];
+                        if (nr.groups && !v.includes(nr.groups[k])) {
+                            res = false;
+                            break;
+                        }
+                    }
+                    return res;
+                });
+        }
+    }
+
+    /**
+     * Pick SIPD number from string.
+     *
+     * @param {string} s The input string
+     * @returns {string}
+     */
+    static pickNr(s) {
+        if (s) {
+            const nrs = this.parseNr(s);
+            if (Array.isArray(nrs) && nrs.length) {
+                s = nrs[0][0];
+            }
+        }
+        return s;
+    }
+
+    /**
      * Get safe string by replacing multiple whitespace occurances with single one.
      *
      * @param {string} s The input string

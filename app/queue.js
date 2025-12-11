@@ -808,6 +808,12 @@ class SipdQueue
         return queue;
     }
 
+    static createWithMap(maps) {
+        const queue = new this();
+        queue.maps = maps;
+        return queue;
+    }
+
     static createSppQueue(data, callback = null) {
         return this.create(SipdQueue.QUEUE_SPP, data, callback);
     }
