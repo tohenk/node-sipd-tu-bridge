@@ -118,6 +118,7 @@ class Sipd extends WebRobot {
                 [w => this.isWafError()],
                 [w => this.isInMaintenance()],
                 [w => this.gotoPenatausahaan()],
+                [w => this.dismissAnnouncement()],
                 [w => this.isLoggedIn()],
                 [w => this.logout(), w => force],
                 [w => this.doLogin(username, password, role), w => force || !w.getRes(3)],
@@ -569,6 +570,19 @@ class Sipd extends WebRobot {
             }
             f();
         });
+    }
+
+    /**
+     * Dismiss announcement.
+     *
+     * @returns {Promise<any>}
+     */
+    dismissAnnouncement() {
+        return this.works([
+            [w => this.waitForPresence(By.xpath('//div[text()="PENGUMUMAN"]'), {timeout: this.delay})],
+            [w => this.findElement(By.xpath('//button[contains(@class,"chakra-modal__close-btn")]')), w => w.getRes(0)],
+            [w => w.getRes(1).click(), w => w.getRes(0)],
+        ]);
     }
 
     /**
