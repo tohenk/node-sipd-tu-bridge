@@ -326,6 +326,25 @@ class SipdUtil {
     }
 
     /**
+     * Pick LS type from SIPD number string.
+     *
+     * @param {string} s The input string
+     * @returns {string}
+     */
+    static pickNrLs(s) {
+        if (s) {
+            const nrs = this.parseNr(s, {cair: 'LS'});
+            if (Array.isArray(nrs) && nrs.length) {
+                return {
+                    '02.0': 'SPP',
+                    '03.0': 'SPM',
+                    '04.0': 'SP2D',
+                }[nrs[0].groups.TYP];
+            }
+        }
+    }
+
+    /**
      * Get safe string by replacing multiple whitespace occurances with single one.
      *
      * @param {string} s The input string

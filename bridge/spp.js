@@ -24,6 +24,7 @@
 
 const SipdBridge = require('.');
 const SipdSppSession = require('./session/spp');
+const SipdUtil = require('../sipd/util');
 const { SipdRole } = require('../sipd/role');
 
 class SipdSppBridge extends SipdBridge {
@@ -84,6 +85,39 @@ class SipdSppBridge extends SipdBridge {
     }
 
     querySpp(queue) {
+        let type = SipdUtil.pickNrLs(queue.getMappedData('info.check'));
+        switch (type) {
+            case 'SP2D':
+                queue.REF = true;
+                queue.SPP = true;
+                queue.SPM = true;
+                break;
+            case 'SPM':
+                queue.REF = true;
+                queue.SPP = true;
+                break;
+        }
+        const sorter = (a, b) => {
+            let res = 0;
+            switch (type) {
+                case 'SP2D':
+                    if (
+                        (a[0] === 'bp-cek-sp2d' && b[0] === 'bp-cek-spm') ||
+                        (a[0] === 'bp-cek-spm' && b[0] === 'bp-cek-spp')
+                    ) {
+                        res = -1;
+                    }
+                    break;
+                case 'SPM':
+                    if (
+                        (a[0] === 'bp-cek-spm' && b[0] === 'bp-cek-spp')
+                    ) {
+                        res = -1;
+                    }
+                    break;
+            }
+            return res;
+        }
         return this.processQueue({
             queue,
             works: [
@@ -92,7 +126,7 @@ class SipdSppBridge extends SipdBridge {
                 ['bp-cek-spp', w => w.bp.checkSpp(queue)],
                 ['bp-cek-spm', w => w.bp.checkSpm(queue)],
                 ['bp-cek-sp2d', w => w.bp.checkSp2d(queue)],
-            ],
+            ].sort(sorter),
         });
     }
 }

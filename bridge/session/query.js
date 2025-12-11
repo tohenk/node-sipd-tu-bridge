@@ -692,9 +692,10 @@ class SipdQuerySpp extends SipdQueryBase {
         this.search = [];
         this.diffs = [];
         this.group = this.options.jenis;
-        let no, tgl, nominal, untuk;
-        if (nomor === this.constructor.SPP) {
-            no = this.data.getMappedData('info.check');
+        const query = this.data.getMappedData('info.check');
+        let no, tgl, nominal, untuk, type = SipdUtil.pickNrLs(query);
+        if (type == nomor) {
+            no = query;
         }
         if (no) {
             this.placeholder = 'nomor';
@@ -726,6 +727,9 @@ class SipdQuerySpp extends SipdQueryBase {
             this.data[`${nomor}_TGL`] = this.data.values.tgl;
             this.data[`${nomor}_UNTUK`] = this.data.values.untuk;
             this.data[`${nomor}_NOM`] = this.data.values.nom;
+            if (this.data.values.ref && this.data.REF) {
+                this.data.setValue('info.check', this.data.values.ref);
+            }
         }
         // for SPP number query, column `untuk` must retained as is
         if (no) {

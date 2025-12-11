@@ -712,6 +712,14 @@ class SipdQueue
         return value;
     }
 
+    setValue(name, value) {
+        const key = this.getMap(name);
+        if (key) {
+            this.data[key] = value;
+        }
+        return this;
+    }
+
     start() {
         this.setTime();
         this.setStatus(SipdQueue.STATUS_PROCESSING);
