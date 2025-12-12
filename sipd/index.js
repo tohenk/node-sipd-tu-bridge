@@ -115,21 +115,43 @@ class Sipd extends WebRobot {
     login(username, password, role, force = false) {
         return new Promise((resolve, reject) => {
             this.works([
-                [w => this.isWafError()],
-                [w => this.isInMaintenance()],
-                [w => this.gotoPenatausahaan()],
-                [w => this.dismissAnnouncement()],
-                [w => this.isLoggedIn()],
+                [w => this.doPreLogin()],
                 [w => this.logout(), w => force],
-                [w => this.doLogin(username, password, role), w => force || !w.getRes(3)],
-                [w => this.waitSidebar()],
-                [w => this.dismissStatuses()],
-                [w => this.checkMessages()],
-                [w => this.dismissUpdate()],
+                [w => this.isLoggedIn(), w => !force],
+                [w => this.doLogin(username, password, role), w => force || !w.getRes(2)],
+                [w => this.doPostLogin()],
             ])
             .then(() => resolve())
             .catch(err => reject(new SipdRetryError(err instanceof Error ? err.message : err)));
         });
+    }
+
+    /**
+     * Perform pre login task.
+     *
+     * @returns {Promise<any>}
+     */
+    doPreLogin() {
+        return this.works([
+            [w => this.isWafError()],
+            [w => this.isInMaintenance()],
+            [w => this.gotoPenatausahaan()],
+            [w => this.dismissAnnouncement()],
+        ]);
+    }
+
+    /**
+     * Perform post login task.
+     *
+     * @returns {Promise<any>}
+     */
+    doPostLogin() {
+        return this.works([
+            [w => this.waitSidebar()],
+            [w => this.dismissStatuses()],
+            [w => this.checkMessages()],
+            [w => this.dismissUpdate()],
+        ]);
     }
 
     /**
