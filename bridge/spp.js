@@ -88,33 +88,26 @@ class SipdSppBridge extends SipdBridge {
         let type = SipdUtil.pickNrLs(queue.getMappedData('info.check'));
         switch (type) {
             case 'SP2D':
-                queue.REF = true;
-                queue.SPP = true;
                 queue.SPM = true;
-                break;
+                // no break
             case 'SPM':
-                queue.REF = true;
                 queue.SPP = true;
-                break;
+                queue.REF = true;
+                // no break
         }
         const sorter = (a, b) => {
             let res = 0;
             switch (type) {
                 case 'SP2D':
-                    if (
-                        (a[0] === 'bp-cek-sp2d' && b[0] === 'bp-cek-spm') ||
-                        (a[0] === 'bp-cek-spm' && b[0] === 'bp-cek-spp')
-                    ) {
+                    if (a[0] === 'bp-cek-sp2d' && b[0] === 'bp-cek-spm') {
                         res = -1;
                     }
-                    break;
+                    // no break
                 case 'SPM':
-                    if (
-                        (a[0] === 'bp-cek-spm' && b[0] === 'bp-cek-spp')
-                    ) {
+                    if (a[0] === 'bp-cek-spm' && b[0] === 'bp-cek-spp') {
                         res = -1;
                     }
-                    break;
+                    // no break
             }
             return res;
         }
