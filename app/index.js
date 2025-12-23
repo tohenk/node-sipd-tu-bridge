@@ -79,22 +79,25 @@ class App {
             captcha: () => this.getCaptcha(),
         });
         this.dequeue.createQueue = (data, ret) => {
+            let res;
             const queue = this.dequeue.createNewQueue(data);
             if (queue) {
                 if (data.id) {
                     queue.id = data.id;
                 }
-                if (queue.type === SipdQueue.QUEUE_SPP && SipdQueue.hasPendingQueue(queue)) {
-                    return {message: `SPP ${queue.info} sudah dalam antrian!`};
+                if (SipdQueue.hasPendingQueue(queue)) {
+                    res = {message: `Antrian ${queue.id} sudah dalam antrian atau sedang diproses!`};
                 }
-                if (queue.type === SipdQueue.QUEUE_CLEAN && SipdQueue.hasPendingQueue(queue)) {
-                    return {message: `Antrian sudah dalam antrian atau sedang dalam proses!`};
+                if (res === undefined) {
+                    console.log(`📦 ${queue.type.toUpperCase()}: ${queue.info ?? '\u2014'}`);
+                    res = SipdQueue.addQueue(queue);
                 }
-                console.log('📦 %s: %s', queue.type.toUpperCase(), queue.info);
-                const res = SipdQueue.addQueue(queue);
-                return ret ? [res, queue] : res;
             }
+            return ret ? [res, queue] : res;
         }
+        /**
+         * @param {SipdQueue} queue
+         */
         this.dequeue.setMaps = queue => {
             queue.maps = this.config.maps;
             queue.info = queue.getMappedData('info.title');

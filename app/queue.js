@@ -695,18 +695,24 @@ class SipdQueue
         switch (vtype) {
             case 'CONCAT':
                 values = vvalue.split('|');
-                let separator = values.shift();
-                values.forEach(n => {
-                    v.push(this.getDataValue(n.trim()));
-                });
+                const separator = values.shift();
+                for (const val of values) {
+                    v.push(this.getDataValue(val.trim()));
+                }
                 value = v.join(separator);
                 break;
             case 'FORMAT':
                 values = vvalue.split('|');
                 value = values.shift();
-                values.forEach((n, i) => {
-                    value = value.replace(new RegExp('%' + (i + 1) + '%', 'g'), this.getDataValue(n.trim()));
-                });
+                const fmtValues = values.map((val, i) => [new RegExp('%' + (i + 1) + '%', 'g'), this.getDataValue(val.trim())]);
+                const nullOrUndefined = fmtValues.filter(a => a[1] === null || a[1] === undefined);
+                if (fmtValues.length === nullOrUndefined.length) {
+                    value = undefined;
+                } else {
+                    for (const [re, val] of fmtValues) {
+                        value = value.replace(re, val);
+                    }
+                }
                 break;
         }
         return value;
@@ -786,11 +792,7 @@ class SipdQueue
     }
 
     isFlagged(flag) {
-        const metadata = this.constructor.QUEUE_METADATA;
-        if (typeof metadata[this.type] === 'string') {
-            return metadata[this.type].includes(flag) ? true : false;
-        }
-        return false;
+        return this.constructor.hasFlag(this.type, flag);
     }
 
     isSaveable() {
@@ -873,13 +875,21 @@ class SipdQueue
     }
 
     static hasPendingQueue(queue) {
-        if (dequeue) {
-            if (dequeue.queues.filter(q => q.type === queue.type && q.info === queue.info).length) {
-                return true;
+        if (dequeue && queue) {
+            if ((queue instanceof this && queue.isFlagged('u')) || this.hasFlag(queue.type, 'u')) {
+                const f = q => q.type === queue.type && q.info === queue.info;
+                if ([...dequeue.queues.filter(f), ...dequeue.processing.filter(f)].length) {
+                    return true;
+                }
             }
-            if (dequeue.processing.filter(q => q.type === queue.type && q.info === queue.info).length) {
-                return true;
-            }
+        }
+        return false;
+    }
+
+    static hasFlag(type, flag) {
+        const metadata = this.QUEUE_METADATA;
+        if (typeof metadata[type] === 'string') {
+            return metadata[type].includes(flag) ? true : false;
         }
         return false;
     }
@@ -888,12 +898,13 @@ class SipdQueue
         // e: can be exported
         // m: can have map
         // r: can be retried
+        // u: unique, skip queue if exist
         // -: readonly
         return {
-            [this.QUEUE_SPP]: 'emr',
-            [this.QUEUE_SPP_QUERY]: 'em-',
-            [this.QUEUE_LPJ]: 'emr',
-            [this.QUEUE_LPJ_QUERY]: 'em-',
+            [this.QUEUE_SPP]: 'emru',
+            [this.QUEUE_SPP_QUERY]: 'emu-',
+            [this.QUEUE_LPJ]: 'emru',
+            [this.QUEUE_LPJ_QUERY]: 'emu-',
             [this.QUEUE_REKANAN]: 'em-',
         }
     }
