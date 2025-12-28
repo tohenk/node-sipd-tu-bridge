@@ -600,11 +600,11 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     dismissAnnouncement() {
-        return this.works([
-            [w => this.waitForPresence(By.xpath('//div[text()="PENGUMUMAN"]'), {timeout: this.delay})],
-            [w => this.findElement(By.xpath('//button[contains(@class,"chakra-modal__close-btn")]')), w => w.getRes(0)],
-            [w => w.getRes(1).click(), w => w.getRes(0)],
-        ]);
+        return this.doDismiss([
+                By.xpath('//img[contains(@src,"pengumuman")]'),
+                By.xpath('//div[text()="PENGUMUMAN"]'),
+            ],
+            By.xpath('//button[contains(@class,"chakra-modal__close-btn")]'));
     }
 
     /**
@@ -613,11 +613,29 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     dismissUpdate() {
-        return this.works([
-            [w => this.waitForPresence(By.xpath('//h1[contains(@class,"css-nwjwe-j2aft") and text()="Pembaruan"]'), {timeout: this.delay})],
-            [w => this.findElement(By.xpath('//button[text()="Sembunyikan"]')), w => w.getRes(0)],
-            [w => w.getRes(1).click(), w => w.getRes(0)],
-        ]);
+        return this.doDismiss(By.xpath('//h1[contains(@class,"css-nwjwe-j2aft") and text()="Pembaruan"]'),
+            By.xpath('//button[text()="Sembunyikan"]'));
+    }
+
+    /**
+     * Do dismiss.
+     *
+     * @param {By|By[]} elements Dismissable elements
+     * @param {By} clicker Dismiss clicker
+     * @returns {Promise<any>}
+     */
+    doDismiss(elements, clicker) {
+        return new Promise((resolve, reject) => {
+            const q = new Queue([...(Array.isArray(elements) ? elements : [elements])], el => {
+                this.works([
+                    [w => this.waitForPresence(el, {timeout: this.delay})],
+                    [w => this.click(clicker), w => w.getRes(0)],
+                ])
+                .then(res => res ? q.done() : q.next())
+                .catch(err => reject(err));
+            });
+            q.once('done', () => resolve());
+        });
     }
 
     /**
