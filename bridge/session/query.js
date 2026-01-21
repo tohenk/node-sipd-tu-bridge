@@ -491,7 +491,9 @@ class SipdVoterPegawai extends SipdVoter {
 class SipdVoterRekanan extends SipdVoter {
 
     doInitialize() {
+        const queue = this.data.queue ?? this.data;
         this.options.title = 'Daftar Rekanan';
+        this.options.jenis = queue.getMappedData('info.jenis');
         this.diffs = [];
         const rekanan = Array.isArray(this.data.value) ? this.data.value[0] : this.data.value;
         const nik = Array.isArray(this.data.value) ? this.data.value[1] : null;
@@ -557,10 +559,10 @@ class SipdVoterNpd extends SipdVoter {
             status: [4, SipdColumnQuery.COL_PROGRESS],
             action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
         }
-        const data = this.data.queue ?? this.data;
-        this.search = [data[this.data.value]];
+        const queue = this.data.queue ?? this.data;
+        this.search = [queue[this.data.value]];
         this.diffs = [
-            ['no', data[this.data.value]],
+            ['no', queue[this.data.value]],
         ];
     }
 
@@ -581,7 +583,6 @@ class SipdQueryRekanan extends SipdVoterRekanan {
     doPreInitialize() {
         this.actionEnabled = false;
         this.dialog = false;
-        this.options.jenis = this.data.getMappedData('info.jenis');
         this.data.value = [
             SipdUtil.getSafeStr(this.data.getMappedData('info.rekanan')),
             this.data.getMappedData('info.nik'),

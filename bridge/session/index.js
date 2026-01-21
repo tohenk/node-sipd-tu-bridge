@@ -435,10 +435,10 @@ class SipdSession {
         ]);
     }
 
-    fillRekanan(el, value) {
+    fillRekanan(el, value, queue) {
         return this.works([
             [w => el.click()],
-            [w => this.doQuery(new SipdVoterRekanan(this.sipd, {value}))],
+            [w => this.doQuery(new SipdVoterRekanan(this.sipd, {value, queue}))],
         ]);
     }
 
@@ -778,7 +778,7 @@ class SipdSession {
                         data.onfill = (el, value) => this.fillRole(el, SipdUtil.normalize(this.bridge.getUser(value)?.username));
                         break;
                     case 'REKANAN':
-                        data.onfill = (el, value) => this.fillRekanan(el, value);
+                        data.onfill = (el, value) => this.fillRekanan(el, value, queue);
                         break;
                     case 'KEG':
                         data.onfill = (el, value) => this.fillKegiatan(el, value);
