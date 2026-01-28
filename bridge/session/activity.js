@@ -22,11 +22,27 @@
  * SOFTWARE.
  */
 
+const Queue = require('@ntlab/work/queue');
+const SipdUtil = require('../../sipd/util');
+const { Sipd } = require('../../sipd');
 const { By } = require('selenium-webdriver');
 
+const dtag = 'activity';
+
+/**
+ * Activity selector helper.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdActivitySelector {
 
-    constructor() {
+    /**
+     * @type {Sipd}
+     */
+    parent = null
+
+    constructor(parent) {
+        this.parent = parent;
         /** @type {By} */
         this.clicker;
         /** @type {By} */
@@ -40,8 +56,49 @@ class SipdActivitySelector {
 
     initialize() {
     }
+
+    select(value) {
+        let fulfilled = false;
+        return this.parent.works([
+            [w => this.parent.waitForPresence(this.loadingSelector, {presence: false, timeout: 0})],
+            [w => this.parent.waitAndClick(this.clicker), w => this.clicker],
+            [w => this.parent.findElements(this.listSelector)],
+            [w => new Promise((resolve, reject) => {
+                const items = w.res;
+                const q = new Queue(items, item => {
+                    let itemText;
+                    this.parent.works([
+                        [x => item.getAttribute('innerText')],
+                        [x => Promise.resolve(SipdUtil.pickKeg(x.getRes(0)))],
+                        [x => Promise.resolve(SipdUtil.matchKeg(x.getRes(1), value))],
+                        [x => item.findElement(this.chooseSelector), x => x.getRes(2)],
+                        [x => x.getRes(3).click(), x => x.getRes(2)],
+                        [x => Promise.resolve(fulfilled = true), x => x.getRes(2)],
+                        [x => Promise.resolve(itemText = x.getRes(1))],
+                    ])
+                    .then(() => {
+                        this.parent.debug(dtag)(`Fill activity: ${itemText}, done = ${fulfilled ? 'yes' : 'no'}`);
+                        if (fulfilled) {
+                            q.done();
+                        } else {
+                            q.next();
+                        }
+                    })
+                    .catch(err => reject(err));
+                });
+                q.once('done', () => resolve());
+            })],
+            [w => Promise.reject(`Unable to fill activity ${value}!`), w => !fulfilled],
+            [w => this.parent.sleep(this.parent.opdelay), w => fulfilled],
+        ]);
+    }
 }
 
+/**
+ * Activity selector for SPP.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdSppActivitySelector extends SipdActivitySelector {
 
     initialize() {
@@ -50,6 +107,11 @@ class SipdSppActivitySelector extends SipdActivitySelector {
     }
 }
 
+/**
+ * Activity selector for NPD Keg.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdNpdKegActivitySelector extends SipdActivitySelector {
 
     initialize() {
@@ -57,6 +119,11 @@ class SipdNpdKegActivitySelector extends SipdActivitySelector {
     }
 }
 
+/**
+ * Activity selector for NPD Sub Keg.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdNpdSubKegActivitySelector extends SipdActivitySelector {
 
     initialize() {

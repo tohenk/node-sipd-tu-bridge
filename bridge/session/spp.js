@@ -36,8 +36,8 @@ class SipdSppSession extends SipdSession {
 
     doInitialize() {
         this.createAfektasi('spp');
-        this.kegSelector = new SipdSppActivitySelector();
-        this.subkegSelector = new SipdSppActivitySelector();
+        this.kegSelector = SipdSppActivitySelector;
+        this.subkegSelector = SipdSppActivitySelector;
     }
 
     querySpp(queue, options) {

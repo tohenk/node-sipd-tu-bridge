@@ -31,8 +31,8 @@ class SipdLpjSession extends SipdSession {
 
     doInitialize() {
         this.createAfektasi('npd');
-        this.kegSelector = new SipdNpdKegActivitySelector();
-        this.subkegSelector = new SipdNpdSubKegActivitySelector();
+        this.kegSelector = SipdNpdKegActivitySelector;
+        this.subkegSelector = SipdNpdSubKegActivitySelector;
     }
 
     queryNpd(queue, options) {

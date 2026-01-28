@@ -450,41 +450,12 @@ class SipdSession {
     }
 
     fillKegiatan(el, value) {
-        let fulfilled = false;
-        /** @type {SipdActivitySelector} */
-        const selector = this.kegSeq++ === 0 ? this.kegSelector : this.subkegSelector;
+        /** @type {typeof SipdActivitySelector} */
+        const activityClass = this.kegSeq++ === 0 ? this.kegSelector : this.subkegSelector;
+        const selector = new activityClass(this.sipd);
         return this.works([
             [w => el.click()],
-            [w => this.sipd.waitForPresence(selector.loadingSelector, {presence: false, timeout: 0})],
-            [w => this.sipd.waitAndClick(selector.clicker), w => selector.clicker],
-            [w => this.sipd.findElements(selector.listSelector)],
-            [w => new Promise((resolve, reject) => {
-                const items = w.getRes(3);
-                const q = new Queue(items, item => {
-                    let itemText;
-                    this.works([
-                        [x => item.getAttribute('innerText')],
-                        [x => Promise.resolve(SipdUtil.pickKeg(x.getRes(0)))],
-                        [x => Promise.resolve(SipdUtil.matchKeg(x.getRes(1), value))],
-                        [x => item.findElement(selector.chooseSelector), x => x.getRes(2)],
-                        [x => x.getRes(3).click(), x => x.getRes(2)],
-                        [x => Promise.resolve(fulfilled = true), x => x.getRes(2)],
-                        [x => Promise.resolve(itemText = x.getRes(1))],
-                    ])
-                    .then(() => {
-                        this.debug(dtag)(`Fill activity: ${itemText}, done = ${fulfilled ? 'yes' : 'no'}`);
-                        if (fulfilled) {
-                            q.done();
-                        } else {
-                            q.next();
-                        }
-                    })
-                    .catch(err => reject(err));
-                });
-                q.once('done', () => resolve());
-            })],
-            [w => Promise.reject(`Unable to fill activity ${value}!`), w => !fulfilled],
-            [w => this.sipd.sleep(this.sipd.opdelay), w => fulfilled],
+            [w => selector.select(value)],
         ]);
     }
 
