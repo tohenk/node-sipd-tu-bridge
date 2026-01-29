@@ -25,6 +25,7 @@
 const Queue = require('@ntlab/work/queue');
 const SipdUtil = require('../../sipd/util');
 const { Sipd } = require('../../sipd');
+const { SipdVoterActivity } = require('./query');
 const { By } = require('selenium-webdriver');
 
 const dtag = 'activity';
@@ -126,9 +127,9 @@ class SipdNpdKegActivitySelector extends SipdActivitySelector {
  */
 class SipdNpdSubKegActivitySelector extends SipdActivitySelector {
 
-    initialize() {
-        this.listSelector = By.xpath('//td[contains(@class,"table-td")]/div/span/div/span[2]');
-        this.chooseSelector = By.xpath('../../../../../td[2]/div/button');
+    select(value) {
+        const voter = new SipdVoterActivity(this.parent, {value});
+        return voter.walk();
     }
 }
 

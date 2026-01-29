@@ -105,7 +105,7 @@ class SipdQueryBase extends SipdQuery {
         if (col.name.includes('nom')) {
             return 'nom';
         }
-        if (col.name.includes('nik')) {
+        if (col.name.includes('nik') || col.name.includes('keg')) {
             return 'nr';
         }
         if (col.name.includes('nama')) {
@@ -246,7 +246,11 @@ class SipdQueryBase extends SipdQuery {
                 for (const arg of args) {
                     if (arg[2]) {
                         let okay;
-                        if (typeof arg[0] === 'string' && typeof arg[1] === 'string') {
+                        if (typeof arg[2] === 'function') {
+                            // 0 -> constant value
+                            // 1 -> row value
+                            okay = arg[2](arg[1], arg[0]);
+                        } else if (typeof arg[0] === 'string' && typeof arg[1] === 'string') {
                             okay = arg[0].toLowerCase() === arg[1].toLowerCase();
                         } else {
                             okay = arg[0] == arg[1];
@@ -574,6 +578,36 @@ class SipdVoterNpd extends SipdVoter {
 }
 
 /**
+ * Handles activity selection.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdVoterActivity extends SipdVoter {
+
+    doInitialize() {
+        this.options.title = 'Sub Kegiatan';
+        this.pageOptions = {
+            tableSelector: './/div[1]',
+            paginationSelector: './/div[1]',
+            onrow: el => new Promise((resolve, reject) => {
+                // accepts only data row which has at least 2 columns
+                el.findElements(By.xpath('.//td'))
+                    .then(td => {
+                        resolve(td.length > 1 ? true : false);
+                    });
+            }),
+        }
+        this.defaultColumns = {
+            keg: [1, SipdColumnQuery.COL_ICON2],
+            action: [2, SipdColumnQuery.COL_ACTION],
+        }
+        this.diffs = [
+            ['keg', this.data.value, SipdUtil.matchKeg],
+        ];
+    }
+}
+
+/**
  * Handles partner data paging.
  *
  * @author Toha <tohenk@yahoo.com>
@@ -783,6 +817,7 @@ module.exports = {
     SipdVoterPegawai,
     SipdVoterRekanan,
     SipdVoterNpd,
+    SipdVoterActivity,
     SipdQueryRekanan,
     SipdQueryNpd,
     SipdQueryTbp,
