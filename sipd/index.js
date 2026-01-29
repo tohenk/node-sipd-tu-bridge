@@ -178,7 +178,12 @@ class Sipd extends WebRobot {
                             {target: By.id('ed_username'), value: username},
                             {target: By.id('ed_password'), value: password},
                         ],
-                        {spinner: true, prefillCallback: () => this.waitCaptcha()}
+                        {
+                            spinner: true,
+                            prefillCallback: () => this.waitCaptcha(),
+                            retry: 3,
+                            isretryable: err => err.includes('Gagal memproses permintaan'),
+                        }
                     )
                     .then(() => resolve())
                     .catch(err => {
@@ -298,6 +303,7 @@ class Sipd extends WebRobot {
      * @param {string} options.spinner Spinner class name
      * @param {number} options.retry Number of retry, default to once
      * @param {Function} options.onerror Callback when error occured on form submission
+     * @param {Function} options.isretryable Callback when a retry should be performed if an error occured
      * @returns {Promise<WebElement>}
      */
     confirmSubmission(clicker, options = null) {
@@ -324,7 +330,11 @@ class Sipd extends WebRobot {
                 ])
                 .then(res => resolve(res))
                 .catch(err => {
-                    if (retry === 0) {
+                    let retryable = true;
+                    if (retry > 0 && typeof options.isretryable === 'function') {
+                        retryable = options.isretryable(err);
+                    }
+                    if (retry === 0 || !retryable) {
                         reject(err);
                     } else {
                         this.debug(dtag)('Retrying form submit in %d ms...', this.wait);
