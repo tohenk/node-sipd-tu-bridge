@@ -23,9 +23,9 @@
  */
 
 const Queue = require('@ntlab/work/queue');
-const SipdPage = require('../../sipd/page');
+const SipdPage = require('../../sipd/component/page');
 const SipdUtil = require('../../sipd/util');
-const { SipdAnnouncedError, SipdRestartError } = require('../../sipd');
+const { SipdAnnouncedError, SipdRestartError, SipdStopError } = require('../../sipd');
 const { SipdQuery, SipdColumnQuery } = require('../../sipd/query');
 const { By, WebElement } = require('selenium-webdriver');
 const _ = require('./fn');
@@ -46,8 +46,8 @@ class SipdQueryBase extends SipdQuery {
         this.doPreInitialize();
         this.doInitialize();
         this.doPostInitialize();
-        this.doPagerInitialize();
-        this.doCreatePager();
+        this.doPageInitialize();
+        this.doCreatePage();
     }
 
     doInitialize() {
@@ -59,18 +59,18 @@ class SipdQueryBase extends SipdQuery {
     doPostInitialize() {
     }
 
-    doPagerInitialize() {
+    doPageInitialize() {
     }
 
-    doCreatePager() {
+    doCreatePage() {
         this.page = new SipdPage(this.parent, {
             title: this.options.title,
-            ...this.getPagerOptions(),
+            ...this.getPageOptions(),
         });
     }
 
-    getPagerOptions() {
-        return this.pagerOptions || {};
+    getPageOptions() {
+        return this.pageOptions || {};
     }
 
     getFilterSelector(placeholder = null) {
@@ -303,7 +303,7 @@ class SipdQueryBase extends SipdQuery {
                 if (typeof this.onResult === 'function') {
                     this.onResult();
                 }
-                reject(SipdPage.stop());
+                reject(new SipdStopError());
             } else {
                 resolve();
             }
@@ -348,10 +348,10 @@ class SipdQueryBase extends SipdQuery {
      */
     walk() {
         let result = {};
-        const searchable = search => {
-            if (search) {
-                if (Array.isArray(search)) {
-                    return search
+        const filterable = value => {
+            if (value) {
+                if (Array.isArray(value)) {
+                    return value
                         .filter(a => a !== undefined && a !== null)
                         .length ? true : false;
                 }
@@ -406,7 +406,7 @@ class SipdQueryBase extends SipdQuery {
                         [x => this.parent.gotoPageTop(), x => this.group],
                         [x => this.parent.subPageNav(...(Array.isArray(this.group) ? this.group : [this.group])), x => this.group],
                         [x => this.page.setup()],
-                        [x => this.page.search(...(Array.isArray(this.search) ? this.search : [this.search])), x => searchable(this.search)],
+                        [x => this.page.filter(...(Array.isArray(this.filter) ? this.filter : [this.filter])), x => filterable(this.filter)],
                         [x => this.page.each(options, iterator)],
                     ])
                     .then(() => resolve())
@@ -448,13 +448,13 @@ class SipdVoter extends SipdQueryBase {
         this.dialog = true;
     }
 
-    getPagerOptions() {
+    getPageOptions() {
         return {
             ...(this.dialog ? {
                 selector: '//header[text()="%TITLE%"]/../div[contains(@class,"chakra-modal__body")]',
                 tableSelector: './/table/..',
             } : {}),
-            ...(this.pagerOptions || {}),
+            ...(this.pageOptions || {}),
         }
     }
 }
@@ -469,13 +469,13 @@ class SipdVoterPegawai extends SipdVoter {
     doInitialize() {
         this.options.title = 'Pilih Pegawai';
         this.placeholder = 'nip';
-        this.pagerOptions = {search: this.getFilterSelector()};
+        this.pageOptions = {filter: this.getFilterSelector()};
         this.defaultColumns = {
             nama: {selector: './td[1]/div/span/div/span[1]'},
             nip: {selector: './td[1]/div/span/div/span[2]'},
             action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
         }
-        this.search = [this.data.value];
+        this.filter = [this.data.value];
         this.diffs = [
             ['nip', this.data.value],
             ['nama', null, false],
@@ -498,24 +498,24 @@ class SipdVoterRekanan extends SipdVoter {
         const rekanan = Array.isArray(this.data.value) ? this.data.value[0] : this.data.value;
         const nik = Array.isArray(this.data.value) ? this.data.value[1] : null;
         if (this.usaha) {
-            this.search = [rekanan];
+            this.filter = [rekanan];
             this.placeholder = 'perusahaan';
             this.diffs.push(['usaha', rekanan]);
             if (nik) {
-                this.search = [[rekanan, nik]];
+                this.filter = [[rekanan, nik]];
                 this.placeholder = [this.placeholder, 'nik'];
             }
         } else {
-            this.search = [nik];
+            this.filter = [nik];
             this.placeholder = 'nik';
         }
         if (nik) {
             this.diffs.push(['nik', nik]);
         }
         this.diffs.push(['nama', null, false]);
-        this.pagerOptions = {
+        this.pageOptions = {
             selector: '//h1[contains(@class,"card-title")]/h1[text()="%TITLE%"]/../../../..',
-            search: this.getFilterSelector(),
+            filter: this.getFilterSelector(),
         }
         this.defaultColumns = {
             nama: {selector: './td[1]/div/div/div[2]/span[1]'},
@@ -550,7 +550,7 @@ class SipdVoterNpd extends SipdVoter {
         if (this.placeholder === undefined) {
             this.placeholder = 'nomor dokumen';
         }
-        this.pagerOptions = {search: this.getFilterSelector()};
+        this.pageOptions = {filter: this.getFilterSelector()};
         this.defaultColumns = {
             no: 1,
             tgl: [1, SipdColumnQuery.COL_ICON2],
@@ -560,15 +560,15 @@ class SipdVoterNpd extends SipdVoter {
             action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
         }
         const queue = this.data.queue ?? this.data;
-        this.search = [queue[this.data.value]];
+        this.filter = [queue[this.data.value]];
         this.diffs = [
             ['no', queue[this.data.value]],
         ];
     }
 
-    doPagerInitialize() {
+    doPageInitialize() {
         if (this.dialog) {
-            this.pagerOptions.selector = '//h1[text()="%TITLE%"]/../../..';
+            this.pageOptions.selector = '//h1[text()="%TITLE%"]/../../..';
         }
     }
 }
@@ -616,7 +616,7 @@ class SipdQueryNpd extends SipdVoterNpd {
         const nomor = this.constructor.NPD;
         const no = this.data[nomor];
         if (no) {
-            this.search = [no];
+            this.filter = [no];
             this.diffs = [
                 ['no', no]
             ];
@@ -624,7 +624,7 @@ class SipdQueryNpd extends SipdVoterNpd {
             const tgl = SipdUtil.getDate(this.data.getMappedData('npd.npd:TGL'));
             const nominal = this.data.getMappedData('npd.npd:NOMINAL');
             const untuk = SipdUtil.getSafeStr(this.data.getMappedData('npd.npd:UNTUK'));
-            this.search = [untuk];
+            this.filter = [untuk];
             this.diffs = [
                 ['tgl', tgl],
                 ['untuk', untuk],
@@ -652,7 +652,7 @@ class SipdQueryTbp extends SipdQueryBase {
     doInitialize() {
         this.options.title = 'Tanda Bukti Pembayaran';
         this.placeholder = 'tujuan pembayaran';
-        this.pagerOptions = {search: this.getFilterSelector()};
+        this.pageOptions = {filter: this.getFilterSelector()};
         this.defaultColumns = {
             no: 1,
             tgl: 2,
@@ -663,7 +663,7 @@ class SipdQueryTbp extends SipdQueryBase {
         const tgl = SipdUtil.getDate(this.data.getMappedData('npd.npd:TGL'));
         const nominal = this.data.getMappedData('npd.npd:NOMINAL');
         const untuk = SipdUtil.getSafeStr(this.data.getMappedData('npd.npd:UNTUK'));
-        this.search = [untuk];
+        this.filter = [untuk];
         this.diffs= [
             ['tgl', tgl],
             ['untuk', untuk],
@@ -690,7 +690,7 @@ class SipdQuerySpp extends SipdQueryBase {
     doInitialize() {
         const nomor = this.options.nomor || this.constructor.SPP;
         this.defaultColumns = this.constructor.getColumns(nomor);
-        this.search = [];
+        this.filter = [];
         this.diffs = [];
         this.group = this.options.jenis;
         const query = this.data.getMappedData('info.check');
@@ -700,7 +700,7 @@ class SipdQuerySpp extends SipdQueryBase {
         }
         if (no) {
             this.placeholder = 'nomor';
-            this.search.push(no);
+            this.filter.push(no);
             this.diffs.push(['no', no]);
         } else {
             if (nomor !== this.constructor.SPP) {
@@ -713,7 +713,7 @@ class SipdQuerySpp extends SipdQueryBase {
                 untuk = this.data.getMappedData('spp.spp:UNTUK');
             }
             this.placeholder = 'keterangan';
-            this.search.push(untuk);
+            this.filter.push(untuk);
             if (!this.options.skipDate) {
                 this.diffs.push(['tgl', tgl]);
             }
@@ -722,7 +722,7 @@ class SipdQuerySpp extends SipdQueryBase {
                 ['nom', nominal],
             );
         }
-        this.pagerOptions = {search: this.getFilterSelector()};
+        this.pageOptions = {filter: this.getFilterSelector()};
         this.onResult = () => {
             this.data[`${nomor}`] = this.data.values.no;
             this.data[`${nomor}_TGL`] = this.data.values.tgl;

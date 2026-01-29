@@ -48,7 +48,7 @@ class SipdQuery {
     group = null
 
     /**
-     * @type {import('./page')}
+     * @type {import('./component/page')}
      */
     page = null
 
