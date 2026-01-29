@@ -1145,6 +1145,11 @@ class Sipd extends WebRobot {
     }
 }
 
+/**
+ * An error to indicate a message is need to be announced to caller.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdAnnouncedError extends Error {
 
     toString() {
@@ -1164,13 +1169,36 @@ class SipdAnnouncedError extends Error {
     }
 }
 
+/**
+ * An error to indicate a restart operation.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdRestartError extends Error {
 }
 
+/**
+ * An error to indicate a retry operation.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdRetryError extends Error {
 }
 
+/**
+ * An error to indicate a clean and retry operation.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCleanAndRetryError extends SipdRetryError {
 }
 
-module.exports = {Sipd, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdCleanAndRetryError};
+/**
+ * An error to indicate a stop operation when iterating data rows.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdStopError extends Error {
+}
+
+module.exports = {Sipd, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdCleanAndRetryError, SipdStopError};
