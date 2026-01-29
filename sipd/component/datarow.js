@@ -22,8 +22,9 @@
  * SOFTWARE.
  */
 
+const Queue = require('@ntlab/work/queue');
 const SipdComponent = require('.');
-const { By } = require('selenium-webdriver');
+const { By, WebElement } = require('selenium-webdriver');
 
 const dtag = 'datarow';
 
@@ -121,7 +122,34 @@ class SipdComponentDataRow extends SipdComponent {
     getRows() {
         return this.works([
             [w => this._rows.findElements(By.xpath('.//table/tbody/tr')), w => this._rows],
+            [w => new Promise((resolve, reject) => {
+                const rows = [];
+                const q = new Queue(w.res, el => {
+                    this.isRow(el)
+                        .then(res => {
+                            if (res) {
+                                rows.push(el);
+                            }
+                            q.next();
+                        })
+                        .catch(err => reject(err));
+                });
+                q.once('done', () => resolve(rows));
+            }), w => this._rows],
             [w => Promise.resolve([]), w => !this._rows],
+        ]);
+    }
+
+    /**
+     * Perform row check, return true to accept it, or false to ignore it.
+     *
+     * @param {WebElement} el Row element
+     * @returns {Promise<boolean>}
+     */
+    isRow(el) {
+        return this.works([
+            [w => el.isDisplayed()],
+            [w => this.options.onrow(el), w => w.getRes(0) && typeof this.options.onrow === 'function'],
         ]);
     }
 }
