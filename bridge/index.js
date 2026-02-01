@@ -31,6 +31,7 @@ const SipdLogger = require('../sipd/logger');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { Sipd, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const { error } = require('selenium-webdriver');
+const debug = require('debug')('sipd:bridge');
 
 /**
  * Work finished callback. The callback must returns an array of works to do.
@@ -59,6 +60,7 @@ class SipdBridge {
         this.options = options;
         this.state = this.STATE_NONE;
         this.autoClose = this.options.autoClose !== undefined ? this.options.autoClose : true;
+        this.singleSession = this.options.singleSession !== undefined ? this.options.singleSession : true;
         this.stopSessionEarly = this.options.stopSessionEarly !== undefined ? this.options.stopSessionEarly : true;
         this.loginfo = {
             tag: this.name,
@@ -322,53 +324,54 @@ class SipdBridge {
      * @returns {Promise<SipdSession>}
      */
     doAs(role) {
-        return new Promise((resolve, reject) => {
-            try {
-                const user = this.getUser(role);
-                if (user) {
-                    let title = user.role ?? this.getRoleTitle(role);
-                    let idx = 0;
-                    const p = title.indexOf(':');
-                    if (p > 1) {
-                        idx = parseInt(title.substr(p + 1).trim()) - 1;
-                        title = title.substr(0, p);
-                    }
-                    const sess = this.getSession(user.username, idx);
-                    if (sess) {
-                        sess.cred = {username: user.username, password: user.password, role: title, idx};
-                        this.loginfo.role = role;
-                        this.loginfo.actor = {
-                            'Pengguna Anggaran': 'PA',
-                            'Kuasa Pengguna Anggaran': 'KPA',
-                            'Bendahara Pengeluaran': 'BP',
-                            'Bendahara Pengeluaran Pembantu': 'BPP',
-                            'PPK SKPD': 'PPK',
-                            'PPK Unit SKPD': 'PPK',
-                            'PPTK': 'PPTK',
-                        }[title];
-                        if (this.stopSessionEarly) {
-                            const sessions = this.getSessions()
-                                .filter(s => s !== sess);
-                            const q = new Queue(sessions, s => {
-                                s.stop()
-                                    .then(() => q.next())
-                                    .catch(() => q.next());
-                            });
-                            q.once('done', () => resolve(sess));
-                        } else {
-                            resolve(sess);
-                        }
-                    } else {
-                        reject(`Unable to create session for ${user.username}!`);
-                    }
-                } else {
-                    reject(`Role not found: ${role}!`);
+        return this.works([
+            [w => this.lock.release(this.lockId), w => this.singleSession && this.lock],
+            [w => Promise.resolve(this.getUser(role))],
+            [w => Promise.reject(`Role not found: ${role}!`), w => !w.getRes(1)],
+            [w => new Promise((resolve, reject) => {
+                const user = w.getRes(1);
+                let title = user.role ?? this.getRoleTitle(role);
+                let idx = 0;
+                const p = title.indexOf(':');
+                if (p > 1) {
+                    idx = parseInt(title.substr(p + 1).trim()) - 1;
+                    title = title.substr(0, p);
                 }
-            }
-            catch (err) {
-                reject(err);
-            }
-        });
+                const session = this.getSession(user.username, idx);
+                if (session) {
+                    session.cred = {username: user.username, password: user.password, role: title, idx};
+                    this.loginfo.role = role;
+                    this.loginfo.actor = {
+                        'Pengguna Anggaran': 'PA',
+                        'Kuasa Pengguna Anggaran': 'KPA',
+                        'Bendahara Pengeluaran': 'BP',
+                        'Bendahara Pengeluaran Pembantu': 'BPP',
+                        'PPK SKPD': 'PPK',
+                        'PPK Unit SKPD': 'PPK',
+                        'PPTK': 'PPTK',
+                    }[title];
+                    resolve(session);
+                } else {
+                    reject(`Unable to create session for ${user.username}!`);
+                }
+            })],
+            [w => Promise.resolve(this.lock = SipdLockManager.get(w.getRes(1).username)),
+                w => this.singleSession && this.lockId],
+            [w => this.lock.acquire(this.lockId),
+                w => this.singleSession && this.lock],
+            [w => new Promise((resolve, reject) => {
+                const session = w.getRes(3);
+                const sessions = this.getSessions()
+                    .filter(s => s !== session);
+                const q = new Queue(sessions, s => {
+                    s.stop()
+                        .then(() => q.next())
+                        .catch(() => q.next());
+                });
+                q.once('done', () => resolve());
+            }), w => this.stopSessionEarly],
+            [w => Promise.resolve(w.getRes(3))],
+        ]);
     }
 
     /**
@@ -420,6 +423,10 @@ class SipdBridge {
     }
 
     processQueue({queue, works, done}) {
+        if (this.singleSession) {
+            this.lockId = queue.id;
+            delete this.lock;
+        }
         return this.do([
             ['role', w => this.checkRole(queue)],
             ...works,
@@ -441,6 +448,7 @@ class SipdBridge {
             })],
         ], (w, err) => {
             return [
+                [e => this.lock.release(this.lockId), e => this.lock],
                 [e => this.end(queue, this.autoClose)],
             ];
         });
@@ -470,6 +478,91 @@ class SipdBridge {
         } else {
             return Promise.reject('No roles defined!');
         }
+    }
+}
+
+/**
+ * SIPD user lock manager.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdLockManager {
+
+    /**
+     * Get lock for user.
+     *
+     * @param {string} user User id
+     * @returns {SipdUserLock}
+     */
+    static get(user) {
+        if (this.locks === undefined) {
+            this.locks = {};
+        }
+        if (this.locks[user] === undefined) {
+            this.locks[user] = new SipdUserLock(user);
+        }
+        return this.locks[user];
+    }
+}
+
+/**
+ * SIPD user lock.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdUserLock {
+
+    locks = []
+
+    constructor(user) {
+        /** @type {string} */
+        this.user = user;
+    }
+
+    /**
+     * Acquire lock.
+     *
+     * @param {string} lock Id
+     * @returns {Promise<any>}
+     */
+    acquire(lock) {
+        this.locks.push(lock);
+        return new Promise((resolve, reject) => {
+            let lastTime;
+            const startTime = new Date().getTime();
+            const f = () => {
+                const idx = this.locks.indexOf(lock);
+                if (idx === 0) {
+                    debug(`Lock ${this.user}:${lock} is acquired...`);
+                    resolve();
+                } else {
+                    const deltaTime = Math.floor((new Date().getTime() - startTime) / 1000);
+                    if (deltaTime > 0 && deltaTime % 60 === 0 && (lastTime === undefined || lastTime < deltaTime)) {
+                        lastTime = deltaTime;
+                        debug(`Lock ${this.user}:${lock} is still held after ${deltaTime}s...`);
+                    }
+                    setTimeout(f, 100);
+                }
+            }
+            f();
+        });
+    }
+
+    /**
+     * Release lock.
+     *
+     * @param {string} lock Id
+     * @returns {Promise<boolean>}
+     */
+    release(lock) {
+        let res = false;
+        const idx = this.locks.indexOf(lock);
+        if (idx === 0) {
+            this.locks.splice(idx, 1);
+            res = true;
+            debug(`Lock ${this.user}:${lock} is released...`);
+        }
+        return Promise.resolve(res);
     }
 }
 
