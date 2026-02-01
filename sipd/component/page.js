@@ -120,8 +120,9 @@ class SipdComponentPage extends SipdComponent {
             callback = options;
             options = {};
         }
+        const onrows = () => this._datarow.getRows();
         return this.works([
-            [w => this._datarow.getRows()],
+            [w => onrows()],
             [w => this._pager.getPages(), w => w.getRes(0).length],
             [w => new Promise((resolve, reject) => {
                 let pages, pageCount = w.getRes(1);
@@ -141,7 +142,7 @@ class SipdComponentPage extends SipdComponent {
                 }
                 const q = new Queue(pages, page => {
                     this.parent.debug(dtag)(`Processing page ${this.options.title}: ${page} of ${pageCount}`);
-                    this._pager.each(page, {states: options.states, onrows: () => this._datarow.getRows(), onwork: callback})
+                    this._pager.each(page, {states: options.states, onrows, onwork: callback})
                         .then(() => q.next())
                         .catch(err => {
                             if (err instanceof SipdStopError) {
