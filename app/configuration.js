@@ -194,8 +194,13 @@ class Configuration {
                             if (fs.existsSync(captcha)) {
                                 fs.rmSync(captcha);
                             }
-                            const res = stdout.toString().trim();
-                            debug('Resolved captcha', res);
+                            let res;
+                            if (stdout) {
+                                res = stdout.toString().trim();
+                                debug('Resolved captcha', res);
+                            } else if (stderr) {
+                                debug('Solver error:', stderr.toString().trim());
+                            }
                             resolve(res);
                         });
                         p.on('error', err => {
