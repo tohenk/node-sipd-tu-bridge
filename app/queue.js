@@ -490,6 +490,10 @@ class SipdBridgeConsumer extends SipdConsumer
             reason = 'only accepts';
             data = this.bridge.accepts;
         }
+        if (!reason && this.bridge.year != queue?.data.year) {
+            reason = 'only for';
+            data = this.bridge.year;
+        }
         if (reason) {
             const ctime = new Date().getTime();
             const xtime = this._time || ctime;
