@@ -791,7 +791,7 @@ class SipdQuerySpp extends SipdQueryBase {
                 tgl: 3,
                 untuk: [6, SipdColumnQuery.COL_SINGLE, true],
                 nom: 7,
-                status: {index: 4, type: SipdColumnQuery.COL_STATUS, selector: '*/*/p'},
+                status: {index: 5, type: SipdColumnQuery.COL_STATUS, selector: '*/*/p'},
                 action: [9, SipdColumnQuery.COL_ACTION],
             },
             [this.SP2D]: {
