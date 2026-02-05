@@ -27,6 +27,8 @@ const SipdComponent = require('.');
 const SipdUtil = require('../util');
 const { By } = require('selenium-webdriver');
 
+const dtag = 'filter';
+
 /**
  * SIPD data filtering component.
  *
@@ -58,6 +60,7 @@ class SipdComponentFilter extends SipdComponent {
      * @returns {Promise<any>}
      */
     setupFiltering(data) {
+        this.data = data;
         return this.works([
             [w => Promise.reject('Wrapper is required!'), w => !this._wrapper],
             [w => this._wrapper.findElement(data.toggler), w => data.toggler],
@@ -108,11 +111,12 @@ class SipdComponentFilter extends SipdComponent {
                 if (Array.isArray(this._filter) && !Array.isArray(value)) {
                     return reject('Filter value must be an array!');
                 }
+                const selectors = Array.isArray(this._filter) ? this.data.input : [this.data.input];
                 const searches = Array.isArray(this._filter) ? this._filter : [this._filter];
                 const values = Array.isArray(this._filter) ? value : [value];
                 const queues = [];
                 for (let i = 0; i < searches.length; i++) {
-                    queues.push({el: searches[i], value: values[i]});
+                    queues.push({el: searches[i], value: values[i], selector: selectors[i]});
                 }
                 const q = new Queue(queues, s => {
                     const data = {
@@ -120,6 +124,7 @@ class SipdComponentFilter extends SipdComponent {
                         value: SipdUtil.escapeTerm(s.value),
                         clearUsingKey: this.parent.options.clearUsingKey,
                     }
+                    this.parent.debug(dtag)(`Applying filter ${s.selector} with ${data.value}`);
                     this.parent.fillFormValue(data)
                         .then(() => q.next())
                         .catch(err => reject(err));
