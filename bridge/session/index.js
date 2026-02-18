@@ -1028,7 +1028,7 @@ class SipdSession {
             [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Rekanan"]')), w => !w.getRes(0) && allowChange],
             [w => queue.values.action.click(), w => w.getRes(0) && forceEdit && allowChange],
             [w => this.fillForm(queue, 'rekanan',
-                By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
+                By.xpath('//h1/span[text()="Tambah Rekanan"]/../../../..'),
                 By.xpath('//button[text()="Konfirmasi"]')), w => (!w.getRes(0) || forceEdit) && allowChange],
             [w => this.sipd.confirmSubmission(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!w.getRes(0) || forceEdit) && allowChange],
         ]);
@@ -1042,7 +1042,7 @@ class SipdSession {
             return this.works([
                 [w => values[actionCol.name].click()],
                 [w => this.fillForm(queue, 'rekanan',
-                    By.xpath('//h1/h1[text()="Tambah Rekanan"]/../../../..'),
+                    By.xpath('//h1/span[text()="Tambah Rekanan"]/../../../..'),
                     By.xpath('//button[text()="Kembali"]'))],
                 [w => Promise.resolve(queue.values)],
             ]);
