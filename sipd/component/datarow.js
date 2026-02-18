@@ -24,6 +24,7 @@
 
 const Queue = require('@ntlab/work/queue');
 const SipdComponent = require('.');
+const { SipdTimer } = require('..');
 const { By, WebElement } = require('selenium-webdriver');
 
 const dtag = 'datarow';
@@ -53,8 +54,7 @@ class SipdComponentDataRow extends SipdComponent {
      */
     setupDataRow() {
         return new Promise((resolve, reject) => {
-            let lastTime;
-            const startTime = new Date().getTime();
+            const timer = new SipdTimer({delta: 10});
             const f = () => {
                 this.works([
                     [w => this.findRows()],
@@ -70,11 +70,7 @@ class SipdComponentDataRow extends SipdComponent {
                             })
                             .catch(err => reject(err));
                     } else {
-                        const deltaTime = Math.floor((new Date().getTime() - startTime) / 1000);
-                        if (deltaTime > 0 && deltaTime % 10 === 0 && (lastTime === undefined || lastTime < deltaTime)) {
-                            lastTime = deltaTime;
-                            this.parent.debug(dtag)(`Still waiting data row ${this._title} result after ${deltaTime}s...`);
-                        }
+                        timer.check(t => this.parent.debug(dtag)(`Still waiting data row ${this._title} result after ${t.deltaTime}s...`));
                         setTimeout(f, this.parent.loopdelay);
                     }
                 })

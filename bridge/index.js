@@ -29,7 +29,7 @@ const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
 const SipdLogger = require('../sipd/logger');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
-const { Sipd, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
+const { Sipd, SipdTimer, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const { error } = require('selenium-webdriver');
 const debug = require('debug')('sipd:bridge');
 
@@ -528,19 +528,14 @@ class SipdUserLock {
     acquire(lock) {
         this.locks.push(lock);
         return new Promise((resolve, reject) => {
-            let lastTime;
-            const startTime = new Date().getTime();
+            const timer = new SipdTimer({delta: 60});
             const f = () => {
                 const idx = this.locks.indexOf(lock);
                 if (idx === 0) {
                     debug(`Lock ${this.user}:${lock} is acquired...`);
                     resolve();
                 } else {
-                    const deltaTime = Math.floor((new Date().getTime() - startTime) / 1000);
-                    if (deltaTime > 0 && deltaTime % 60 === 0 && (lastTime === undefined || lastTime < deltaTime)) {
-                        lastTime = deltaTime;
-                        debug(`Lock ${this.user}:${lock} is still held after ${deltaTime}s...`);
-                    }
+                    timer.check(t => debug(`Lock ${this.user}:${lock} is still held after ${t.deltaTime}s...`));
                     setTimeout(f, 100);
                 }
             }

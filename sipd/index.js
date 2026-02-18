@@ -1156,6 +1156,35 @@ class Sipd extends WebRobot {
 }
 
 /**
+ * Execute callback for every second delta time.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdTimer
+{
+    constructor(options) {
+        this.options = options || {};
+        this.lastTime;
+        this.startTime = new Date().getTime();
+        this.delta = this.options.delta || 5;
+    }
+
+    check(callback) {
+        this.deltaTime = Math.floor((new Date().getTime() - this.startTime) / 1000);
+        if (
+            this.deltaTime > 0 &&
+            this.deltaTime % this.delta === 0 &&
+            (this.lastTime === undefined || this.lastTime < this.deltaTime)
+        ) {
+            this.lastTime = this.deltaTime;
+            if (typeof callback === 'function') {
+                callback(this);
+            }
+        }
+    }
+}
+
+/**
  * An error to indicate a message is need to be announced to caller.
  *
  * @author Toha <tohenk@yahoo.com>
@@ -1211,4 +1240,4 @@ class SipdCleanAndRetryError extends SipdRetryError {
 class SipdStopError extends Error {
 }
 
-module.exports = {Sipd, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdCleanAndRetryError, SipdStopError};
+module.exports = {Sipd, SipdTimer, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdCleanAndRetryError, SipdStopError};
