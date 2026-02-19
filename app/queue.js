@@ -22,12 +22,12 @@
  * SOFTWARE.
  */
 
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
 const EventEmitter = require('events');
 const SipdNotifier = require('./notifier');
+const SipdUtil = require('../sipd/util');
 const { SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const debug = require('debug')('sipd:queue');
 
@@ -190,7 +190,7 @@ class SipdDequeue extends EventEmitter {
 
     add(queue) {
         if (!queue.id) {
-            queue.setId(this.genId());
+            queue.setId(SipdUtil.genId());
         }
         this.queues.push(queue);
         this.emit('queue', queue);
@@ -219,14 +219,6 @@ class SipdDequeue extends EventEmitter {
             this.last = queue;
         }
         return this;
-    }
-
-    genId() {
-        return crypto
-            .createHash('sha1')
-            .update((new Date().getTime() + Math.random()).toString())
-            .digest('hex')
-            .substring(0, 8);
     }
 
     getStatus() {

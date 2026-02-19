@@ -395,6 +395,19 @@ class SipdUtil {
             return value;
         }
     }
+
+    /**
+     * Generate an Id.
+     *
+     * @returns {string}
+     */
+    static genId() {
+        return require('crypto')
+            .createHash('sha1')
+            .update((new Date().getTime() + Math.random()).toString())
+            .digest('hex')
+            .substring(0, 8);
+    }
 }
 
 module.exports = SipdUtil;
