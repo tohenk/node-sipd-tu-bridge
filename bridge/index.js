@@ -411,6 +411,19 @@ class SipdBridge {
         });
     }
 
+    saveScreenshot(queue, message) {
+        const works = [];
+        /** @type SipdSession[] */
+        const sessions = Object.values(this.sessions)
+            .filter(sess => sess.sipd.driver);
+        for (const session of sessions) {
+            works.push(
+                [m => session.captureScreen(message, queue?.data)],
+            );
+        }
+        return this.works(works);
+    }
+
     end(queue, stop = true) {
         const works = [];
         for (const session of Object.values(this.sessions)) {
@@ -449,6 +462,7 @@ class SipdBridge {
         ], (w, err) => {
             return [
                 [e => this.lock.release(this.lockId), e => this.lock],
+                [e => this.saveScreenshot(queue, err), e => err],
                 [e => this.end(queue, this.autoClose)],
             ];
         });

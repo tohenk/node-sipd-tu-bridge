@@ -1020,6 +1020,17 @@ class SipdSession {
         });
     }
 
+    captureScreen(message, data) {
+        return this.works([
+            [w => this.sipd.driver.takeScreenshot()],
+            [w => Promise.resolve(Buffer.from(w.getRes(0), 'base64')), w => w.getRes(0)],
+            [w => Promise.resolve(`${this.bridge.name}-${new Date().toJSON().replace(/[\-\:\.TZ]/g, '')}`), w => w.getRes(0)],
+            [w => Promise.resolve(this.saveFile(this.genFilename('captures', `${w.getRes(2)}.png`), w.getRes(1))), w => w.getRes(0)],
+            [w => Promise.resolve(this.saveFile(this.genFilename('captures', `${w.getRes(2)}.err`), message.toString())), w => w.getRes(0) && message],
+            [w => Promise.resolve(this.saveFile(this.genFilename('captures', `${w.getRes(2)}.json`), JSON.stringify(data))), w => w.getRes(0) && data],
+        ]);
+    }
+
     createRekanan(queue, forceEdit = false) {
         const allowChange = this.isEditable(queue);
         return this.works([
