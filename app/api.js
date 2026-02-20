@@ -235,7 +235,9 @@ class ApiBridge {
             }
         }
         this.getCurrent = async () => {
-            return bridge.queue;
+            if (bridge.queue && bridge.queue.status === SipdQueue.STATUS_PROCESSING) {
+                return bridge.queue;
+            }
         }
     }
 }
