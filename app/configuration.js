@@ -119,6 +119,8 @@ class Configuration {
         SipdLogger
             .setDefaults(SipdLogger.FILE, {logdir: path.join(this.workdir, 'logs')})
             .create(SipdLogger.FILE);
+        // set default web interface
+        this.ui = '@ntlab/sipd-tu-bridge-ui';
         this.initialized = true;
     }
 
