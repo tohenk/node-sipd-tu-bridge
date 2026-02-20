@@ -173,7 +173,12 @@ class App {
                 this.ui = factory(this.api);
                 SipdLogger.onLogs = (tag, logs) => {
                     if (tag === SipdLogger.LOG_ACTIVITY) {
-                        this.api.notify('activity', logs);
+                        this.api.notify('activity', {time: Date.now(), logs});
+                    } else {
+                        const bridge = this.bridges.find(b => b.name === tag);
+                        if (bridge) {
+                            this.api.notify('log', {bridge: bridge.name, time: Date.now(), logs});
+                        }
                     }
                 }
             } catch (err) {
