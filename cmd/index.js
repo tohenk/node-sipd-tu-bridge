@@ -27,7 +27,6 @@ const path = require('path');
 const Configuration = require('../app/configuration');
 const { Socket } = require('socket.io');
 const { SipdDequeue } = require('../app/queue');
-const debug = require('debug')('sipd:cmd');
 
 /**
  * Sipd command handler.
@@ -127,7 +126,7 @@ class SipdCmd {
                             const CmdClass = require(path.join(dir, cmd));
                             const CmdInstance = new CmdClass(name, {parent: owner, dequeue: owner.dequeue});
                             this.commands.push(CmdInstance);
-                            debug(`Command ${name} registered`);
+                            console.log(`Command ${name} registered`);
                         }
                     } else {
                         console.error(`Command ${name} already registered!`);

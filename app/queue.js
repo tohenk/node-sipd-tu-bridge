@@ -27,9 +27,11 @@ const path = require('path');
 const util = require('util');
 const EventEmitter = require('events');
 const SipdNotifier = require('./notifier');
+const SipdLogger = require('../sipd/logger');
 const SipdUtil = require('../sipd/util');
 const { SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
-const debug = require('debug')('sipd:queue');
+
+const dtag = 'queue';
 
 /** @type {SipdDequeue} */
 let dequeue;
@@ -241,19 +243,19 @@ class SipdDequeue extends EventEmitter {
         return [...this.completes, ...this.processing, ...this.queues]
             .sort((a, b) => a.cmp(b))
             .filter(queue => {
-                if ((flags & this.constructor.LOG_AS_LOG) === this.constructor.LOG_AS_LOG) {
+                if ((flags & SipdQueue.LOG_AS_LOG) === SipdQueue.LOG_AS_LOG) {
                     return queue.isLoggable();
                 }
-                if ((flags & this.constructor.LOG_AS_QUEUE) === this.constructor.LOG_AS_QUEUE) {
+                if ((flags & SipdQueue.LOG_AS_QUEUE) === SipdQueue.LOG_AS_QUEUE) {
                     return queue.isSaveable();
                 }
                 return true;
             })
-            .map(queue => queue.getLog((flags & this.constructor.LOG_RAW) === this.constructor.LOG_RAW));
+            .map(queue => queue.getLog((flags & SipdQueue.LOG_RAW) === SipdQueue.LOG_RAW));
     }
 
     saveLogs() {
-        const logs = this.getLogs(this.constructor.LOG_RAW | this.constructor.LOG_AS_LOG);
+        const logs = this.getLogs(SipdQueue.LOG_RAW | SipdQueue.LOG_AS_LOG);
         if (logs.length) {
             const queueDir = path.join(process.cwd(), 'queue');
             if (!fs.existsSync(queueDir)) {
@@ -312,10 +314,6 @@ class SipdDequeue extends EventEmitter {
         });
         return result;
     }
-
-    static get LOG_RAW() { return 1 }
-    static get LOG_AS_LOG() { return 2 }
-    static get LOG_AS_QUEUE() { return 4 }
 }
 
 /**
@@ -399,13 +397,13 @@ class SipdConsumer extends EventEmitter
             if (err instanceof SipdCleanAndRetryError && queue.bridge && queue.bridge.session) {
                 const profileDir = queue.bridge.session.sipd.getProfileDir();
                 if (fs.existsSync(profileDir)) {
-                    console.log('Cleaning directory %s...', profileDir);
+                    SipdLogger.activity(dtag)('Cleaning directory %s...', profileDir);
                     fs.rmSync(profileDir, {recursive: true, force: true});
                 }
             }
             queue.retryCount = (queue.retryCount !== undefined ? queue.retryCount : 0) + 1;
             if (err instanceof SipdRetryError && queue.retry && queue.retryCount <= queue.maxretry) {
-                console.log('Retrying %s (%d)...', queue.toString(), queue.retryCount);
+                SipdLogger.activity(dtag)('Retrying %s (%d)...', queue.toString(), queue.retryCount);
                 if (typeof queue.onretry === 'function') {
                     queue.onretry()
                         .then(() => doit())
@@ -427,7 +425,7 @@ class SipdConsumer extends EventEmitter
                     .catch(err => retry(err));
             }
             catch (err) {
-                console.error('Got an error while processing queue: %s!', err);
+                SipdLogger.activity(dtag)('Got an error while processing queue: %s!', err);
             }
         }
         this.queue = queue;
@@ -447,7 +445,7 @@ class SipdBridgeConsumer extends SipdConsumer
         super(priority);
         this.bridge = bridge;
         this.on('pre-queue', queue => {
-            debug('%s is handling queue %s', this.bridge.name, queue);
+            SipdLogger.activity(dtag)('%s is handling queue %s', this.bridge.name, queue);
         });
     }
 
@@ -493,14 +491,14 @@ class SipdBridgeConsumer extends SipdConsumer
             if (dtime % 100 === 0) {
                 this._time = ctime;
                 if (data) {
-                    debug('%s not ready: %s %s', this.bridge.name, reason, data);
+                    SipdLogger.activity(dtag)('%s not ready: %s %s', this.bridge.name, reason, data);
                 } else {
-                    debug('%s not ready: %s', this.bridge.name, reason);
+                    SipdLogger.activity(dtag)('%s not ready: %s', this.bridge.name, reason);
                 }
             }
             return false;
         } else {
-            debug('%s ready: can handle %s', this.bridge.name, queue);
+            SipdLogger.activity(dtag)('%s ready: can handle %s', this.bridge.name, queue);
             return true;
         }
     }
@@ -560,7 +558,7 @@ class SipdCleanerConsumer extends SipdConsumer
         return new Promise((resolve, reject) => {
             let res = false;
             if (queue.data && queue.data.dir && fs.existsSync(queue.data.dir)) {
-                console.log('Cleaning', queue.data.dir);
+                SipdLogger.activity(dtag)('Cleaning', queue.data.dir);
                 fs.rmSync(queue.data.dir, {recursive: true, force: true});
                 res = true;
             }
@@ -615,14 +613,15 @@ class SipdQueue
     setStatus(status) {
         if (this.status !== status) {
             this.status = status;
-            console.log('Queue %s %s', this.toString(), this.getStatusText());
+            SipdLogger.activity(dtag)('Queue %s %s', this.toString(), this.getStatusText());
         }
     }
 
     setResult(result) {
         if (this.result !== result) {
             this.result = result;
-            console.log('Queue %s result: %s', this.toString(), this.result instanceof Error ? this.result.toString() : this.result);
+            SipdLogger.activity(dtag)('Queue %s result: %s', this.toString(), this.result instanceof Error ?
+                this.result.toString() : JSON.stringify(this.result));
         }
     }
 
@@ -681,8 +680,7 @@ class SipdQueue
         }
     }
 
-    getTranslatedValue(value)
-    {
+    getTranslatedValue(value) {
         const x = value.split(':');
         const vtype = x[0];
         const vvalue = x[1];
@@ -921,6 +919,10 @@ class SipdQueue
     static get STATUS_ERROR() { return 'error' }
     static get STATUS_TIMED_OUT() { return 'timeout' }
     static get STATUS_SKIPPED() { return 'skipped' }
+
+    static get LOG_RAW() { return 1 }
+    static get LOG_AS_LOG() { return 2 }
+    static get LOG_AS_QUEUE() { return 4 }
 
     static get CONSUMERS() { return {SipdBridgeConsumer, SipdCallbackConsumer, SipdCleanerConsumer, SipdBlackholeConsumer} }
 }

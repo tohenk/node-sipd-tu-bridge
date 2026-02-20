@@ -31,7 +31,8 @@ const SipdLogger = require('../sipd/logger');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { Sipd, SipdTimer, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const { error } = require('selenium-webdriver');
-const debug = require('debug')('sipd:bridge');
+
+const dtag = 'bridge';
 
 /**
  * Work finished callback. The callback must returns an array of works to do.
@@ -546,10 +547,10 @@ class SipdUserLock {
             const f = () => {
                 const idx = this.locks.indexOf(lock);
                 if (idx === 0) {
-                    debug(`Lock ${this.user}:${lock} is acquired...`);
+                    SipdLogger.activity(dtag)(`Lock ${this.user}:${lock} is acquired...`);
                     resolve();
                 } else {
-                    timer.check(t => debug(`Lock ${this.user}:${lock} is still held after ${t.deltaTime}s...`));
+                    timer.check(t => SipdLogger.activity(dtag)(`Lock ${this.user}:${lock} is still held after ${t.deltaTime}s...`));
                     setTimeout(f, 100);
                 }
             }
@@ -569,7 +570,7 @@ class SipdUserLock {
         if (idx === 0) {
             this.locks.splice(idx, 1);
             res = true;
-            debug(`Lock ${this.user}:${lock} is released...`);
+            SipdLogger.activity(dtag)(`Lock ${this.user}:${lock} is released...`);
         }
         return Promise.resolve(res);
     }

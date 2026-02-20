@@ -1,7 +1,7 @@
 {
   "name": "sipd-tu-bridge",
-  "version": "4.2.0",
-  "description": "SIPD Penatausahaan Kemendagri automation tools",
+  "version": "5.0.0",
+  "description": "SIPD Penatausahaan Bridge provides automation for SPP-LS (SPP/SPM) and LPJ (NPD/TBP)",
   "author": "Toha <tohenk@yahoo.com>",
   "license": "MIT",
   "main": "main.js",
@@ -19,7 +19,7 @@
     "socket.io"
   ],
   "dependencies": {
-    "@ntlab/ntlib": "^2.7.0",
+    "@ntlab/ntlib": "^2.9.0",
     "@ntlab/urllib": "^1.1.0",
     "@ntlab/webrobot": "^2.6.0",
     "@ntlab/work": "^2.5.0",

@@ -32,7 +32,7 @@ class SipdCmdDisconnect extends SipdCmd {
             console.log('Client disconnected: %s', socket.id);
             const idx = this.parent.sockets.indexOf(socket);
             if (idx >= 0) {
-                this.parent.sockets.splice(idx);
+                this.parent.sockets.splice(idx, 1);
             }
         }
     }

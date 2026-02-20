@@ -25,6 +25,7 @@
 const path = require('path');
 const util = require('util');
 const Cmd = require('@ntlab/ntlib/cmd');
+const Api = require('./api');
 const Configuration = require('./configuration');
 const Work = require('@ntlab/work/work');
 const SipdCmd = require('../cmd');
@@ -33,8 +34,10 @@ const SipdBridge = require('../bridge');
 const SipdSppBridge = require('../bridge/spp');
 const SipdLpjBridge = require('../bridge/lpj');
 const SipdUtilBridge = require('../bridge/util');
+const SipdLogger = require('../sipd/logger');
 const { Socket } = require('socket.io');
-const debug = require('debug')('sipd:app');
+
+const dtag = 'app';
 
 /**
  * Main application entry point.
@@ -162,10 +165,27 @@ class App {
         }
     }
 
+    createUI() {
+        if (this.config.ui) {
+            try {
+                const factory = require(this.config.ui);
+                this.api = new Api(this);
+                this.ui = factory(this.api);
+                SipdLogger.onLogs = (tag, logs) => {
+                    if (tag === SipdLogger.LOG_ACTIVITY) {
+                        this.api.notify('activity', logs);
+                    }
+                }
+            } catch (err) {
+                console.error(`Web interface not available: ${this.config.ui} (${err})`);
+            }
+        }
+    }
+
     createServer(serve = true) {
         const { createServer } = require('http');
         const { Server } = require('socket.io');
-        const http = createServer();
+        const http = createServer(this.ui ?? {});
         const port = Cmd.get('port') || 4000;
         if (serve) {
             const opts = {};
@@ -181,8 +201,7 @@ class App {
             const ns = io.of('/sipd')
                 .on('connection', socket => {
                     this.handleConnection(socket);
-                })
-            ;
+                });
             if (this.config.token) {
                 ns.use((socket, next) => {
                     const auth = socket.handshake.headers.authorization;
@@ -192,9 +211,15 @@ class App {
                             return next();
                         }
                     }
-                    debug('Client %s is using invalid authorization', socket.id);
+                    SipdLogger.activity(dtag)('Client %s is using invalid authorization', socket.id);
                     next(new Error('Invalid authorization'));
                 });
+            }
+            if (this.ui) {
+                io.of('/ui')
+                    .on('connection', socket => {
+                        this.handleUIConnection(socket);
+                    });
             }
         }
         http.listen(port, () => {
@@ -344,7 +369,7 @@ class App {
                         .consume(this.payload.params || {});
                     const closeOnCompleteOrError = q => {
                         if (q.id === queue.id && (this.config.autoClose === undefined || this.config.autoClose)) {
-                            process.exit();
+                            setTimeout(() => process.exit(), 5000);
                         }
                     }
                     this.dequeue
@@ -375,6 +400,10 @@ class App {
     handleConnection(socket) {
         console.log('Client connected: %s', socket.id);
         SipdCmd.handle(socket);
+    }
+
+    handleUIConnection(socket) {
+        this.api.handle(socket);
     }
 
     handleNotify() {
@@ -410,9 +439,12 @@ class App {
             }
         }
         if (captcha === 0) {
-            this.sockets.forEach(socket => {
+            for (const socket of this.sockets) {
                 socket.emit('status', this.dequeue.getStatus());
-            });
+            }
+        }
+        if (this.api) {
+            this.api.notify('queue');
         }
     }
 
@@ -442,6 +474,9 @@ class App {
             this.createDequeuer();
             this.createBridges();
             this.registerCommands();
+            if (serve) {
+                this.createUI();
+            }
             this.createServer(serve);
             return true;
         } else {

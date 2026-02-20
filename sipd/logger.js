@@ -62,15 +62,19 @@ class SipdLogger {
         const defaults = this.getDefaults(this.FILE);
         const logTag = options.tag ?? (defaults.tag ?? 'sipd');
         if (this._loggers[logTag] === undefined) {
-            const logDir = defaults.logdir || path.resolve(path.join(__dirname, '..', 'logs'));
-            const logFile = path.join(logDir, `${logTag}.log`);
-            if (!fs.existsSync(logDir)) {
-                fs.mkdirSync(logDir, {recursive: true});
+            const logFile = this.getLogFile(logTag);
+            if (!fs.existsSync(path.dirname(logFile))) {
+                fs.mkdirSync(path.dirname(logFile), {recursive: true});
             }
             const logger = new Logger(logFile);
+            if (typeof this.onLogs === 'function') {
+                logger.on('logs', logs => {
+                    this.onLogs(logTag, logs);
+                });
+            }
             this._loggers[logTag] = {
                 logger,
-                log: (...args) => logger.log(...args)
+                log: (...args) => logger.log(...args),
             }
         }
         this._loggers[logTag].logger.tag = [options.role, options.action, tag].filter(Boolean);
@@ -126,8 +130,32 @@ class SipdLogger {
         return this;
     }
 
+    /**
+     * Get log file name.
+     *
+     * @param {string} name Log tag
+     * @returns {string}
+     */
+    static getLogFile(name) {
+        const defaults = this.getDefaults(this.FILE);
+        const logDir = defaults.logdir || path.resolve(path.join(__dirname, '..', 'logs'));
+        return path.join(logDir, `${name}.log`);
+    }
+
+    /**
+     * Get activity logger.
+     *
+     * @param {string} tag Log tag
+     * @returns {Function}
+     */
+    static activity(tag) {
+        const opts = {tag: this.LOG_ACTIVITY};
+        return this.logger(tag, opts);
+    }
+
     static get DEBUG() { return 'debug' }
     static get FILE() { return 'file' }
+    static get LOG_ACTIVITY() { return 'activity' }
 }
 
 module.exports = SipdLogger;
