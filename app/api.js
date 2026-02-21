@@ -147,7 +147,8 @@ class Api {
                 true : false;
         }
         this.getQueues = (page, size) => {
-            const queues = app.dequeue.getLogs(SipdQueue.LOG_RAW);
+            const queues = app.dequeue.getLogs(SipdQueue.LOG_RAW)
+                .reverse();
             const res = {
                 count: queues.length,
                 page: page ?? 1,

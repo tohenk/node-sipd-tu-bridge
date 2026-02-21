@@ -408,6 +408,24 @@ class SipdUtil {
             .digest('hex')
             .substring(0, 8);
     }
+
+    /**
+     * Get string representation of object.
+     *
+     * @param {any} o The object
+     * @returns {string}
+     */
+    static toStr(o) {
+        if (
+            Array.isArray(o) ||
+            typeof o === 'object' && o.constructor.name === 'Object'
+        ) {
+            return JSON.stringify(o);
+        } else if (o !== undefined && o !== null) {
+            return o.toString();
+        }
+        return '';
+    }
 }
 
 module.exports = SipdUtil;

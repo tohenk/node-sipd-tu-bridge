@@ -620,8 +620,7 @@ class SipdQueue
     setResult(result) {
         if (this.result !== result) {
             this.result = result;
-            SipdLogger.activity(dtag)('Queue %s result: %s', this.toString(), this.result instanceof Error ?
-                this.result.toString() : JSON.stringify(this.result));
+            SipdLogger.activity(dtag)('Queue %s result: %s', this.toString(), SipdUtil.toStr(result));
         }
     }
 
