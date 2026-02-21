@@ -75,9 +75,6 @@ class Configuration {
         if (!this.workdir) {
             this.workdir = rootDir;
         }
-        if (!this.tmpdirname) {
-            this.tmpdirname = 'tmp';
-        }
         if (this.mode) {
             this.initialize();
         }
@@ -117,10 +114,20 @@ class Configuration {
             this.bridges = {[`sipd-${year}`]: {year}};
         }
         SipdLogger
-            .setDefaults(SipdLogger.FILE, {logdir: path.join(this.workdir, 'logs')})
+            .setDefaults(SipdLogger.FILE, {logdir: path.join(this.workdir, Configuration.LOG_DIR)})
             .create(SipdLogger.FILE);
-        // set default web interface
-        this.ui = '@ntlab/sipd-tu-bridge-ui';
+        // set defaults
+        const defaults = {
+            ui: '@ntlab/sipd-tu-bridge-ui',
+            sessiondir: path.join(this.workdir, Configuration.SESSION_DIR),
+            tmpdirname: Configuration.TMP_DIR,
+            capturedirname: Configuration.CAPTURE_DIR,
+        }
+        for (const [k, v] of Object.entries(defaults)) {
+            if (this[k] === undefined) {
+                this[k] = v;
+            }
+        }
         this.initialized = true;
     }
 
@@ -288,6 +295,11 @@ class Configuration {
     static get BRIDGE_SPP() { return 'spp' }
     static get BRIDGE_LPJ() { return 'lpj' }
     static get BRIDGE_UTIL() { return 'util' }
+
+    static get LOG_DIR() { return 'logs' }
+    static get CAPTURE_DIR() { return 'captures' }
+    static get SESSION_DIR() { return 'sessions' }
+    static get TMP_DIR() { return 'tmp' }
 }
 
 module.exports = Configuration;

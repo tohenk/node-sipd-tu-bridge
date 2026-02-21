@@ -419,7 +419,7 @@ class SipdBridge {
             .filter(sess => sess.sipd.driver);
         for (const session of sessions) {
             works.push(
-                [m => session.captureScreen(message, queue?.data)],
+                [m => session.captureScreen(message, queue?.data, this.options.capturedirname)],
             );
         }
         return this.works(works);

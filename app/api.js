@@ -35,8 +35,10 @@
  * @property {object} config Configuration
  * @property {SipdBridge[]} bridges Bridges
  * @property {AuthenticateFunction} authenticate Perform usename and password authentication
- * @property {GetQueuesFunction} getQueues Get queues
+ * @property {PagedObjectsPromiseFunction} getQueues Get queues
  * @property {StringPromiseFunction} getActivity Get activity logs
+ * @property {ObjectPromiseFunction} getCount Get activity count
+ * @property {PagedObjectsPromiseFunction} getErrors Get captured errors
  */
 
 /**
@@ -71,9 +73,9 @@
  */
 
 /**
- * Get queues.
+ * A function which returns paged objects Promise.
  *
- * @callback GetQueuesFunction
+ * @callback PagedObjectsPromiseFunction
  * @param {number} page Page number
  * @param {number} size Page size
  * @returns {Promise<object[]>}
@@ -100,6 +102,7 @@ const path = require('path');
 const SipdQueue = require('./queue');
 const SipdLogger = require('../sipd/logger');
 const SipdUtil = require('../sipd/util');
+const { glob } = require('glob');
 
 /**
  * Main api.
@@ -146,7 +149,7 @@ class Api {
             return username === app.config.security.username && password === app.config.security.password ?
                 true : false;
         }
-        this.getQueues = (page, size) => {
+        this.getQueues = async (page, size) => {
             const queues = app.dequeue.getLogs(SipdQueue.LOG_RAW)
                 .reverse();
             const res = {
@@ -167,6 +170,51 @@ class Api {
             let res, filename = SipdLogger.getLogFile(SipdLogger.LOG_ACTIVITY);
             if (filename && fs.existsSync(filename)) {
                 res = fs.readFileSync(filename).toString();
+            }
+            return res;
+        }
+        this.getCount = async () => {
+            const res = {};
+            const stat = (key, label, values) => (res[key] = {label, value: values.length});
+            stat('queue', 'Total unprocessed queue', app.dequeue.queues);
+            stat('processing', 'Total processing queue', app.dequeue.processing);
+            return res;
+        }
+        this.getErrors = async (page, size) => {
+            const res = {
+                count: 0,
+                page: page ?? 1,
+                size: size ?? 10,
+                items: [],
+            }
+            const captureDir = path.join(app.config.workdir, app.config.capturedirname);
+            if (fs.existsSync(captureDir)) {
+                const files = await glob(path.join(captureDir, '*.png'), {
+                    withFileTypes: true,
+                    windowsPathsNoEscape: true,
+                });
+                if (files.length) {
+                    files.reverse();
+                    let nr = (res.page - 1) * res.size;
+                    for (const file of files) {
+                        res.count++;
+                        if (res.count === nr + 1) {
+                            nr++;
+                            const filename = path.join(file.path, file.name);
+                            const errFilename = path.join(file.path, file.name.substr(0, file.name.lastIndexOf('.')) + '.err');
+                            const dataFilename = path.join(file.path, file.name.substr(0, file.name.lastIndexOf('.')) + '.json');
+                            if (fs.existsSync(errFilename) && fs.existsSync(dataFilename)) {
+                                res.items.push({
+                                    nr,
+                                    filename: file.name,
+                                    image: `data:image/png;base64,${fs.readFileSync(filename).toString('base64')}`,
+                                    error: fs.readFileSync(errFilename).toString(),
+                                    data: fs.readFileSync(dataFilename).toString(),
+                                });
+                            }
+                        }
+                    }
+                }
             }
             return res;
         }
@@ -222,7 +270,7 @@ class ApiBridge {
             const stat = (key, label, values) => (res[key] = {label, value: values.length});
             const queues = [...app.dequeue.completes, ...app.dequeue.processing]
                 .filter(q => q.bridge === bridge);
-            stat('total', 'Total queues', queues);
+            stat('total', 'Total queue', queues);
             stat('success', 'Total successful', queues.filter(q => q.status === SipdQueue.STATUS_DONE));
             stat('fail', 'Total unsuccessful', queues.filter(q => ![SipdQueue.STATUS_PROCESSING, SipdQueue.STATUS_DONE]
                 .includes(q.status)));

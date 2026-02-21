@@ -107,4 +107,5 @@ dist
 /captcha/
 /captures/
 /profile/
+/sessions/
 /tmp/
