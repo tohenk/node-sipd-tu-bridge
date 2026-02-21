@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+const fs = require('fs');
 const path = require('path');
 const util = require('util');
 const Cmd = require('@ntlab/ntlib/cmd');
@@ -423,6 +424,7 @@ class App {
                             Work.works([
                                 [w => bridge.saveCaptcha(this.config.tmpdirname)],
                                 [w => this.config.solver(w.getRes(0), bridge.loginfo), w => w.getRes(0)],
+                                [w => fs.rm(w.getRes(0), {force: true}), w => fs.existsSync(w.getRes(0))],
                                 [w => bridge.solveCaptcha(w.getRes(1)), w => w.getRes(1)],
                             ])
                             .then(res => {
