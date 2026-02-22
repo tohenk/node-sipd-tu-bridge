@@ -58,6 +58,14 @@ class Sipd extends WebRobot {
         super.constructor.expectErr(SipdRetryError);
     }
 
+    onDriverOptions(options) {
+        if (this.options.arguments && Array.isArray(this.options.arguments[this.browser])) {
+            for (const arg of this.options.arguments[this.browser]) {
+                options.addArguments(arg);
+            }
+        }
+    }
+
     /**
      * Create debugger.
      *
