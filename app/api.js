@@ -200,9 +200,9 @@ class Api {
                         res.count++;
                         if (res.count === nr + 1) {
                             nr++;
-                            const filename = path.join(file.path, file.name);
-                            const errFilename = path.join(file.path, file.name.substr(0, file.name.lastIndexOf('.')) + '.err');
-                            const dataFilename = path.join(file.path, file.name.substr(0, file.name.lastIndexOf('.')) + '.json');
+                            const filename = path.join(file.parentPath, file.name);
+                            const errFilename = path.join(file.parentPath, file.name.substr(0, file.name.lastIndexOf('.')) + '.err');
+                            const dataFilename = path.join(file.parentPath, file.name.substr(0, file.name.lastIndexOf('.')) + '.json');
                             if (fs.existsSync(errFilename) && fs.existsSync(dataFilename)) {
                                 res.items.push({
                                     nr,

@@ -30,6 +30,7 @@ const SipdNotifier = require('./notifier');
 const SipdLogger = require('../sipd/logger');
 const SipdUtil = require('../sipd/util');
 const { SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
+const { glob } = require('glob');
 
 const dtag = 'queue';
 
@@ -394,25 +395,30 @@ class SipdConsumer extends EventEmitter
             this.emit('queue-error', queue);
         }
         const retry = err => {
+            const f = () => {
+                queue.retryCount = (queue.retryCount !== undefined ? queue.retryCount : 0) + 1;
+                if (err instanceof SipdRetryError && queue.retry && queue.retryCount <= queue.maxretry) {
+                    SipdLogger.activity(dtag)('Retrying %s (%d)...', queue.toString(), queue.retryCount);
+                    if (typeof queue.onretry === 'function') {
+                        queue.onretry()
+                            .then(() => doit())
+                            .catch(err => fail(err));
+                    } else {
+                        doit();
+                    }
+                } else {
+                    fail(err);
+                }
+            }
             if (err instanceof SipdCleanAndRetryError && queue.bridge && queue.bridge.session) {
                 const profileDir = queue.bridge.session.sipd.getProfileDir();
                 if (fs.existsSync(profileDir)) {
-                    SipdLogger.activity(dtag)('Cleaning directory %s...', profileDir);
-                    fs.rmSync(profileDir, {recursive: true, force: true});
-                }
-            }
-            queue.retryCount = (queue.retryCount !== undefined ? queue.retryCount : 0) + 1;
-            if (err instanceof SipdRetryError && queue.retry && queue.retryCount <= queue.maxretry) {
-                SipdLogger.activity(dtag)('Retrying %s (%d)...', queue.toString(), queue.retryCount);
-                if (typeof queue.onretry === 'function') {
-                    queue.onretry()
-                        .then(() => doit())
-                        .catch(err => fail(err));
+                    this.cleanSubDir(profileDir, f);
                 } else {
-                    doit();
+                    f();
                 }
             } else {
-                fail(err);
+                f();
             }
         }
         const doit = () => {
@@ -431,6 +437,34 @@ class SipdConsumer extends EventEmitter
         this.queue = queue;
         this.queue.consumer = this;
         doit();
+    }
+
+    cleanSubDir(dir, callback) {
+        glob(path.join(dir, '*'), {withFileTypes: true, windowsPathsNoEscape: true})
+            .then(entries => {
+                for (const entry of entries) {
+                    if (entry.isDirectory()) {
+                        fs.rmSync(entry.fullpath(), {recursive: true, force: true});
+                    } else {
+                        fs.rmSync(entry.fullpath(), {force: true});
+                    }
+                }
+                if (entries.length) {
+                    SipdLogger.activity(dtag)('Cleaned directory %s...', dir);
+                } else {
+                    SipdLogger.activity(dtag)('Skip cleaning empty directory %s...', dir);
+                }
+                if (typeof callback === 'function') {
+                    callback(entries);
+                }
+            })
+            .catch(err => {
+                if (typeof callback === 'function') {
+                    callback(err);
+                } else {
+                    console.error(err);
+                }
+            });
     }
 }
 
@@ -556,13 +590,11 @@ class SipdCleanerConsumer extends SipdConsumer
 
     doConsume(queue) {
         return new Promise((resolve, reject) => {
-            let res = false;
             if (queue.data && queue.data.dir && fs.existsSync(queue.data.dir)) {
-                SipdLogger.activity(dtag)('Cleaning', queue.data.dir);
-                fs.rmSync(queue.data.dir, {recursive: true, force: true});
-                res = true;
+                this.cleanSubDir(queue.data.dir, () => resolve(true));
+            } else {
+                resolve(false);
             }
-            resolve(res);
         });
     }
 }
