@@ -107,9 +107,9 @@ class App {
             queue.info = queue.getMappedData('info.title');
         }
         this.dequeue
-            .on('queue', () => this.handleNotify())
-            .on('queue-done', () => this.handleNotify())
-            .on('queue-error', () => this.handleNotify())
+            .on('queue', q => this.handleNotify(q))
+            .on('queue-done', q => this.handleNotify(q))
+            .on('queue-error', q => this.handleNotify(q))
         ;
         if (Cmd.get('queue')) {
             const f = () => {
@@ -412,7 +412,7 @@ class App {
         this.api.handle(socket);
     }
 
-    handleNotify() {
+    handleNotify(queue) {
         let captcha = 0;
         if (typeof this.config.solver === 'function') {
             for (const bridge of this.bridges) {
@@ -450,7 +450,10 @@ class App {
                 socket.emit('status', this.dequeue.getStatus());
             }
         }
-        if (this.api) {
+        if (this.api && queue) {
+            if (queue.status === SipdQueue.STATUS_ERROR) {
+                this.api.notify('error');
+            }
             this.api.notify('queue');
         }
     }

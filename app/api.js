@@ -194,7 +194,12 @@ class Api {
                     windowsPathsNoEscape: true,
                 });
                 if (files.length) {
-                    files.reverse();
+                    const normalize = file => {
+                        const parts = file.name.substr(-4).split('-');
+                        const last = parts.pop();
+                        return [last, ...parts].join('-');
+                    }
+                    files.sort((a, b) => normalize(b).localeCompare(normalize(a)));
                     let nr = (res.page - 1) * res.size;
                     for (const file of files) {
                         res.count++;
