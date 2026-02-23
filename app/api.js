@@ -39,6 +39,7 @@
  * @property {StringPromiseFunction} getActivity Get activity logs
  * @property {ObjectPromiseFunction} getCount Get activity count
  * @property {PagedObjectsPromiseFunction} getErrors Get captured errors
+ * @property {QueryFunction} query Perform API query
  */
 
 /**
@@ -93,6 +94,14 @@
  *
  * @callback StringPromiseFunction
  * @returns {Promise<string>}
+ */
+
+/**
+ * A function which returns object Promise.
+ *
+ * @callback QueryFunction
+ * @param {object} data Query data
+ * @returns {Promise<object>}
  */
 
 /* --- END API --- */
@@ -194,12 +203,15 @@ class Api {
                     windowsPathsNoEscape: true,
                 });
                 if (files.length) {
-                    const normalize = file => {
-                        const parts = file.name.substr(-4).split('-');
-                        const last = parts.pop();
-                        return [last, ...parts].join('-');
+                    const part = file => {
+                        return file.name.substr(0, file.name.lastIndexOf('.')).split('-');
                     }
-                    files.sort((a, b) => normalize(b).localeCompare(normalize(a)));
+                    const cmp = (a, b) => {
+                        const aa = part(a), bb = part(b);
+                        const a1 = aa.pop(), b1 = bb.pop();
+                        return b1.localeCompare(a1) || aa.join('-').localeCompare(bb.join('-'));
+                    }
+                    files.sort((a, b) => cmp(a, b));
                     let nr = (res.page - 1) * res.size;
                     for (const file of files) {
                         res.count++;
@@ -220,6 +232,21 @@ class Api {
                         }
                     }
                 }
+            }
+            return res;
+        }
+        this.query = async (data) => {
+            const res = {success: false};
+            switch (data.cmd) {
+                case 'restart':
+                    if (app.config.restart && this.restarting === undefined) {
+                        this.restarting = true;
+                        console.log('Application restart requested, exiting...');
+                        setTimeout(() => process.exit(), 10000);
+                        this.notify('restart');
+                        res.success = true;
+                    }
+                    break;
             }
             return res;
         }
