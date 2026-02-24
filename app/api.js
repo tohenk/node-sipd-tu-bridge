@@ -238,6 +238,25 @@ class Api {
         this.query = async (data) => {
             const res = {success: false};
             switch (data.cmd) {
+                case 'clean-err':
+                    if (data.error) {
+                        const errGlob = path.join(
+                            app.config.workdir,
+                            app.config.capturedirname,
+                            data.error.substr(0, data.error.lastIndexOf('.') + 1) + '*'
+                        );
+                        const files = await glob(errGlob, {
+                            withFileTypes: true,
+                            windowsPathsNoEscape: true,
+                        });
+                        if (files.length) {
+                            for (const file of files) {
+                                fs.rmSync(file.fullpath(), {force: true});
+                            }
+                            res.success = true;
+                        }
+                    }
+                    break;
                 case 'restart':
                     if (app.config.restart && this.restarting === undefined) {
                         this.restarting = true;

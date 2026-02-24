@@ -1021,13 +1021,7 @@ class SipdSession {
     }
 
     captureScreen(message, data, dir = 'captures') {
-        const f = e => {
-            let res = e.toString();
-            if (e instanceof Error && e.stack) {
-                res += '\n' + e.stack;
-            }
-            return res;
-        }
+        const f = e => e instanceof Error && e.stack ? e.stack : e.toString();
         return this.works([
             [w => this.sipd.driver.takeScreenshot()],
             [w => Promise.resolve(Buffer.from(w.getRes(0), 'base64')), w => w.getRes(0)],
