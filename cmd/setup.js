@@ -25,6 +25,12 @@
 const crypto = require('crypto');
 const SipdCmd = require('.');
 
+/**
+ * Handle client setup to allow client to provide callback and public key
+ * for encryption.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdSetup extends SipdCmd {
 
     consume(payload) {

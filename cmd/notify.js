@@ -24,12 +24,17 @@
 
 const SipdCmd = require('.');
 
+/**
+ * Handle enable client notification.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdNotify extends SipdCmd {
 
     consume(payload) {
         const { socket } = payload;
         if (socket) {
-            if (this.parent.sockets.indexOf(socket) < 0) {
+            if (!this.parent.sockets.includes(socket)) {
                 this.parent.sockets.push(socket);
                 console.log('Client notification enabled: %s', socket.id);
             }

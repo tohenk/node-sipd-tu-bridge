@@ -25,6 +25,11 @@
 const SipdCmd = require('..');
 const SipdQueue = require('../../app/queue');
 
+/**
+ * Handle SPP create.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdSppCreate extends SipdCmd {
 
     consume(payload) {

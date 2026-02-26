@@ -24,6 +24,11 @@
 
 const SipdCmd = require('.');
 
+/**
+ * Handle client disconnection.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdDisconnect extends SipdCmd {
 
     consume(payload) {

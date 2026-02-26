@@ -25,6 +25,11 @@
 const SipdCmd = require('..');
 const SipdQueue = require('../../app/queue');
 
+/**
+ * Handle partner query.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdRekanan extends SipdCmd {
 
     consume(payload) {

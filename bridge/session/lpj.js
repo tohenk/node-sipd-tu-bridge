@@ -27,6 +27,11 @@ const { SipdNpdKegActivitySelector, SipdNpdSubKegActivitySelector } = require('.
 const { SipdQueryNpd, SipdQueryTbp } = require('./query');
 const { By } = require('selenium-webdriver');
 
+/**
+ * Provides LPJ functionality.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdLpjSession extends SipdSession {
 
     doInitialize() {
@@ -61,7 +66,7 @@ class SipdLpjSession extends SipdSession {
     setujuiNpd(queue, status = 'Baru') {
         const allowChange = this.isEditable(queue);
         return this.works([
-            [w => Promise.reject('NPD belum dibuat!'), w => !queue.NPD],
+            [w => Promise.reject('NPD is not created yet!'), w => !queue.NPD],
             [w => this.checkNpd(queue)],
             [w => this.executeAction(queue, 'Persetujuan', status), w => allowChange],
             [w => this.fillForm(queue, 'setuju-npd',
@@ -75,7 +80,7 @@ class SipdLpjSession extends SipdSession {
     validasiNpd(queue, status = 'Persetujuan') {
         const allowChange = this.isEditable(queue);
         return this.works([
-            [w => Promise.reject('NPD belum dibuat!'), w => !queue.NPD],
+            [w => Promise.reject('NPD is not created yet!'), w => !queue.NPD],
             [w => this.checkNpd(queue)],
             [w => this.executeAction(queue, 'Validasi', status), w => allowChange],
             [w => this.fillForm(queue, 'validasi-npd',

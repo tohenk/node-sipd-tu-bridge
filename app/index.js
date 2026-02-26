@@ -29,13 +29,13 @@ const Cmd = require('@ntlab/ntlib/cmd');
 const Api = require('./api');
 const Configuration = require('./configuration');
 const Work = require('@ntlab/work/work');
-const SipdCmd = require('../cmd');
-const SipdQueue = require('./queue');
 const SipdBridge = require('../bridge');
-const SipdSppBridge = require('../bridge/spp');
-const SipdLpjBridge = require('../bridge/lpj');
-const SipdUtilBridge = require('../bridge/util');
+const SipdCmd = require('../cmd');
 const SipdLogger = require('../sipd/logger');
+const SipdQueue = require('./queue');
+const SipdLpjBridge = require('../bridge/lpj');
+const SipdSppBridge = require('../bridge/spp');
+const SipdUtilBridge = require('../bridge/util');
 const { Socket } = require('socket.io');
 
 const dtag = 'app';
@@ -66,6 +66,11 @@ class App {
         this.rootDir = rootDir;
     }
 
+    /**
+     * Do initialization.
+     *
+     * @returns {boolean}
+     */
     initialize() {
         this.config = new Configuration(this.rootDir);
         this.config
@@ -75,6 +80,9 @@ class App {
         return this.config.initialized;
     }
 
+    /**
+     * Create queue processor (aka. dequeuer).
+     */
     createDequeuer() {
         this.dequeue = SipdQueue.createDequeuer();
         this.dequeue.setInfo({
@@ -90,7 +98,7 @@ class App {
                     queue.id = data.id;
                 }
                 if (SipdQueue.hasPendingQueue(queue)) {
-                    res = {message: `Antrian ${queue.id} sudah dalam antrian atau sedang diproses!`};
+                    res = {message: `A queue for ${queue.id} is already exist or being processed!`};
                 }
                 if (res === undefined) {
                     console.log(`📦 ${queue.type.toUpperCase()}: ${queue.info ?? '\u2014'}`);
@@ -123,6 +131,9 @@ class App {
         }
     }
 
+    /**
+     * Create bridges for queue processing.
+     */
     createBridges() {
         let seq = 0;
         for (const [name, options] of Object.entries(this.config.bridges)) {
@@ -131,7 +142,7 @@ class App {
             if (config.enabled !== undefined && !config.enabled) {
                 continue;
             }
-            const browser = config.browser ? config.browser : 'default';
+            const browser = config.browser ?? 'default';
             if (browser) {
                 config.profiledir = path.join(this.config.profiledir, id);
                 if (!this.sessions[id]) {
@@ -166,6 +177,9 @@ class App {
         }
     }
 
+    /**
+     * Create web interface.
+     */
     createUI() {
         if (this.config.ui) {
             try {
@@ -188,6 +202,11 @@ class App {
         }
     }
 
+    /**
+     * Create HTTP server.
+     *
+     * @param {boolean} serve True to handle socket.io connection
+     */
     createServer(serve = true) {
         const { createServer } = require('http');
         const { Server } = require('socket.io');
@@ -258,10 +277,18 @@ class App {
         });
     }
 
+    /**
+     * Create profile directory clean queue.
+     *
+     * @returns {object}
+     */
     createCleanQueue() {
         return this.dequeue.createQueue({type: SipdQueue.QUEUE_CLEAN, data: {dir: this.config.profiledir}});
     }
 
+    /**
+     * Register bridge command handler.
+     */
     registerCommands() {
         const prefixes = {
             [Configuration.BRIDGE_SPP]: 'spp',
@@ -271,6 +298,11 @@ class App {
         SipdCmd.register(this, prefixes[this.config.mode]);
     }
 
+    /**
+     * Process command line arguments.
+     *
+     * @returns {boolean} Wheter should activate socket.io server
+     */
     processArguments() {
         let serve = true, res, command, data, opts, error;
         if (Cmd.args.length) {
@@ -310,6 +342,12 @@ class App {
         return serve;
     }
 
+    /**
+     * Do SPP operation.
+     *
+     * @param  {...any} args Arguments
+     * @returns {Array}
+     */
     doSppOp(...args) {
         let command = 'spp:query', data = {}, opts = {}, error;
         if (args.length === 2) {
@@ -323,9 +361,20 @@ class App {
         return [false, command, data, opts, error];
     }
 
+    /**
+     * Do LPJ operation (dummy).
+     *
+     * @param  {...any} args Arguments
+     */
     doLpjOp(...args) {
     }
 
+    /**
+     * Do UTIL operation.
+     *
+     * @param  {...any} args Arguments
+     * @returns {Array}
+     */
     doUtilOp(...args) {
         let command, data = {}, opts = {}, error;
         const cmd = args.shift();
@@ -358,6 +407,9 @@ class App {
         return [false, command, data, opts, error];
     }
 
+    /**
+     * Perform bridge readiness check.
+     */
     checkReadiness() {
         const readinessTimeout = this.config.readinessTimeout || 30000; // 30 seconds
         this.startTime = Date.now();
@@ -391,6 +443,9 @@ class App {
         console.log('Readiness checking has been started...');
     }
 
+    /**
+     * Register queue consumers.
+     */
     registerConsumers() {
         const { SipdBridgeConsumer, SipdCallbackConsumer, SipdCleanerConsumer } = SipdQueue.CONSUMERS;
         const consumers = [
@@ -403,15 +458,30 @@ class App {
         this.dequeue.setConsumer(consumers);
     }
 
+    /**
+     * Handle client connection.
+     *
+     * @param {Socket} socket Client socket
+     */
     handleConnection(socket) {
         console.log('Client connected: %s', socket.id);
         SipdCmd.handle(socket);
     }
 
+    /**
+     * Handle UI client connection.
+     *
+     * @param {Socket} socket Client connection
+     */
     handleUIConnection(socket) {
         this.api.handle(socket);
     }
 
+    /**
+     * Handle bridge notification.
+     *
+     * @param {SipdQueue} queue Queue
+     */
     handleNotify(queue) {
         let captcha = 0;
         if (typeof this.config.solver === 'function') {
@@ -458,6 +528,11 @@ class App {
         }
     }
 
+    /**
+     * Get bridge ready count.
+     *
+     * @returns {number}
+     */
     readyCount() {
         let readyCnt = 0;
         this.bridges.forEach(b => {
@@ -468,6 +543,11 @@ class App {
         return readyCnt;
     }
 
+    /**
+     * Get bridges which require captcha solving.
+     *
+     * @returns {string[]}
+     */
     getCaptcha() {
         const res = [];
         for (const bridge of this.bridges) {
@@ -478,6 +558,11 @@ class App {
         return res;
     }
 
+    /**
+     * Run application.
+     *
+     * @returns {boolean|undefined}
+     */
     run() {
         if (this.initialize()) {
             const serve = this.processArguments();

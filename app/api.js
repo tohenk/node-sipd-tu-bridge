@@ -108,9 +108,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const SipdQueue = require('./queue');
 const SipdLogger = require('../sipd/logger');
+const SipdQueue = require('./queue');
 const SipdUtil = require('../sipd/util');
+const { Socket } = require('socket.io');
 const { glob } = require('glob');
 
 /**
@@ -137,7 +138,7 @@ class Api {
             console.log(`Web interface username using default: ${app.config.security.username}`);
         }
         if (!app.config.security.password) {
-            app.config.security.password = SipdUtil.genId();
+            app.config.security.password = SipdUtil.genId(10);
             console.log(`Web interface password generated: ${app.config.security.password}`);
         }
         // load application information
@@ -154,10 +155,12 @@ class Api {
         this.proto = app.VERSION;
         this.mode = app.config.mode.toUpperCase();
         this.bridges = app.bridges.map(bridge => new ApiBridge(app, bridge));
+        /** @type {AuthenticateFunction} */
         this.authenticate = (username, password) => {
             return username === app.config.security.username && password === app.config.security.password ?
                 true : false;
         }
+        /** @type {PagedObjectsPromiseFunction} */
         this.getQueues = async (page, size) => {
             const queues = app.dequeue.getLogs(SipdQueue.LOG_RAW)
                 .reverse();
@@ -175,6 +178,7 @@ class Api {
             }
             return res;
         }
+        /** @type {StringPromiseFunction} */
         this.getActivity = async () => {
             let res, filename = SipdLogger.getLogFile(SipdLogger.LOG_ACTIVITY);
             if (filename && fs.existsSync(filename)) {
@@ -182,6 +186,7 @@ class Api {
             }
             return res;
         }
+        /** @type {ObjectPromiseFunction} */
         this.getCount = async () => {
             const res = {};
             const stat = (key, label, values) => (res[key] = {label, value: values.length});
@@ -189,6 +194,7 @@ class Api {
             stat('processing', 'Total processing queue', app.dequeue.processing);
             return res;
         }
+        /** @type {PagedObjectsPromiseFunction} */
         this.getErrors = async (page, size) => {
             const res = {
                 count: 0,
@@ -235,6 +241,7 @@ class Api {
             }
             return res;
         }
+        /** @type {QueryFunction} */
         this.query = async (data) => {
             const res = {success: false};
             switch (data.cmd) {
@@ -261,7 +268,7 @@ class Api {
                     if (app.config.restart && this.restarting === undefined) {
                         this.restarting = true;
                         console.log('Application restart requested, exiting...');
-                        setTimeout(() => process.exit(), 10000);
+                        setTimeout(() => process.kill(process.pid, 'SIGINT'), 10000);
                         this.notify('restart');
                         res.success = true;
                     }
@@ -272,6 +279,11 @@ class Api {
         this.config = app.config;
     }
 
+    /**
+     * Handle client connection.
+     *
+     * @param {Socket} socket Client connection
+     */
     handle(socket) {
         if (!this.sockets.includes(socket)) {
             this.sockets.push(socket);
@@ -286,6 +298,12 @@ class Api {
         });
     }
 
+    /**
+     * Notify client connection.
+     *
+     * @param {string} status Event name
+     * @param {object} data Event data
+     */
     notify(status, data = {}) {
         for (const socket of this.sockets) {
             socket.emit(status, data);
@@ -309,6 +327,7 @@ class ApiBridge {
     constructor(app, bridge) {
         this.name = bridge.name;
         this.year = bridge.year;
+        /** @type {StringPromiseFunction} */
         this.getLogs = async () => {
             let res, filename = SipdLogger.getLogFile(bridge.name);
             if (filename && fs.existsSync(filename)) {
@@ -316,6 +335,7 @@ class ApiBridge {
             }
             return res;
         }
+        /** @type {ObjectPromiseFunction} */
         this.getStats = async () => {
             const res = {};
             const stat = (key, label, values) => (res[key] = {label, value: values.length});
@@ -327,6 +347,7 @@ class ApiBridge {
                 .includes(q.status)));
             return res;
         }
+        /** @type {ObjectPromiseFunction} */
         this.getLast = async () => {
             const queues = app.dequeue.completes
                 .filter(q => q.bridge === bridge);
@@ -334,6 +355,7 @@ class ApiBridge {
                 return queues.pop();
             }
         }
+        /** @type {ObjectPromiseFunction} */
         this.getCurrent = async () => {
             if (bridge.queue && bridge.queue.status === SipdQueue.STATUS_PROCESSING) {
                 return bridge.queue;

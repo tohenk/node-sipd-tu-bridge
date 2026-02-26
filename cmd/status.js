@@ -24,6 +24,11 @@
 
 const SipdCmd = require('.');
 
+/**
+ * Handle bridge status.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdStatus extends SipdCmd {
 
     consume(payload) {

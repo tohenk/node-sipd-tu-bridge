@@ -24,6 +24,11 @@
 
 const SipdCmd = require('.');
 
+/**
+ * Handle bridge logs.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdLogs extends SipdCmd {
 
     consume(payload) {

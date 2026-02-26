@@ -27,14 +27,32 @@ const SipdSppSession = require('./session/spp');
 const SipdUtil = require('../sipd/util');
 const { SipdRole } = require('../sipd/role');
 
+/**
+ * Sipd bridge for SPP handling.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdSppBridge extends SipdBridge {
 
     alwaysEditRekanan = false
 
+    /**
+     * Create SPP session.
+     *
+     * @param {object} options Options
+     * @returns {SipdSppSession}
+     */
     createSession(options) {
         return new SipdSppSession(options);
     }
 
+    /**
+     * Transform processing result.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {object} result Processing result
+     * @returns any[]
+     */
     onResult(queue, result) {
         let res = result, data;
         if (queue.SPP && queue.SPP !== 'DRAFT') {
@@ -62,6 +80,12 @@ class SipdSppBridge extends SipdBridge {
         return [res, data];
     }
 
+    /**
+     * Do create SPP task.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     createSpp(queue) {
         return this.processQueue({
             queue,
@@ -84,6 +108,12 @@ class SipdSppBridge extends SipdBridge {
         });
     }
 
+    /**
+     * Do query SPP task.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     querySpp(queue) {
         let type = SipdUtil.pickNrLs(queue.getMappedData('info.check'));
         switch (type) {

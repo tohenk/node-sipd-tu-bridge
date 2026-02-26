@@ -28,6 +28,11 @@ const { SipdSppActivitySelector } = require('./activity');
 const { SipdQuerySpp } = require('./query');
 const { By } = require('selenium-webdriver');
 
+/**
+ * Provides SPP functionality.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdSppSession extends SipdSession {
 
     VERIFIED = 1
@@ -56,7 +61,7 @@ class SipdSppSession extends SipdSession {
     checkSpp(queue, options = null) {
         options = options || {};
         return this.works([
-            [w => Promise.reject('SPP belum dibuat!'), w => options.exist && !queue.SPP],
+            [w => Promise.reject('SPP is not created yet!'), w => options.exist && !queue.SPP],
             [w => this.querySpp(queue, {navigates: ['Pengeluaran', 'SPP', 'LS'], ...options})],
         ]);
     }
@@ -107,7 +112,7 @@ class SipdSppSession extends SipdSession {
 
     checkSpm(queue) {
         return this.works([
-            [w => Promise.reject('SPP belum dibuat!'), w => !queue.SPP],
+            [w => Promise.reject('SPP is not created yet!'), w => !queue.SPP],
             [w => this.querySpm(queue, {navigates: ['Pengeluaran', 'SPM', 'Pembuatan']})],
         ]);
     }
@@ -145,7 +150,7 @@ class SipdSppSession extends SipdSession {
 
     checkSp2d(queue) {
         return this.works([
-            [w => Promise.reject('SPM belum dibuat!'), w => !queue.SPM],
+            [w => Promise.reject('SPM is not created yet!'), w => !queue.SPM],
             [w => this.querySp2d(queue, {navigates: ['Pengeluaran', 'SP2D', 'Pencairan']})],
         ]);
     }

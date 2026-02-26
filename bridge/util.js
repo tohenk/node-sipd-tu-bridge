@@ -22,12 +22,24 @@
  * SOFTWARE.
  */
 
-const SipdBridge = require('.');
-const SipdSession = require('./session');
 const Queue = require('@ntlab/work/queue');
+const SipdBridge = require('.');
+const SipdQueue = require('../app/queue');
+const SipdSession = require('./session');
 
+/**
+ * Sipd bridge for UTIL handling.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdUtilBridge extends SipdBridge {
 
+    /**
+     * Do fetch captcha task.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     fetchCaptcha(queue) {
         const sess = this.getSessions()[0];
         if (sess) {

@@ -31,6 +31,12 @@ const UrlFetch = require('@ntlab/urllib/fetch');
  */
 class SipdNotifier {
 
+    /**
+     * Notify queue result.
+     *
+     * @param {import('./queue')} queue Queue
+     * @returns {Promise<any>}
+     */
     static notify(queue) {
         const notifier = new UrlFetch();
         return notifier.fetch(queue.callback, {

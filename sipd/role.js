@@ -338,4 +338,7 @@ class SipdRoleUser {
     }
 }
 
-module.exports = {SipdRoleSwitcher, SipdRole};
+module.exports = {
+    SipdRoleSwitcher,
+    SipdRole,
+}

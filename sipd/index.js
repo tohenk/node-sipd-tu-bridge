@@ -32,7 +32,7 @@ const { By, error, WebElement } = require('selenium-webdriver');
 const dtag = 'core';
 
 /**
- * An SIPD automation using Selenium.
+ * SIPD Penatausahaan automation using Selenium.
  *
  * @author Toha <tohenk@yahoo.com>
  */
@@ -46,6 +46,9 @@ class Sipd extends WebRobot {
 
     state = {}
 
+    /**
+     * @inheritdoc
+     */
     initialize() {
         this.year = this.options.year || new Date().getFullYear();
         this.delay = this.options.delay || 500;
@@ -58,6 +61,11 @@ class Sipd extends WebRobot {
         super.constructor.expectErr(SipdRetryError);
     }
 
+    /**
+     * Do configure driver options.
+     *
+     * @param {import('selenium-webdriver/chrome').Options|import('selenium-webdriver/firefox').Options} options Driver options
+     */
     onDriverOptions(options) {
         if (this.options.arguments && Array.isArray(this.options.arguments[this.browser])) {
             for (const arg of this.options.arguments[this.browser]) {
@@ -181,7 +189,7 @@ class Sipd extends WebRobot {
                             {
                                 target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'),
                                 value: this.year,
-                                onfill: (el, value) => this.reactSelect(el, value, 'Tahun anggaran tidak tersedia!')
+                                onfill: (el, value) => this.reactSelect(el, value, 'Budgeting year is not available!')
                             },
                             {target: By.id('ed_username'), value: username},
                             {target: By.id('ed_password'), value: password},
@@ -251,7 +259,7 @@ class Sipd extends WebRobot {
     }
 
     /**
-     * Get HTML representation on an element.
+     * Get HTML representation of an element.
      *
      * @param {WebElement} el The element
      * @returns {Promise<string>}
@@ -526,7 +534,7 @@ class Sipd extends WebRobot {
     /**
      * Check if in maintenance mode?
      *
-     * @returns {Promise<undefined>}
+     * @returns {Promise<any>}
      */
     isInMaintenance() {
         return this.works([
@@ -670,7 +678,7 @@ class Sipd extends WebRobot {
             [w => el.getAttribute('aria-controls')],
             [w => this.findElement(By.id(w.getRes(1)))],
             [w => w.getRes(2).findElements(By.xpath(`.//*[contains(.,"${value}")]`))],
-            [w => Promise.reject(SipdAnnouncedError.create(util.format(message ? message : 'Pilihan %s tidak tersedia!', value))), w => w.getRes(3).length === 0],
+            [w => Promise.reject(SipdAnnouncedError.create(util.format(message ? message : 'Select choice %s is unavailable!', value))), w => w.getRes(3).length === 0],
             [w => w.getRes(3)[0].click(), w => w.getRes(3).length],
         ]);
     }
@@ -736,7 +744,7 @@ class Sipd extends WebRobot {
     }
 
     /**
-     * Wait for SIPD Penatausahaan until the page is loaded.
+     * Wait for SIPD Penatausahaan page to be fully loaded.
      *
      * @param {number} reload Force reload page in second
      * @returns {Promise<any>}
@@ -771,7 +779,7 @@ class Sipd extends WebRobot {
     }
 
     /**
-     * Wait for SIPD Penatausahaan until the sidebar is loaded.
+     * Wait for SIPD Penatausahaan sidebar to be fully loaded.
      *
      * @returns {Promise<any>}
      */
@@ -780,7 +788,8 @@ class Sipd extends WebRobot {
     }
 
     /**
-     * Wait for SIPD Penatausahaan until the content is loaded.
+     * Wait for SIPD Penatausahaan content to be fully loaded,
+     * indicated by page loader is gone.
      *
      * @returns {Promise<any>}
      */
@@ -789,7 +798,7 @@ class Sipd extends WebRobot {
     }
 
     /**
-     * Wait for SIPD Penatausahaan until the spinner is done.
+     * Wait for SIPD Penatausahaan spinner to be gone.
      *
      * @param {WebElement} el Spinner container element
      * @param {string|null} spinner Spinner class name
@@ -1248,4 +1257,12 @@ class SipdCleanAndRetryError extends SipdRetryError {
 class SipdStopError extends Error {
 }
 
-module.exports = {Sipd, SipdTimer, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdCleanAndRetryError, SipdStopError};
+module.exports = {
+    Sipd,
+    SipdTimer,
+    SipdAnnouncedError,
+    SipdRestartError,
+    SipdRetryError,
+    SipdCleanAndRetryError,
+    SipdStopError
+}

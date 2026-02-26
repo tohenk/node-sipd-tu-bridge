@@ -24,16 +24,35 @@
 
 const SipdBridge = require('.');
 const SipdLpjSession = require('./session/lpj');
+const SipdQueue = require('../app/queue');
 const { SipdRole } = require('../sipd/role');
 
+/**
+ * Sipd bridge for LPJ handling.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdLpjBridge extends SipdBridge {
 
     alwaysEditRekanan = false
 
+    /**
+     * Create LPJ session.
+     *
+     * @param {object} options Options
+     * @returns {SipdLpjSession}
+     */
     createSession(options) {
         return new SipdLpjSession(options);
     }
 
+    /**
+     * Check if operation is configured in queue?
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {string} op Operation
+     * @returns {boolean}
+     */
     checkOp(queue, op) {
         /** @type {string} */
         const queueOp = queue.getMappedData('info.operasi');
@@ -47,6 +66,13 @@ class SipdLpjBridge extends SipdBridge {
         return true;
     }
 
+    /**
+     * Transform processing result.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {object} result Processing result
+     * @returns any[]
+     */
     onResult(queue, result) {
         let res = result, data;
         if (queue.NPD) {
@@ -67,6 +93,12 @@ class SipdLpjBridge extends SipdBridge {
         return [res, data];
     }
 
+    /**
+     * Do create LPJ task.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     createLpj(queue) {
         const npd = this.checkOp(queue, 'npd');
         const tbp = this.checkOp(queue, 'tbp');
@@ -91,6 +123,12 @@ class SipdLpjBridge extends SipdBridge {
         });
     }
 
+    /**
+     * Do query LPJ task.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     queryLpj(queue) {
         const npd = this.checkOp(queue, 'npd');
         const tbp = this.checkOp(queue, 'tbp');

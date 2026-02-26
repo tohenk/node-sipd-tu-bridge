@@ -24,10 +24,16 @@
 
 const SipdCmd = require('.');
 
+/**
+ * Handle bridge arbitrary data, such as roles and profile directory clean
+ * request.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdXData extends SipdCmd {
 
     consume(payload) {
-        const { socket, data } = payload;
+        const { data } = payload;
         let res = {};
         if (Array.isArray(data) && data.length && this.config.privkey) {
             const xdata = JSON.parse(this.config.unobfuscate(data[0]));

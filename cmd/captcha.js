@@ -24,6 +24,11 @@
 
 const SipdCmd = require('.');
 
+/**
+ * Handle captcha challenge input.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdCaptcha extends SipdCmd {
 
     consume(payload) {

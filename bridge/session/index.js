@@ -25,6 +25,7 @@
 const fs = require('fs');
 const path = require('path');
 const Queue = require('@ntlab/work/queue');
+const SipdQueue = require('../../app/queue');
 const SipdUtil = require('../../sipd/util');
 const { Sipd } = require('../../sipd');
 const { SipdColumnQuery } = require('../../sipd/query');
@@ -43,6 +44,11 @@ class SipdSession {
 
     fn = ['stop', 'sleep', 'captchaImage', 'solveCaptcha', 'reloadCaptcha']
 
+    /**
+     * Constructor.
+     *
+     * @param {object} options Options
+     */
     constructor(options) {
         this.options = options;
         this.bridge = options.bridge;
@@ -52,6 +58,9 @@ class SipdSession {
         this.doInitialize();
     }
 
+    /**
+     * Do internal initialization.
+     */
     initialize() {
         const ctx = this.sipd;
         for (const fn of this.fn) {
@@ -96,23 +105,47 @@ class SipdSession {
         }
     }
 
+    /**
+     * Do initialization.
+     */
     doInitialize() {
     }
 
+    /**
+     * Create debugger.
+     *
+     * @param {string} tag Log tag
+     * @returns {Function}
+     */
     debug(tag) {
         return this.sipd.debug(tag);
     }
 
+    /**
+     * Do on state change.
+     *
+     * @param {Function} handler Handler
+     */
     onStateChange(handler) {
         if (typeof handler === 'function') {
             this.sipd.onState = handler;
         }
     }
 
+    /**
+     * Get session state.
+     *
+     * @returns {object}
+     */
     state() {
         return this.sipd.state;
     }
 
+    /**
+     * Is session ready?
+     *
+     * @returns {boolean}
+     */
     ready() {
         return this.sipd.ready;
     }
@@ -143,10 +176,23 @@ class SipdSession {
         return this[key];
     }
 
+    /**
+     * Generate a filename relative to the working directory.
+     *
+     * @param {string} dir Directory name
+     * @param {string} filename File name
+     * @returns {string}
+     */
     genFilename(dir, filename) {
         return path.join(this.options.workdir, dir, filename);
     }
 
+    /**
+     * Write content to file.
+     *
+     * @param {string} filepath File path
+     * @param {Buffer|string} content File content
+     */
     saveFile(filepath, content) {
         const dir = path.dirname(filepath);
         if (!fs.existsSync(dir)) {
@@ -157,6 +203,13 @@ class SipdSession {
         }
     }
 
+    /**
+     * Save captcha image data to file and returns the file name.
+     *
+     * @param {string} data Captcha image data
+     * @param {string} dir Directory name
+     * @returns {string}
+     */
     saveCaptcha(data, dir = 'captcha') {
         if (typeof data === 'string') {
             const [mimetype, payload] = data.split(';');
@@ -330,7 +383,7 @@ class SipdSession {
      *
      * @param {SipdQueryBase} query Query data
      * @param {Function} onIterate Data row iterator
-     * @returns {Promise<WebElement|undefined>}
+     * @returns {Promise<any>}
      */
     doQuery(query, onIterate = null) {
         if (typeof onIterate === 'function') {
@@ -342,6 +395,14 @@ class SipdSession {
         return query.walk();
     }
 
+    /**
+     * Execute an action on pager.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {string} action Action to perform
+     * @param {string} status Queue status
+     * @returns {Promise<any>}
+     */
     executeAction(queue, action, status) {
         if (queue.STATUS === status && queue.values && queue.values.action) {
             const el = queue.values.action;
@@ -354,10 +415,24 @@ class SipdSession {
         }
     }
 
+    /**
+     * Dismiss a modal dialog.
+     *
+     * @param {string} title Modal title
+     * @returns {Promise<any>}
+     */
     dismissModal(title) {
         return this.sipd.waitAndClick(By.xpath(`//header[text()="${title}"]/../button[@aria-label="Close"]`));
     }
 
+    /**
+     * Read element value and store it on queue.
+     *
+     * @param {WebElement} el Element
+     * @param {string} value Store value name
+     * @param {object} queue Queue
+     * @returns {Promise<any>}
+     */
     readValue(el, value, queue) {
         const store = queue.values ? queue.values : queue;
         return this.works([
@@ -367,6 +442,14 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Read element value and store it on queue if state is fulfilled.
+     *
+     * @param {WebElement} el Element
+     * @param {string} value State value (name, value, css value)
+     * @param {object} queue Queue
+     * @returns {Promise<any>}
+     */
     readState(el, value, queue) {
         const store = queue.values ? queue.values : queue;
         const values = value.split(',');
@@ -381,6 +464,13 @@ class SipdSession {
         }
     }
 
+    /**
+     * Fill combobox with selected value.
+     *
+     * @param {WebElement} el Element
+     * @param {string} value Selected value
+     * @returns {Promise<any>}
+     */
     fillComboBox(el, value) {
         return this.works([
             [w => el.click()],
@@ -391,6 +481,13 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Check radio button with selected value.
+     *
+     * @param {WebElement} el Element
+     * @param {string} value Selected value
+     * @returns {Promise<any>}
+     */
     fillRadio(el, value) {
         return this.works([
             [w => el.getAttribute('value')],
@@ -399,6 +496,13 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Select date of date picker element.
+     *
+     * @param {WebElement} el Element
+     * @param {Date} value Date value
+     * @returns {Promise<any>}
+     */
     fillDatePicker(el, value) {
         return this.works([
             [w => Promise.reject(`Date "${value}" is not valid!`), w => value instanceof Date && isNaN(value)],
@@ -413,6 +517,13 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Select date of date picker element using javascript.
+     *
+     * @param {WebElement} el Element
+     * @param {Date} value Date value
+     * @returns {Promise<any>}
+     */
     fillDatePicker2(el, value) {
         return this.works([
             [w => Promise.reject(`Date "${value}" is not valid!`), w => value instanceof Date && isNaN(value)],
@@ -428,6 +539,13 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Vote for employee.
+     *
+     * @param {WebElement} el Element
+     * @param {string} value Employee NIP
+     * @returns {Promise<any>}
+     */
     fillRole(el, value) {
         return this.works([
             [w => el.click()],
@@ -435,6 +553,14 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Vote for partner.
+     *
+     * @param {WebElement} el Element
+     * @param {string|string[]} value Partner data
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     fillRekanan(el, value, queue) {
         return this.works([
             [w => el.click()],
@@ -442,6 +568,14 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Vote for NPD.
+     *
+     * @param {WebElement} el Element
+     * @param {string|string[]} value NPD data
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     fillNpd(el, value, queue) {
         return this.works([
             [w => el.click()],
@@ -449,6 +583,13 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Vote for activity.
+     *
+     * @param {WebElement} el Element
+     * @param {string} value Activity id
+     * @returns {Promise<any>}
+     */
     fillKegiatan(el, value) {
         /** @type {typeof SipdActivitySelector} */
         const activityClass = this.kegSeq++ === 0 ? this.kegSelector : this.subkegSelector;
@@ -459,6 +600,14 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Fill account charge.
+     *
+     * @param {WebElement} el Element
+     * @param {number} value Charge ammount
+     * @param {SipdAfektasi} afektasi Account charge
+     * @returns {Promise<any>}
+     */
     fillAfektasi(el, value, afektasi) {
         return this.works([
             [w => this.sipd.waitForPresence({el, data: By.xpath('.//div/div/div[@class="animate-pulse"]')}, {presence: false, timeout: 0})],
@@ -469,6 +618,14 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Fill account charge in respected account elements.
+     *
+     * @param {WebElement[]} accounts Elements
+     * @param {number} value Charge ammount
+     * @param {SipdAfektasi} afektasi Account charge
+     * @returns {Promise<any>}
+     */
     fillAccount(accounts, value, afektasi) {
         return new Promise((resolve, reject) => {
             let result = false;
@@ -491,6 +648,13 @@ class SipdSession {
         });
     }
 
+    /**
+     * Is element match account charge?
+     *
+     * @param {WebElement} el Element
+     * @param {SipdAfektasi} afektasi Account charge
+     * @returns {boolean}
+     */
     isAccount(el, afektasi) {
         return this.works([
             [w => el.getAttribute('innerText')],
@@ -498,6 +662,14 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Can element fulfill the ammount of account charge?
+     *
+     * @param {WebElement} el Element
+     * @param {number} value Charge ammount
+     * @param {SipdAfektasi} afektasi Account charge
+     * @returns {boolean}
+     */
     canFillAccount(el, value, afektasi) {
         return this.works([
             [w => el.findElement(By.xpath('../../../../../div[@class="col-span-5"]/div/div/input'))],
@@ -526,6 +698,11 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Get opened flatpickr instance.
+     *
+     * @returns {Promise<WebElement>}
+     */
     flatpickrGet() {
         return this.works([
             [w => this.sipd.findElements(By.xpath('//div[contains(@class,"flatpickr-calendar")]'))],
@@ -544,6 +721,13 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Set flatpickr selected date.
+     *
+     * @param {WebElement} el Element
+     * @param {Date} date Date
+     * @returns {Promise<any>}
+     */
     flatpickrPick(el, date) {
         return this.works([
             [w => el.findElement(By.xpath('.//input[@aria-label="Year"]'))],
@@ -557,6 +741,13 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Select flatpickr selectable day.
+     *
+     * @param {WebElement[]} days Elements
+     * @param {Date} date Date
+     * @returns {Promise<any>}
+     */
     flatpickrDay(days, date) {
         return new Promise((resolve, reject) => {
             let picked = false;
@@ -601,6 +792,14 @@ class SipdSession {
         });
     }
 
+    /**
+     * Handle form fill-in.
+     *
+     * @param {string} name Form name
+     * @param {SipdQueue} queue Queue
+     * @param {string[]} files Files
+     * @returns {object[]}
+     */
     handleFormFill(name, queue, files) {
         const result = [];
         const maps = queue.getMap(name);
@@ -869,6 +1068,12 @@ class SipdSession {
         return result;
     }
 
+    /**
+     * Get error message from element.
+     *
+     * @param {Element} el Element
+     * @returns {Promise<string|undefined>}
+     */
     getError(el) {
         return this.works([
             [w => el.getAttribute('class')],
@@ -888,6 +1093,12 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Get validation error from element.
+     *
+     * @param {WebElement} el Element
+     * @returns {Promise<string|undefined>}
+     */
     getValidationError(el) {
         return this.works([
             [w => el.findElements(By.xpath('./div[contains(@class,"text-danger-500")]'))],
@@ -896,6 +1107,16 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Perform form fill-in.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {string} name Form name
+     * @param {By} form Form selector
+     * @param {By} submit Submit selector 
+     * @param {object} options Options
+     * @returns {Promise<any>}
+     */
     fillForm(queue, name, form, submit, options = null) {
         if (!queue.files) {
             queue.files = [];
@@ -921,6 +1142,12 @@ class SipdSession {
         );
     }
 
+    /**
+     * Clean any temporary files while queue is processing.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     cleanFiles(queue) {
         if (Array.isArray(queue.files) && queue.files.length) {
             return new Promise((resolve, reject) => {
@@ -937,6 +1164,15 @@ class SipdSession {
         }
     }
 
+    /**
+     * Store file in temporary directory for processing, optionally optimize it
+     * for PDF file.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {Buffer|string|object} value File data
+     * @param {string} ext File extension
+     * @returns {Promise<any>}
+     */
     storeFile(queue, value, ext) {
         return new Promise((resolve, reject) => {
             let maxSize, tmpdirname = this.options.tmpdirname;
@@ -1020,6 +1256,14 @@ class SipdSession {
         });
     }
 
+    /**
+     * Capture screen along with message and payload.
+     *
+     * @param {Error|string} message Message
+     * @param {object} data Payload
+     * @param {string} dir Directory name
+     * @returns {Promise<any>}
+     */
     captureScreen(message, data, dir = 'captures') {
         const f = e => e instanceof Error && e.stack ? e.stack : e.toString();
         return this.works([
@@ -1032,6 +1276,13 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * Create partner.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {boolean} forceEdit 
+     * @returns {Promise<any>}
+     */
     createRekanan(queue, forceEdit = false) {
         const allowChange = this.isEditable(queue);
         return this.works([
@@ -1046,6 +1297,12 @@ class SipdSession {
         ]);
     }
 
+    /**
+     * List partner.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<object[]>}
+     */
     listRekanan(queue) {
         const query = new SipdQueryRekanan(this.sipd, queue, {navigates: ['Pengeluaran', 'Daftar Rekanan']});
         const f = (el, values, result) => {

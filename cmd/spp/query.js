@@ -25,6 +25,11 @@
 const SipdCmd = require('..');
 const SipdQueue = require('../../app/queue');
 
+/**
+ * Handle SPP query.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdSppQuery extends SipdCmd {
 
     consume(payload) {

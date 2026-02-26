@@ -24,9 +24,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const Configuration = require('../app/configuration');
 const { Socket } = require('socket.io');
-const { SipdDequeue } = require('../app/queue');
 
 /**
  * Sipd command handler.
@@ -35,13 +33,13 @@ const { SipdDequeue } = require('../app/queue');
  */
 class SipdCmd {
 
-    /** @var {string} */
+    /** @type {string} */
     name = null
-    /** @var {object} */
+    /** @type {object} */
     parent = null
-    /** @var {Configuration} */
+    /** @type {import('../app/configuration')} */
     config = null
-    /** @var {SipdDequeue} */
+    /** @type {import('../app/queue').DEQUEUE} */
     dequeue = null
 
     /**
@@ -49,7 +47,7 @@ class SipdCmd {
      *
      * @param {string} name Command name
      * @param {object} options Options
-     * @param {SipdDequeue} options.dequeue Dequeue
+     * @param {import('../app/queue').DEQUEUE} options.dequeue Dequeue
      * @param {object} options.parent Parent
      */
     constructor(name, options) {
@@ -102,7 +100,7 @@ class SipdCmd {
     /**
      * Register commands.
      *
-     * @param {object} owner Owner
+     * @param {import('../app')} owner Application
      * @param {string} prefix Command prefix
      * @param {string|undefined} dir The directory
      * @param {string[]|undefined} ns The namespaces
@@ -123,6 +121,7 @@ class SipdCmd {
                     const name = [...ns, cmd].join(':');
                     if (!this.get(name)) {
                         if (!prefix || name.indexOf(':') < 0 || (prefix && name.startsWith(prefix + ':'))) {
+                            /** @type {typeof SipdCmd} */
                             const CmdClass = require(path.join(dir, cmd));
                             const CmdInstance = new CmdClass(name, {parent: owner, dequeue: owner.dequeue});
                             this.commands.push(CmdInstance);

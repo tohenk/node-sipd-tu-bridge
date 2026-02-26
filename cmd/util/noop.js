@@ -25,6 +25,11 @@
 const SipdCmd = require('..');
 const SipdQueue = require('../../app/queue');
 
+/**
+ * Handle noop.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdUtilNoop extends SipdCmd {
 
     consume(payload) {

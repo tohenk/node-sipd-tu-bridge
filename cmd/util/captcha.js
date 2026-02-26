@@ -25,6 +25,11 @@
 const SipdCmd = require('..');
 const SipdQueue = require('../../app/queue');
 
+/**
+ * Handle download captcha.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdUtilCaptcha extends SipdCmd {
 
     consume(payload) {

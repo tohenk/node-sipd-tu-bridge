@@ -25,11 +25,11 @@
 const fs = require('fs');
 const Work = require('@ntlab/work/work');
 const Queue = require('@ntlab/work/queue');
+const SipdLogger = require('../sipd/logger');
 const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
-const SipdLogger = require('../sipd/logger');
-const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { Sipd, SipdTimer, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
+const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { error } = require('selenium-webdriver');
 
 const dtag = 'bridge';
@@ -54,8 +54,15 @@ class SipdBridge {
     STATE_SELF_TEST = 2
     STATE_OPERATIONAL = 3
 
+    /** @type {{[key: string]: SipdSession}} */
     sessions = {}
 
+    /**
+     * Constructor.
+     *
+     * @param {string} name Bridge name
+     * @param {object} options Options
+     */
     constructor(name, options) {
         this.name = name;
         this.options = options;
@@ -69,6 +76,11 @@ class SipdBridge {
         }
     }
 
+    /**
+     * Perform self test.
+     *
+     * @returns {Promise<any>}
+     */
     selfTest() {
         if (this.state < this.STATE_SELF_TEST) {
             this.state = this.STATE_SELF_TEST;
@@ -96,10 +108,21 @@ class SipdBridge {
         }
     }
 
+    /**
+     * Is bridge operational?
+     *
+     * @returns {boolean}
+     */
     isOperational() {
         return this.state === this.STATE_OPERATIONAL;
     }
 
+    /**
+     * Check if bridge has state?
+     *
+     * @param {string} state State
+     * @returns {boolean}
+     */
     hasState(state) {
         let res = false;
         for (const session of this.getSessions()) {
@@ -113,6 +136,13 @@ class SipdBridge {
         return res;
     }
 
+    /**
+     * Switch user role.
+     *
+     * @param {string} role User role
+     * @param {string} unit User unit
+     * @returns {boolean}
+     */
     switchRole(role, unit) {
         this.rs = SipdRoleSwitcher
             .switchTo(unit)
@@ -125,6 +155,12 @@ class SipdBridge {
         }
     }
 
+    /**
+     * Get role title.
+     *
+     * @param {string} role Role
+     * @returns {string}
+     */
     getRoleTitle(role) {
         const roles = {
             [SipdRole.BP]: 'Bendahara Pengeluaran',
@@ -135,6 +171,12 @@ class SipdBridge {
         return roles[role];
     }
 
+    /**
+     * Get users which has specified role.
+     *
+     * @param {string} role Role
+     * @returns {string[]}
+     */
     getUsers(role) {
         const res = [];
         if (this.rs) {
@@ -151,6 +193,11 @@ class SipdBridge {
         return res;
     }
 
+    /**
+     * Get user role object.
+     *
+     * @param {string} role 
+     */
     getUser(role) {
         if (this.roles) {
             return this.roles.get(role);
@@ -304,7 +351,7 @@ class SipdBridge {
     /**
      * Save captcha image.
      *
-     * @param {string} dir
+     * @param {string} dir Directory name
      * @returns {Promise<string>|undefined}
      */
     saveCaptcha(dir) {
@@ -412,9 +459,15 @@ class SipdBridge {
         });
     }
 
+    /**
+     * Save screenshot along with error/message and payload.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {Error|string} message Message
+     * @returns {Promise<any>}
+     */
     saveScreenshot(queue, message) {
         const works = [];
-        /** @type SipdSession[] */
         const sessions = Object.values(this.sessions)
             .filter(sess => sess.sipd.driver);
         for (const session of sessions) {
@@ -425,6 +478,13 @@ class SipdBridge {
         return this.works(works);
     }
 
+    /**
+     * End session.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {boolean} stop Stop session
+     * @returns {Promise<any>}
+     */
     end(queue, stop = true) {
         const works = [];
         for (const session of Object.values(this.sessions)) {
@@ -436,6 +496,15 @@ class SipdBridge {
         return this.works(works);
     }
 
+    /**
+     * Process queue.
+     *
+     * @param {object} param0 Data
+     * @param {SipdQueue} param0.queue Queue
+     * @param {any[]} param0.works Works array
+     * @param {Function} param0.done Done callback
+     * @returns {Promise<any>}
+     */
     processQueue({queue, works, done}) {
         if (this.singleSession) {
             this.lockId = queue.id;
@@ -469,6 +538,12 @@ class SipdBridge {
         });
     }
 
+    /**
+     * Query for partner.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     queryRekanan(queue) {
         return this.processQueue({
             queue,
@@ -480,6 +555,12 @@ class SipdBridge {
         });
     }
 
+    /**
+     * Perform noop.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     noop(queue) {
         const sess = this.getSessions()[0];
         if (sess) {
@@ -527,6 +608,7 @@ class SipdLockManager {
  */
 class SipdUserLock {
 
+    /** @type {string[]} */
     locks = []
 
     constructor(user) {

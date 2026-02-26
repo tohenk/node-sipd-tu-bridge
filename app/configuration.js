@@ -26,8 +26,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const Cmd = require('@ntlab/ntlib/cmd');
-const { SipdRoleSwitcher } = require('../sipd/role');
 const SipdLogger = require('../sipd/logger');
+const { SipdRoleSwitcher } = require('../sipd/role');
 
 Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
 Cmd.addVar('mode', 'm', 'Set bridge mode, spp, lpj, or util', 'bridge-mode');
@@ -80,6 +80,9 @@ class Configuration {
         }
     }
 
+    /**
+     * Do initialization.
+     */
     initialize() {
         // load profile
         this.profiles = {};
@@ -131,6 +134,11 @@ class Configuration {
         this.initialized = true;
     }
 
+    /**
+     * Create crypto private and public key for E2E encryption.
+     *
+     * @returns {this}
+     */
     applyServerKeys() {
         if (this.privkey && fs.existsSync(this.privkey)) {
             this.privkey = crypto.createPrivateKey(fs.readFileSync(this.privkey));
@@ -141,12 +149,19 @@ class Configuration {
         if (!this.privkey || !this.pubkey) {
             console.log('Generating end-to-end encryption key');
             const key = crypto.generateKeyPairSync('rsa', {modulusLength: 2048});
+            /** @type {crypto.KeyObject} */
             this.privkey = key.privateKey;
+            /** @type {crypto.KeyObject} */
             this.pubkey = key.publicKey;
         }
         return this;
     }
 
+    /**
+     * Apply profile to control connection delays.
+     *
+     * @returns {this}
+     */
     applyProfile() {
         let profile = this.profile;
         if (null === profile && Cmd.get('profile')) {
@@ -166,6 +181,11 @@ class Configuration {
         return this;
     }
 
+    /**
+     * Configure external captcha solver.
+     *
+     * @returns {this}
+     */
     applySolver() {
         // captcha solver
         if (this.captchaSolver) {
@@ -223,6 +243,12 @@ class Configuration {
         return this;
     }
 
+    /**
+     * Get path based on provided root path.
+     *
+     * @param {string} path Path
+     * @returns {string}
+     */
     getPath(path) {
         let rootPath = this.rootPath;
         if (rootPath) {
@@ -236,6 +262,14 @@ class Configuration {
         return path;
     }
 
+    /**
+     * Perform data obfuscation.
+     *
+     * @param {string} data Data
+     * @param {crypto.KeyObject} pubkey Public key
+     * @param {number} padding Padding
+     * @returns {string}
+     */
     obfuscate(data, pubkey, padding = null) {
         if (data && pubkey) {
             padding = padding ?? crypto.constants.RSA_PKCS1_OAEP_PADDING;
@@ -264,6 +298,12 @@ class Configuration {
         return data;
     }
 
+    /**
+     * Perform data unobfuscation.
+     *
+     * @param {string} data Data
+     * @returns {string}
+     */
     unobfuscate(data) {
         if (data && this.privkey) {
             const buff = Buffer.from(data, 'base64');
@@ -285,6 +325,12 @@ class Configuration {
         return data;
     }
 
+    /**
+     * Update user roles and credentials.
+     *
+     * @param {object} roles Roles
+     * @returns {boolean}
+     */
     updateRoles(roles) {
         const rs = SipdRoleSwitcher
             .switchTo(roles.unit)

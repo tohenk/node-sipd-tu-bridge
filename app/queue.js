@@ -38,6 +38,15 @@ const dtag = 'queue';
 let dequeue;
 
 /**
+ * Create queue.
+ *
+ * @callback CreateQueue
+ * @param {object} data Queue data
+ * @param {boolean} ret Return created queue
+ * @returns {[object, SipdQueue]|object}
+ */
+
+/**
  * A queue consumer.
  *
  * @author Toha <tohenk@yahoo.com>
@@ -46,6 +55,9 @@ class SipdDequeue extends EventEmitter {
 
     info = {}
 
+    /**
+     * Constructor.
+     */
     constructor() {
         super();
         this.time = new Date();
@@ -57,8 +69,16 @@ class SipdDequeue extends EventEmitter {
         this.completes = [];
         this.timeout = 10 * 60 * 1000;
         this.retry = 3;
+        /** @type {CreateQueue} */
+        this.createQueue;
     }
 
+    /**
+     * Set queue consumer.
+     *
+     * @param {SipdConsumer|SipdConsumer[]} consumer Consumer
+     * @returns {this}
+     */
     setConsumer(consumer) {
         /** @type {SipdConsumer[]} */
         this.consumers = Array.isArray(consumer) ? consumer : [consumer];
@@ -77,6 +97,12 @@ class SipdDequeue extends EventEmitter {
         return this;
     }
 
+    /**
+     * Create new queue.
+     *
+     * @param {object} data Queue data
+     * @returns {SipdQueue}
+     */
     createNewQueue(data) {
         let queue;
         switch (data.type) {
@@ -121,6 +147,9 @@ class SipdDequeue extends EventEmitter {
         return queue;
     }
 
+    /**
+     * Process queue by handing queue to consumer.
+     */
     processQueue() {
         if (this.consumers) {
             if (this.queues.length) {
@@ -153,6 +182,9 @@ class SipdDequeue extends EventEmitter {
         }
     }
 
+    /**
+     * Process timed out queue.
+     */
     processTimedout() {
         for (const queue of this.processing) {
             const t = new Date().getTime();
@@ -173,6 +205,11 @@ class SipdDequeue extends EventEmitter {
         }
     }
 
+    /**
+     * End queue processing.
+     *
+     * @param {SipdQueue} queue Queue
+     */
     endQueue(queue) {
         this.processing.splice(this.processing.indexOf(queue), 1);
         this.completes.push(queue);
@@ -186,11 +223,23 @@ class SipdDequeue extends EventEmitter {
         }
     }
 
+    /**
+     * Set info data.
+     *
+     * @param {object} info Info
+     * @returns {this}
+     */
     setInfo(info) {
         this.info = {...info};
         return this;
     }
 
+    /**
+     * Add queue to process.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {object}
+     */
     add(queue) {
         if (!queue.id) {
             queue.setId(SipdUtil.genId());
@@ -201,6 +250,12 @@ class SipdDequeue extends EventEmitter {
         return {status: 'queued', id: queue.id};
     }
 
+    /**
+     * Pick one unprocessed queue for consumer.
+     *
+     * @param {SipdConsumer} consumer Consumer
+     * @returns {SipdQueue}
+     */
     pick(consumer) {
         for (const queue of this.queues) {
             if (consumer.isAccepted(queue)) {
@@ -209,14 +264,30 @@ class SipdDequeue extends EventEmitter {
         }
     }
 
+    /**
+     * Get next unprocessed queue.
+     *
+     * @returns {SipdQueue}
+     */
     getNext() {
         return this.queues.length ? this.queues[0] : null;
     }
 
+    /**
+     * Get last processed queue.
+     *
+     * @returns {SipdQueue}
+     */
     getLast() {
         return this.last;
     }
 
+    /**
+     * Set last processed queue, ignoring callback.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {this}
+     */
     setLastQueue(queue) {
         if (queue.type !== SipdQueue.QUEUE_CALLBACK) {
             this.last = queue;
@@ -224,6 +295,11 @@ class SipdDequeue extends EventEmitter {
         return this;
     }
 
+    /**
+     * Get processing status.
+     *
+     * @returns {object}
+     */
     getStatus() {
         const status = Object.assign({}, this.buildInfo(this.info), {
             time: this.time.toString(),
@@ -240,6 +316,12 @@ class SipdDequeue extends EventEmitter {
         return status;
     }
 
+    /**
+     * Get processing queue logs.
+     *
+     * @param {number} flags Flags
+     * @returns {object[]}
+     */
     getLogs(flags = 0) {
         return [...this.completes, ...this.processing, ...this.queues]
             .sort((a, b) => a.cmp(b))
@@ -255,6 +337,9 @@ class SipdDequeue extends EventEmitter {
             .map(queue => queue.getLog((flags & SipdQueue.LOG_RAW) === SipdQueue.LOG_RAW));
     }
 
+    /**
+     * Save queue logs to file.
+     */
     saveLogs() {
         const logs = this.getLogs(SipdQueue.LOG_RAW | SipdQueue.LOG_AS_LOG);
         if (logs.length) {
@@ -273,6 +358,9 @@ class SipdDequeue extends EventEmitter {
         }
     }
 
+    /**
+     * Load queue from file.
+     */
     loadQueue() {
         const filename = path.join(process.cwd(), 'queue', 'saved.queue');
         if (fs.existsSync(filename) && typeof this.createQueue === 'function') {
@@ -284,6 +372,9 @@ class SipdDequeue extends EventEmitter {
         }
     }
 
+    /**
+     * Save unprocessed queue to file.
+     */
     saveQueue() {
         const queues = this.queues.filter(queue => queue.isSaveable());
         if (queues.length) {
@@ -304,6 +395,12 @@ class SipdDequeue extends EventEmitter {
         }
     }
 
+    /**
+     * Build status info.
+     *
+     * @param {object} info Info
+     * @returns {object}
+     */
     buildInfo(info) {
         const result = {};
         Object.keys(info).forEach(k => {
@@ -439,6 +536,12 @@ class SipdConsumer extends EventEmitter
         doit();
     }
 
+    /**
+     * Clean sub directory.
+     *
+     * @param {string} dir The directory
+     * @param {Function} callback Callback to call when done
+     */
     cleanSubDir(dir, callback) {
         glob(path.join(dir, '*'), {withFileTypes: true, windowsPathsNoEscape: true})
             .then(entries => {
@@ -475,14 +578,24 @@ class SipdConsumer extends EventEmitter
  */
 class SipdBridgeConsumer extends SipdConsumer
 {
+    /**
+     * Constructor.
+     *
+     * @param {import('../bridge')} bridge Bridge
+     * @param {number} priority Priority
+     */
     constructor(bridge, priority) {
         super(priority);
+        /** @type {import('../bridge'} */
         this.bridge = bridge;
         this.on('pre-queue', queue => {
             SipdLogger.activity(dtag)('%s is handling queue %s', this.bridge.name, queue);
         });
     }
 
+    /**
+     * @inheritdoc
+     */
     initialize() {
         this.accepts = [
             SipdQueue.QUEUE_SPP,
@@ -495,6 +608,12 @@ class SipdBridgeConsumer extends SipdConsumer
         ];
     }
 
+    /**
+     * Is queue accepted?
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {boolean}
+     */
     canAccept(queue) {
         let reason, data;
         if (SipdQueue.hasPendingQueue({type: SipdQueue.QUEUE_CLEAN, info: null})) {
@@ -537,6 +656,12 @@ class SipdBridgeConsumer extends SipdConsumer
         }
     }
 
+    /**
+     * Consume queue for processing.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     doConsume(queue) {
         this.bridge.queue = queue;
         queue.bridge = this.bridge;
@@ -568,10 +693,19 @@ class SipdBridgeConsumer extends SipdConsumer
  */
 class SipdCallbackConsumer extends SipdConsumer
 {
+    /**
+     * @inheritdoc
+     */
     initialize() {
         this.accepts = SipdQueue.QUEUE_CALLBACK;
     }
 
+    /**
+     * Consume queue for processing.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     doConsume(queue) {
         return SipdNotifier.notify(queue);
     }
@@ -584,10 +718,19 @@ class SipdCallbackConsumer extends SipdConsumer
  */
 class SipdCleanerConsumer extends SipdConsumer
 {
+    /**
+     * @inheritdoc
+     */
     initialize() {
         this.accepts = SipdQueue.QUEUE_CLEAN;
     }
 
+    /**
+     * Consume queue for processing.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<boolean>}
+     */
     doConsume(queue) {
         return new Promise((resolve, reject) => {
             if (queue.data && queue.data.dir && fs.existsSync(queue.data.dir)) {
@@ -606,10 +749,19 @@ class SipdCleanerConsumer extends SipdConsumer
  */
 class SipdBlackholeConsumer extends SipdConsumer
 {
+    /**
+     * @inheritdoc
+     */
     initialize() {
         this.accepts = null;
     }
 
+    /**
+     * Consume queue for processing.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     doConsume(queue) {
         return Promise.reject('ignored!');
     }
@@ -622,26 +774,54 @@ class SipdBlackholeConsumer extends SipdConsumer
  */
 class SipdQueue
 {
+    /**
+     * Constructor.
+     */
     constructor() {
         this.status = SipdQueue.STATUS_NEW;
     }
 
+    /**
+     * Set queue type.
+     *
+     * @param {string} type Queue type
+     */
     setType(type) {
         this.type = type;
     }
 
+    /**
+     * Set queue id.
+     *
+     * @param {string} id Queue id
+     */
     setId(id) {
         this.id = id;
     }
 
+    /**
+     * Set queue data.
+     *
+     * @param {object} data Queue data
+     */
     setData(data) {
         this.data = data;
     }
 
+    /**
+     * Set queue callback.
+     *
+     * @param {string} callback Queue callback
+     */
     setCallback(callback) {
         this.callback = callback;
     }
 
+    /**
+     * Set queue status.
+     *
+     * @param {string} status Queue status
+     */
     setStatus(status) {
         if (this.status !== status) {
             this.status = status;
@@ -649,6 +829,11 @@ class SipdQueue
         }
     }
 
+    /**
+     * Set queue result.
+     *
+     * @param {any} result Queue result
+     */
     setResult(result) {
         if (this.result !== result) {
             this.result = result;
@@ -656,6 +841,11 @@ class SipdQueue
         }
     }
 
+    /**
+     * Set queue time.
+     *
+     * @param {Date} time Queue time
+     */
     setTime(time) {
         if (time === null || time === undefined) {
             time = new Date();
@@ -663,14 +853,30 @@ class SipdQueue
         this.time = time;
     }
 
+    /**
+     * Get queue type.
+     *
+     * @returns {string}
+     */
     getTypeText() {
         return this.type;
     }
 
+    /**
+     * Get queue status.
+     *
+     * @returns {string}
+     */
     getStatusText() {
         return this.status;
     }
 
+    /**
+     * Get queue mapped data name.
+     *
+     * @param {string} name Map name
+     * @returns {any}
+     */
     getMap(name) {
         if (this.maps) {
             let parts;
@@ -695,10 +901,22 @@ class SipdQueue
         }
     }
 
+    /**
+     * Get queue mapped data.
+     *
+     * @param {string} name Mapped data name
+     * @returns {any}
+     */
     getMappedData(name) {
         return this.getDataValue(this.getMap(name));
     }
 
+    /**
+     * Get queue data value.
+     *
+     * @param {string} key Data key
+     * @returns {any}
+     */
     getDataValue(key) {
         if (typeof key === 'string') {
             if (this.data[key] !== undefined) {
@@ -711,6 +929,12 @@ class SipdQueue
         }
     }
 
+    /**
+     * Get translated value.
+     *
+     * @param {string} value Data value
+     * @returns {string}
+     */
     getTranslatedValue(value) {
         const x = value.split(':');
         const vtype = x[0];
@@ -743,6 +967,13 @@ class SipdQueue
         return value;
     }
 
+    /**
+     * Set data value.
+     *
+     * @param {string} name Data key
+     * @param {any} value Data value
+     * @returns {this}
+     */
     setValue(name, value) {
         const key = this.getMap(name);
         if (key) {
@@ -751,21 +982,39 @@ class SipdQueue
         return this;
     }
 
+    /**
+     * Start and mark queue as processing.
+     */
     start() {
         this.setTime();
         this.setStatus(SipdQueue.STATUS_PROCESSING);
     }
 
+    /**
+     * Finish queue and mark as done.
+     *
+     * @param {any} result Result
+     */
     done(result) {
         this.setStatus(SipdQueue.STATUS_DONE);
         this.setResult(result);
     }
 
+    /**
+     * Finish queue and mark as error.
+     *
+     * @param {any} error Error
+     */
     error(error) {
         this.setStatus(SipdQueue.STATUS_ERROR);
         this.setResult(error);
     }
 
+    /**
+     * Is queue finished?
+     *
+     * @returns {boolean}
+     */
     finished() {
         return [
             SipdQueue.STATUS_DONE,
@@ -775,6 +1024,12 @@ class SipdQueue
         ].indexOf(this.status) >= 0;
     }
 
+    /**
+     * Get queue log.
+     *
+     * @param {boolean} raw Prefer raw value
+     * @returns {object}
+     */
     getLog(raw = false) {
         const res = {id: this.id, type: this.type};
         const info = this.getInfo();
@@ -792,6 +1047,11 @@ class SipdQueue
         return res;
     }
 
+    /**
+     * Get queue information.
+     *
+     * @returns {string}
+     */
     getInfo() {
         let info = this.info;
         if (!info && this.type === SipdQueue.QUEUE_CALLBACK) {
@@ -800,6 +1060,12 @@ class SipdQueue
         return info;
     }
 
+    /**
+     * Compare queue for sorting.
+     *
+     * @param {SipdQueue} queue Queue to compare
+     * @returns {number}
+     */
     cmp(queue) {
         if (this.time === undefined) {
             if (queue.time === undefined) {
@@ -816,23 +1082,52 @@ class SipdQueue
         }
     }
 
+    /**
+     * Check for flag is set or clear?
+     *
+     * @param {string} flag Flag
+     * @returns {boolean}
+     */
     isFlagged(flag) {
         return this.constructor.hasFlag(this.type, flag);
     }
 
+    /**
+     * Is queue saveable?
+     *
+     * @returns {boolean}
+     */
     isSaveable() {
         return this.isFlagged('e') && [SipdQueue.STATUS_NEW].includes(this.status);
     }
 
+    /**
+     * Is queue loggable?
+     *
+     * @returns {boolean}
+     */
     isLoggable() {
         return this.isFlagged('e') && ![SipdQueue.STATUS_NEW, SipdQueue.STATUS_PROCESSING].includes(this.status);
     }
 
+    /**
+     * Get string representation of queue.
+     *
+     * @returns {string}
+     */
     toString() {
         const info = this.getInfo();
         return `${this.getTypeText()}:${this.id}${info ? ' ' + info : ''}`;
     }
 
+    /**
+     * Create queue.
+     *
+     * @param {string} type Queue type
+     * @param {object} data Queue data
+     * @param {string} callback Queue callback
+     * @returns {SipdQueue}
+     */
     static create(type, data, callback = null) {
         const queue = new this();
         queue.setType(type);
@@ -843,48 +1138,119 @@ class SipdQueue
         return queue;
     }
 
+    /**
+     * Create queue with its data maps.
+     *
+     * @param {object} maps Data maps
+     * @returns {SipdQueue}
+     */
     static createWithMap(maps) {
         const queue = new this();
         queue.maps = maps;
         return queue;
     }
 
+    /**
+     * Create SPP queue.
+     *
+     * @param {object} data Queue data
+     * @param {string} callback Queue callback
+     * @returns {SipdQueue}
+     */
     static createSppQueue(data, callback = null) {
         return this.create(SipdQueue.QUEUE_SPP, data, callback);
     }
 
+    /**
+     * Create SPP QUERY queue.
+     *
+     * @param {object} data Queue data
+     * @param {string} callback Queue callback
+     * @returns {SipdQueue}
+     */
     static createSppQueryQueue(data, callback = null) {
         return this.create(SipdQueue.QUEUE_SPP_QUERY, data, callback);
     }
 
+    /**
+     * Create LPJ queue.
+     *
+     * @param {object} data Queue data
+     * @param {string} callback Queue callback
+     * @returns {SipdQueue}
+     */
     static createLpjQueue(data, callback = null) {
         return this.create(SipdQueue.QUEUE_LPJ, data, callback);
     }
 
+    /**
+     * Create LPJ QUERY queue.
+     *
+     * @param {object} data Queue data
+     * @param {string} callback Queue callback
+     * @returns {SipdQueue}
+     */
     static createLpjQueryQueue(data, callback = null) {
         return this.create(SipdQueue.QUEUE_LPJ_QUERY, data, callback);
     }
 
+    /**
+     * Create REKANAN queue.
+     *
+     * @param {object} data Queue data
+     * @param {string} callback Queue callback
+     * @returns {SipdQueue}
+     */
     static createRekananQueue(data, callback = null) {
         return this.create(SipdQueue.QUEUE_REKANAN, data, callback);
     }
 
+    /**
+     * Create CALLBACK queue.
+     *
+     * @param {object} data Queue data
+     * @param {string} callback Queue callback
+     * @returns {SipdQueue}
+     */
     static createCallbackQueue(data, callback = null) {
         return this.create(SipdQueue.QUEUE_CALLBACK, data, callback);
     }
 
+    /**
+     * Create CAPTCHA queue.
+     *
+     * @param {object} data Queue data
+     * @returns {SipdQueue}
+     */
     static createCaptchaQueue(data) {
         return this.create(SipdQueue.QUEUE_CAPTCHA, data);
     }
 
+    /**
+     * Create NOOP queue.
+     *
+     * @param {object} data Queue data
+     * @returns {SipdQueue}
+     */
     static createNoopQueue(data) {
         return this.create(SipdQueue.QUEUE_NOOP, data);
     }
 
+    /**
+     * Create CLEAN queue.
+     *
+     * @param {object} data Queue data
+     * @returns {SipdQueue}
+     */
     static createCleanQueue(data) {
         return this.create(SipdQueue.QUEUE_CLEAN, data);
     }
 
+    /**
+     * Create dequeuer.
+     *
+     * @returns {SipdDequeue}
+     */
     static createDequeuer() {
         if (!dequeue) {
             dequeue = new SipdDequeue();
@@ -892,6 +1258,12 @@ class SipdQueue
         return dequeue;
     }
 
+    /**
+     * Add queue.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {object}
+     */
     static addQueue(queue) {
         if (!dequeue) {
             throw new Error('No dequeue instance has been created!');
@@ -899,6 +1271,12 @@ class SipdQueue
         return dequeue.add(queue);
     }
 
+    /**
+     * Is same queue has pending processing?
+     *
+     * @param {SipdQueue|object} queue Queue
+     * @returns 
+     */
     static hasPendingQueue(queue) {
         if (dequeue && queue) {
             if ((queue instanceof this && queue.isFlagged('u')) || this.hasFlag(queue.type, 'u')) {
@@ -911,6 +1289,13 @@ class SipdQueue
         return false;
     }
 
+    /**
+     * Is flag set on queue metadata?
+     *
+     * @param {string} type Queue type
+     * @param {string} flag Queue flag
+     * @returns {boolean}
+     */
     static hasFlag(type, flag) {
         const metadata = this.QUEUE_METADATA;
         if (typeof metadata[type] === 'string') {
@@ -955,6 +1340,7 @@ class SipdQueue
     static get LOG_AS_LOG() { return 2 }
     static get LOG_AS_QUEUE() { return 4 }
 
+    static get DEQUEUE() { return SipdDequeue }
     static get CONSUMERS() { return {SipdBridgeConsumer, SipdCallbackConsumer, SipdCleanerConsumer, SipdBlackholeConsumer} }
 }
 

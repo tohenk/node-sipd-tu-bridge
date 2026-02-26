@@ -25,6 +25,11 @@
 const SipdCmd = require('..');
 const SipdQueue = require('../../app/queue');
 
+/**
+ * Handle LPJ create.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
 class SipdCmdLpjCreate extends SipdCmd {
 
     consume(payload) {

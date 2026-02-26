@@ -23,7 +23,7 @@
  */
 
 /**
- * An SIPD utility.
+ * SIPD common utility.
  *
  * @author Toha <tohenk@yahoo.com>
  */
@@ -399,14 +399,15 @@ class SipdUtil {
     /**
      * Generate an Id.
      *
+     * @param {number} len Id length
      * @returns {string}
      */
-    static genId() {
+    static genId(len = 8) {
         return require('crypto')
             .createHash('sha1')
             .update((new Date().getTime() + Math.random()).toString())
             .digest('hex')
-            .substring(0, 8);
+            .substring(0, len);
     }
 
     /**
