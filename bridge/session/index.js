@@ -653,7 +653,7 @@ class SipdSession {
      *
      * @param {WebElement} el Element
      * @param {SipdAfektasi} afektasi Account charge
-     * @returns {boolean}
+     * @returns {Promise<boolean>}
      */
     isAccount(el, afektasi) {
         return this.works([
@@ -668,7 +668,7 @@ class SipdSession {
      * @param {WebElement} el Element
      * @param {number} value Charge ammount
      * @param {SipdAfektasi} afektasi Account charge
-     * @returns {boolean}
+     * @returns {Promise<boolean>}
      */
     canFillAccount(el, value, afektasi) {
         return this.works([
@@ -676,8 +676,10 @@ class SipdSession {
             [w => el.findElement(afektasi.kuota === 1 ?
                 By.xpath('../../../../../div[@class="col-span-5"]/div/p[2]') : By.xpath('../div/span')
             )],
+            [w => el.findElement(By.xpath('../../../../../div[@class="col-span-12"]/div/div/div/div/div/input[@role="combobox"]'))],
             [w => Promise.resolve(w.getRes(1).getAttribute('innerText'))],
-            [w => Promise.resolve(afektasi.sisa = parseFloat(SipdUtil.pickCurr(w.getRes(2))))],
+            [w => Promise.resolve(afektasi.sisa = parseFloat(SipdUtil.pickCurr(w.getRes(3))))],
+            [w => this.sipd.reactSelect(w.getRes(2), 'PENDAPATAN ASLI DAERAH (PAD)'), w => afektasi.sisa >= value],
             [w => this.sipd.fillInput(w.getRes(0), null, this.options.clearUsingKey), w => afektasi.sisa >= value],
             [w => new Promise((resolve, reject) => {
                 const input = w.getRes(0);
