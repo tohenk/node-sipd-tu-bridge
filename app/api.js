@@ -22,7 +22,15 @@
  * SOFTWARE.
  */
 
-/* --- BEGIN API --- */
+const fs = require('fs');
+const path = require('path');
+const SipdLogger = require('../sipd/logger');
+const SipdQueue = require('./queue');
+const SipdUtil = require('../sipd/util');
+const { Socket } = require('socket.io');
+const { glob } = require('glob');
+
+/* --- BEGIN API V1 --- */
 
 /**
  * SIPD Penatausahaan Bridge main application.
@@ -35,10 +43,10 @@
  * @property {object} config Configuration
  * @property {SipdBridge[]} bridges Bridges
  * @property {AuthenticateFunction} authenticate Perform usename and password authentication
- * @property {PagedObjectsPromiseFunction} getQueues Get queues
- * @property {StringPromiseFunction} getActivity Get activity logs
- * @property {ObjectPromiseFunction} getCount Get activity count
- * @property {PagedObjectsPromiseFunction} getErrors Get captured errors
+ * @property {PagedObjectsFunction} getQueues Get queues
+ * @property {ActivityFunction} getActivity Get activity logs
+ * @property {ObjectFunction} getCount Get activity count
+ * @property {PagedObjectsFunction} getErrors Get captured errors
  * @property {QueryFunction} query Perform API query
  */
 
@@ -48,10 +56,11 @@
  * @typedef {Object} SipdBridge
  * @property {string} name Name
  * @property {number} year Year
- * @property {ObjectPromiseFunction} getStats Get bridge stats
- * @property {StringPromiseFunction} getLogs Get bridge logs
- * @property {ObjectPromiseFunction} getLast Get last queue
- * @property {ObjectPromiseFunction} getCurrent Get current processing queue
+ * @property {ObjectFunction} getStats Get bridge stats
+ * @property {ActivityFunction} getLogs Get bridge logs
+ * @property {LogFilesFunction} getLogFiles Get bridge addiitonal log files
+ * @property {ObjectFunction} getLast Get last queue
+ * @property {ObjectFunction} getCurrent Get current processing queue
  */
 
 /**
@@ -74,45 +83,46 @@
  */
 
 /**
- * A function which returns paged objects Promise.
+ * Get objects at specified page with size of limit. If none specified
+ * it returns first page with default size limit (either 10 or 25).
  *
- * @callback PagedObjectsPromiseFunction
- * @param {number} page Page number
- * @param {number} size Page size
+ * @callback PagedObjectsFunction
+ * @param {?number} page Page number
+ * @param {?number} size Page size
  * @returns {Promise<object[]>}
  */
 
 /**
- * A function which returns object Promise.
+ * Get miscellanous object such as queue or log.
  *
- * @callback ObjectPromiseFunction
+ * @callback ObjectFunction
  * @returns {Promise<object>}
  */
 
 /**
- * A function which returns string Promise.
+ * Get string content such as activity logs.
  *
- * @callback StringPromiseFunction
+ * @callback ActivityFunction
+ * @param {?string} seq Sequence number
  * @returns {Promise<string>}
  */
 
 /**
- * A function which returns object Promise.
+ * Query api and return result object.
  *
  * @callback QueryFunction
  * @param {object} data Query data
  * @returns {Promise<object>}
  */
 
-/* --- END API --- */
+/**
+ * Get additional log files.
+ *
+ * @callback LogFilesFunction
+ * @returns {Promise<[{name: string, seq: string, time: number}]>}
+ */
 
-const fs = require('fs');
-const path = require('path');
-const SipdLogger = require('../sipd/logger');
-const SipdQueue = require('./queue');
-const SipdUtil = require('../sipd/util');
-const { Socket } = require('socket.io');
-const { glob } = require('glob');
+/* --- END API --- */
 
 /**
  * Main api.
@@ -160,7 +170,7 @@ class Api {
             return username === app.config.security.username && password === app.config.security.password ?
                 true : false;
         }
-        /** @type {PagedObjectsPromiseFunction} */
+        /** @type {PagedObjectsFunction} */
         this.getQueues = async (page, size) => {
             const queues = app.dequeue.getLogs(SipdQueue.LOG_RAW)
                 .reverse();
@@ -178,23 +188,18 @@ class Api {
             }
             return res;
         }
-        /** @type {StringPromiseFunction} */
-        this.getActivity = async () => {
-            let res, filename = SipdLogger.getLogFile(SipdLogger.LOG_ACTIVITY);
-            if (filename && fs.existsSync(filename)) {
-                res = fs.readFileSync(filename).toString();
-            }
-            return res;
+        /** @type {ActivityFunction} */
+        this.getActivity = async (seq) => {
+            return ApiFn.getLogs(SipdLogger.LOG_ACTIVITY, seq);
         }
-        /** @type {ObjectPromiseFunction} */
+        /** @type {ObjectFunction} */
         this.getCount = async () => {
             const res = {};
-            const stat = (key, label, values) => (res[key] = {label, value: values.length});
-            stat('queue', 'Total unprocessed queue', app.dequeue.queues);
-            stat('processing', 'Total processing queue', app.dequeue.processing);
+            ApiFn.stat(res, 'queue', 'Total unprocessed queue', app.dequeue.queues);
+            ApiFn.stat(res, 'processing', 'Total processing queue', app.dequeue.processing);
             return res;
         }
-        /** @type {PagedObjectsPromiseFunction} */
+        /** @type {PagedObjectsFunction} */
         this.getErrors = async (page, size) => {
             const res = {
                 count: 0,
@@ -245,6 +250,26 @@ class Api {
         this.query = async (data) => {
             const res = {success: false};
             switch (data.cmd) {
+                case 'activity-seq':
+                    res.success = true;
+                    res.sequences = ApiFn.getLogFiles(SipdLogger.LOG_ACTIVITY);
+                    break;
+                case 'log-file':
+                    if (data.seq) {
+                        res.success = true;
+                        res.logs = ApiFn.getLogs(data.log ?? SipdLogger.LOG_ACTIVITY, data.seq);
+                    }
+                    break;
+                case 'remove-queue':
+                    if (data.queue) {
+                        const queue = app.dequeue.queues.find(q => q.id === data.queue);
+                        if (queue) {
+                            res.success = true;
+                            app.dequeue.queues.splice(app.dequeue.queues.indexOf(queue), 1);
+                            this.notify('queue');
+                        }
+                    }
+                    break;
                 case 'clean-err':
                     if (data.error) {
                         const errGlob = path.join(
@@ -327,27 +352,26 @@ class ApiBridge {
     constructor(app, bridge) {
         this.name = bridge.name;
         this.year = bridge.year;
-        /** @type {StringPromiseFunction} */
-        this.getLogs = async () => {
-            let res, filename = SipdLogger.getLogFile(bridge.name);
-            if (filename && fs.existsSync(filename)) {
-                res = fs.readFileSync(filename).toString();
-            }
-            return res;
+        /** @type {ActivityFunction} */
+        this.getLogs = async (seq) => {
+            return ApiFn.getLogs(bridge.name, seq);
         }
-        /** @type {ObjectPromiseFunction} */
+        /** @type {LogFilesFunction} */
+        this.getLogFiles = async () => {
+            return ApiFn.getLogFiles(bridge.name);
+        }
+        /** @type {ObjectFunction} */
         this.getStats = async () => {
             const res = {};
-            const stat = (key, label, values) => (res[key] = {label, value: values.length});
             const queues = [...app.dequeue.completes, ...app.dequeue.processing]
                 .filter(q => q.bridge === bridge);
-            stat('total', 'Total queue', queues);
-            stat('success', 'Total successful', queues.filter(q => q.status === SipdQueue.STATUS_DONE));
-            stat('fail', 'Total unsuccessful', queues.filter(q => ![SipdQueue.STATUS_PROCESSING, SipdQueue.STATUS_DONE]
+            ApiFn.stat(res, 'total', 'Total queue', queues);
+            ApiFn.stat(res, 'success', 'Total successful', queues.filter(q => q.status === SipdQueue.STATUS_DONE));
+            ApiFn.stat(res, 'fail', 'Total unsuccessful', queues.filter(q => ![SipdQueue.STATUS_PROCESSING, SipdQueue.STATUS_DONE]
                 .includes(q.status)));
             return res;
         }
-        /** @type {ObjectPromiseFunction} */
+        /** @type {ObjectFunction} */
         this.getLast = async () => {
             const queues = app.dequeue.completes
                 .filter(q => q.bridge === bridge);
@@ -355,12 +379,72 @@ class ApiBridge {
                 return queues.pop();
             }
         }
-        /** @type {ObjectPromiseFunction} */
+        /** @type {ObjectFunction} */
         this.getCurrent = async () => {
             if (bridge.queue && bridge.queue.status === SipdQueue.STATUS_PROCESSING) {
                 return bridge.queue;
             }
         }
+    }
+}
+
+/**
+ * Api function helper.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class ApiFn {
+
+    /**
+     * Add statistical value.
+     *
+     * @param {object} res Result object
+     * @param {string} key Key name
+     * @param {string} label Key label
+     * @param {any[]} values Values
+     */
+    static stat(res, key, label, values) {
+        res[key] = {label, value: values.length};
+    }
+
+    /**
+     * Get activity logs.
+     *
+     * @param {string} log Log name
+     * @param {?string} seq Sequence number
+     * @returns {string}
+     */
+    static getLogs(log, seq) {
+        let res, filename = SipdLogger.getLogFile(log);
+        if (seq) {
+            filename += `.${seq}`;
+        }
+        if (filename && fs.existsSync(filename)) {
+            res = fs.readFileSync(filename).toString();
+        }
+        return res;
+    }
+
+    /**
+     * Get log file sequences.
+     *
+     * @param {string} log Log name
+     * @returns {object[]}
+     */
+    static async getLogFiles(log) {
+        log = SipdLogger.getLogFile(log);
+        const files = await glob(`${log}.*`, {
+            stat: true,
+            withFileTypes: true,
+            windowsPathsNoEscape: true,
+        });
+        return files
+            .map(file => ({
+                name: file.ctime.toJSON().substr(0, 10),
+                seq: file.name.substr(file.name.lastIndexOf('.') + 1),
+                time: file.ctime.getTime(),
+            }))
+            .sort((a, b) => b.time - a.time);
     }
 }
 
