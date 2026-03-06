@@ -440,9 +440,9 @@ class ApiFn {
         });
         return files
             .map(file => ({
-                name: file.ctime.toJSON().substr(0, 10),
+                name: file.birthtime?.toJSON().substr(0, 10),
+                time: file.birthtime?.getTime(),
                 seq: file.name.substr(file.name.lastIndexOf('.') + 1),
-                time: file.ctime.getTime(),
             }))
             .sort((a, b) => b.time - a.time);
     }
