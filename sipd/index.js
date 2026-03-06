@@ -607,6 +607,7 @@ class Sipd extends WebRobot {
      */
     dismissStatuses() {
         return new Promise((resolve, reject) => {
+            const timer = new SipdTimer({delta: 60});
             const f = () => {
                 this.works([
                     [w => this.findElements(By.xpath('//div[@role="status"]'))],
@@ -614,6 +615,7 @@ class Sipd extends WebRobot {
                 ])
                 .then(res => {
                     if (res) {
+                        timer.check(t => this.debug(dtag)(`Still waiting status dismissing after ${t.deltaTime}s...`));
                         setTimeout(f, this.loopdelay);
                     } else {
                         resolve();
@@ -978,6 +980,7 @@ class Sipd extends WebRobot {
             [w => this.waitSidebar()],
             [w => new Promise((resolve, reject) => {
                 let restart;
+                const levels = [];
                 const f = () => {
                     restart = false;
                     let res, level = 0, length = menus.length;
@@ -995,9 +998,13 @@ class Sipd extends WebRobot {
                                 root = './../../../div/div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div';
                                 break;
                         }
+                        const logged = !levels.includes(level);
+                        if (logged) {
+                            levels.push(level);
+                        }
                         this.works([
-                            [w => this.findMenu(parent, root, menu, level, n)],
-                            [w => this.findMenu(parent, root, menu, level, n + 1), w => !w.getRes(0)],
+                            [w => this.findMenu(parent, root, menu, level, n, logged)],
+                            [w => this.findMenu(parent, root, menu, level, n + 1, logged), w => !w.getRes(0)],
                             [w => Promise.resolve(w.getRes(0) || w.getRes(1))],
                             [w => Promise.reject(`Unable to find menu ${menu}!`), w => !w.getRes(2)],
                         ])
@@ -1033,9 +1040,10 @@ class Sipd extends WebRobot {
      * @param {string} title Menu title 
      * @param {number} level Menu level
      * @param {number} depth Menu depth
+     * @param {boolean} logged Enable logging
      * @returns {Promise<object|undefined>}
      */
-    findMenu(parent, root, title, level, depth) {
+    findMenu(parent, root, title, level, depth, logged) {
         const dep = (s, n) => Array.from({length: n}, () => s).join('/');
         const selector = `${root}/a/${dep('*', depth)}[text()="${title}"]`;
         const upselector = dep('..', depth);
@@ -1049,7 +1057,7 @@ class Sipd extends WebRobot {
             [w => Promise.resolve(res = {el: w.getRes(1)}), w => w.getRes(0).length],
             [w => w.getRes(1).click(), w => w.getRes(0).length && w.getRes(4).indexOf('false') >= 0],
             [w => Promise.resolve(res.clicked = true), w => w.getRes(0).length && w.getRes(4).indexOf('false') >= 0],
-            [w => Promise.resolve(this.debug(dtag)(`Menu level ${level} ${selector}`)), w => res],
+            [w => Promise.resolve(this.debug(dtag)(`Menu level ${level} ${selector}`)), w => res && logged],
             [w => Promise.resolve(res)],
         ]);
     }
