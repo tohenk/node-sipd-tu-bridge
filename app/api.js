@@ -27,6 +27,7 @@ const path = require('path');
 const SipdLogger = require('../sipd/logger');
 const SipdQueue = require('./queue');
 const SipdUtil = require('../sipd/util');
+const Util = require('@ntlab/ntlib/util');
 const { Socket } = require('socket.io');
 const { glob } = require('glob');
 
@@ -440,7 +441,7 @@ class ApiFn {
         });
         return files
             .map(file => ({
-                name: file.birthtime?.toJSON().substr(0, 10),
+                name: Util.formatDate(file.birthtime, 'yyyy-MM-dd'),
                 time: file.birthtime?.getTime(),
                 seq: file.name.substr(file.name.lastIndexOf('.') + 1),
             }))

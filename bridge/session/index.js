@@ -27,6 +27,7 @@ const path = require('path');
 const Queue = require('@ntlab/work/queue');
 const SipdQueue = require('../../app/queue');
 const SipdUtil = require('../../sipd/util');
+const Util = require('@ntlab/ntlib/util');
 const { Sipd } = require('../../sipd');
 const { SipdColumnQuery } = require('../../sipd/query');
 const { SipdActivitySelector } = require('./activity');
@@ -1271,7 +1272,7 @@ class SipdSession {
         return this.works([
             [w => this.sipd.driver.takeScreenshot()],
             [w => Promise.resolve(Buffer.from(w.getRes(0), 'base64')), w => w.getRes(0)],
-            [w => Promise.resolve(`${this.bridge.name}-${new Date().toJSON().replace(/[\-\:\.TZ]/g, '')}`), w => w.getRes(0)],
+            [w => Promise.resolve(`${this.bridge.name}-${Util.formatDate(new Date(), 'yyyyMMddHHmmsszzz')}`), w => w.getRes(0)],
             [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(2)}.png`), w.getRes(1))), w => w.getRes(0)],
             [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(2)}.err`), f(message))), w => w.getRes(0) && message],
             [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(2)}.json`), JSON.stringify(data))), w => w.getRes(0) && data],
