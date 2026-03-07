@@ -162,7 +162,7 @@ class SipdDequeue extends EventEmitter {
                         const pickedConsumers = consumers
                             .filter(consumer => consumer.priority === consumers[0].priority);
                         if (pickedConsumers.length) {
-                            const idx = Math.floor(Math.random() * (pickedConsumers.length - 1));
+                            const idx = pickedConsumers.length > 1 ? Math.floor(Math.random() * pickedConsumers.length) : 0;
                             const consumer = pickedConsumers[idx];
                             // move queue to processing
                             this.queues.splice(this.queues.indexOf(queue), 1);
