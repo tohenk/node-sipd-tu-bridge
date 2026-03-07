@@ -162,14 +162,13 @@ class SipdComponentPager extends SipdComponent {
                     [w => this.onpage(), w => w.getRes(1) && typeof this.onpage === 'function'],
                     [w => Promise.resolve(jumpPage(w.getRes(0))), w => !w.getRes(1)],
                     [w => w.getRes(4).click(), w => !w.getRes(1)],
+                    [w => this.setup(), w => !w.getRes(1)],
                     [w => Promise.resolve(w.getRes(1) ? true : false)],
                 ])
                 .then(res => {
                     if (res) {
-                        this.parent.debug(dtag)(`Page ${page} is found`);
                         resolve();
                     } else {
-                        this.parent.debug(dtag)(`Page ${page} is not found, navigating`);
                         f();
                     }
                 })
