@@ -943,6 +943,7 @@ class SipdSession {
             }
             // form data and handler
             if (data) {
+                let isFill = true;
                 switch (vtype) {
                     case 'RADIO':
                         data.onfill = (el, value) => this.fillRadio(el, value);
@@ -1009,6 +1010,7 @@ class SipdSession {
                             } else {
                                 data.onfill = (el, value) => this.readValue(el, value, queue);
                             }
+                            isFill = false;
                             break;
                         // fill value using javascript
                         case '$':
@@ -1054,7 +1056,11 @@ class SipdSession {
                     }
                 }
                 data.prefill = (el, value) => {
-                    this.debug(dtag)(`Do fill ${name + '->' + key} with ${trunc(value)}`);
+                    if (isFill) {
+                        this.debug(dtag)(`Do fill ${name + '->' + key} with ${trunc(value)}`);
+                    } else {
+                        this.debug(dtag)(`Do read ${name + '->' + key} into ${trunc(value)}`);
+                    }
                 }
                 data.afterfill = el => this.works([
                     [w => this.sipd.isStale(el)],
