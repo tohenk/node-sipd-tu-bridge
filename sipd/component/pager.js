@@ -162,6 +162,7 @@ class SipdComponentPager extends SipdComponent {
                     [w => this.onpage(), w => w.getRes(1) && typeof this.onpage === 'function'],
                     [w => Promise.resolve(jumpPage(w.getRes(0))), w => !w.getRes(1)],
                     [w => w.getRes(4).click(), w => !w.getRes(1)],
+                    [w => this.parent.waitSpinner(this._wrapper), w => !w.getRes(1)],
                     [w => this.setup(), w => !w.getRes(1)],
                     [w => Promise.resolve(w.getRes(1) ? true : false)],
                 ])
