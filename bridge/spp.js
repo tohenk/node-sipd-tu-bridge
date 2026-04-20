@@ -22,9 +22,9 @@
  * SOFTWARE.
  */
 
-const SipdBridge = require('.');
 const SipdSppSession = require('./session/spp');
 const SipdUtil = require('../sipd/util');
+const { SipdBridgeHandler } = require('.');
 const { SipdRole } = require('../sipd/role');
 
 /**
@@ -32,7 +32,7 @@ const { SipdRole } = require('../sipd/role');
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdSppBridge extends SipdBridge {
+class SipdBridgeSpp extends SipdBridgeHandler {
 
     alwaysEditRekanan = false
 
@@ -42,7 +42,7 @@ class SipdSppBridge extends SipdBridge {
      * @param {object} options Options
      * @returns {SipdSppSession}
      */
-    createSession(options) {
+    _createSession(options) {
         return new SipdSppSession(options);
     }
 
@@ -53,7 +53,7 @@ class SipdSppBridge extends SipdBridge {
      * @param {object} result Processing result
      * @returns any[]
      */
-    onResult(queue, result) {
+    _onResult(queue, result) {
         let res = result, data;
         if (queue.SPP && queue.SPP !== 'DRAFT') {
             res = {
@@ -87,24 +87,26 @@ class SipdSppBridge extends SipdBridge {
      * @returns {Promise<any>}
      */
     createSpp(queue) {
-        return this.processQueue({
+        const sess = this._createSession;
+        return this.bridge.processQueue({
             queue,
             works: [
                 // --- BP ---
-                ['bp', w => this.doAs(SipdRole.BP)],
+                ['bp', w => this.bridge.doAs(SipdRole.BP, sess)],
                 ['bp-login', w => w.bp.login()],
                 ['bp-rekanan', w => w.bp.createRekanan(queue, this.alwaysEditRekanan)],
                 ['bp-spp', w => w.bp.createSpp(queue)],
                 // --- PPK ---
-                ['ppk', w => this.doAs(SipdRole.PPK)],
+                ['ppk', w => this.bridge.doAs(SipdRole.PPK, sess)],
                 ['ppk-login', w => w.ppk.login()],
                 ['ppk-verif-spp', w => w.ppk.verifikasiSpp(queue)],
                 // --- PA ---
-                ['pa', w => this.doAs(SipdRole.PA)],
+                ['pa', w => this.bridge.doAs(SipdRole.PA, sess)],
                 ['pa-login', w => w.pa.login()],
                 ['pa-setuju-spm', w => w.pa.verifikasiSpm(queue)],
                 ['pa-cek-sp2d', w => w.pa.checkSp2d(queue)],
             ],
+            onResult: this._onResult,
         });
     }
 
@@ -141,17 +143,19 @@ class SipdSppBridge extends SipdBridge {
             }
             return res;
         }
-        return this.processQueue({
+        const sess = this._createSession;
+        return this.bridge.processQueue({
             queue,
             works: [
-                ['bp', w => this.doAs(SipdRole.BP)],
+                ['bp', w => this.bridge.doAs(SipdRole.BP, sess)],
                 ['bp-login', w => w.bp.login()],
                 ['bp-cek-spp', w => w.bp.checkSpp(queue)],
                 ['bp-cek-spm', w => w.bp.checkSpm(queue)],
                 ['bp-cek-sp2d', w => w.bp.checkSp2d(queue)],
             ].sort(sorter),
+            onResult: this._onResult,
         });
     }
 }
 
-module.exports = SipdSppBridge;
+module.exports = SipdBridgeSpp;

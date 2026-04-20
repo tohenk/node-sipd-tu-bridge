@@ -75,9 +75,7 @@ class Configuration {
         if (!this.workdir) {
             this.workdir = rootDir;
         }
-        if (this.mode) {
-            this.initialize();
-        }
+        this.initialize();
     }
 
     /**
@@ -102,17 +100,21 @@ class Configuration {
             [Configuration.BRIDGE_LPJ]: 'lpj.json',
             [Configuration.BRIDGE_UTIL]: 'util.json',
         }
-        if (mappings[this.mode] !== undefined) {
-            filename = path.join(this.workdir, 'mappings', mappings[this.mode]);
+        this.maps = {};
+        for (const [mode, mapping] of Object.entries(mappings)) {
+            if (this.mode && this.mode !== mode) {
+                continue;
+            }
+            filename = path.join(this.workdir, 'mappings', mapping);
             if (fs.existsSync(filename)) {
-                this.maps = JSON.parse(fs.readFileSync(filename));
+                this.maps[mode] = JSON.parse(fs.readFileSync(filename));
                 console.log('Maps loaded from %s', filename);
             }
         }
         // set roles directory
         SipdRoleSwitcher.setDir(path.join(this.workdir, 'roles'));
         // add default bridges
-        if (this.mode === Configuration.BRIDGE_SPP && !this.bridges) {
+        if (!this.bridges) {
             const year = new Date().getFullYear();
             this.bridges = {[`sipd-${year}`]: {year}};
         }

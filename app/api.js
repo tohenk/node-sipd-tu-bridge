@@ -164,7 +164,7 @@ class Api {
             license: packageInfo.license
         }
         this.proto = app.VERSION;
-        this.mode = app.config.mode.toUpperCase();
+        this.mode = app.config.mode?.toUpperCase() || '*';
         this.bridges = app.bridges.map(bridge => new ApiBridge(app, bridge));
         /** @type {AuthenticateFunction} */
         this.authenticate = (username, password) => {

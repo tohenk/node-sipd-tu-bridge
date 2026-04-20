@@ -34,7 +34,11 @@ class SipdCmdUtilCaptcha extends SipdCmd {
 
     consume(payload) {
         const { data } = payload;
-        return this.dequeue.createQueue({type: SipdQueue.QUEUE_CAPTCHA, data});
+        return this.dequeue.createQueue({
+            mode: this.mode,
+            type: SipdQueue.QUEUE_CAPTCHA,
+            data,
+        });
     }
 }
 

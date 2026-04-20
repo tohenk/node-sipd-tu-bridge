@@ -23,53 +23,16 @@
  */
 
 const Queue = require('@ntlab/work/queue');
-const SipdBridge = require('.');
 const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
+const { SipdBridgeHandler } = require('.');
 
 /**
- * Sipd bridge for UTIL handling.
+ * Sipd bridge for utility handling.
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdUtilBridge extends SipdBridge {
-
-    /**
-     * Do fetch captcha task.
-     *
-     * @param {SipdQueue} queue Queue
-     * @returns {Promise<any>}
-     */
-    fetchCaptcha(queue) {
-        const sess = this.getSessions()[0];
-        if (sess) {
-            const count = queue.data.count || 100;
-            const oldOnState = this.onState;
-            this.onState = s => {
-                if (sess.state().captcha && !this._captcha) {
-                    this._captcha = true;
-                    const f = () => {
-                        this._captcha = false;
-                    }
-                    this.getCaptchas(sess, count)
-                        .then(() => f())
-                        .catch(() => f());
-                }
-                if (typeof oldOnState === 'function') {
-                    oldOnState(s);
-                }
-            }
-            return this.do([
-                [w => sess.login()],
-            ], (w, err) => {
-                return [
-                    [e => this.end(queue, this.autoClose)],
-                ];
-            });
-        } else {
-            return Promise.reject('No roles defined!');
-        }
-    }
+class SipdBridgeUtil extends SipdBridgeHandler {
 
     /**
      * Get captcha images.
@@ -78,13 +41,14 @@ class SipdUtilBridge extends SipdBridge {
      * @param {number} count Number of captcha to fetch
      * @returns {Promise<any>}
      */
-    getCaptchas(sess, count) {
+    _getCaptchas(sess, count) {
         return new Promise((resolve, reject) => {
             const sequences = Array.from({length: count}, (v, i) => i + 1);
             const q = new Queue(sequences, async (seq) => {
                 const res = await sess.captchaImage();
                 if (res) {
-                    this.getSessions()[0].saveCaptcha(res);
+                    this.bridge.getSessions()[0]
+                        .saveCaptcha(res);
                 }
                 await sess.reloadCaptcha();
                 q.next();
@@ -92,6 +56,43 @@ class SipdUtilBridge extends SipdBridge {
             q.once('done', () => resolve());
         });
     }
+
+    /**
+     * Do fetch captcha task.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
+    fetchCaptcha(queue) {
+        const sess = this.bridge.getSessions()[0];
+        if (sess) {
+            const count = queue.data.count || 100;
+            const oldOnState = this.bridge.onState;
+            this.bridge.onState = s => {
+                if (sess.state().captcha && !this._captcha) {
+                    this._captcha = true;
+                    const f = () => {
+                        this._captcha = false;
+                    }
+                    this._getCaptchas(sess, count)
+                        .then(() => f())
+                        .catch(() => f());
+                }
+                if (typeof oldOnState === 'function') {
+                    oldOnState(s);
+                }
+            }
+            return this.bridge.do([
+                [w => sess.login()],
+            ], (w, err) => {
+                return [
+                    [e => this.bridge.end(queue, this.bridge.autoClose)],
+                ];
+            });
+        } else {
+            return Promise.reject('No roles defined!');
+        }
+    }
 }
 
-module.exports = SipdUtilBridge;
+module.exports = SipdBridgeUtil;

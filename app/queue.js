@@ -132,6 +132,9 @@ class SipdDequeue extends EventEmitter {
                 break;
         }
         if (queue) {
+            if (data.mode) {
+                queue.mode = data.mode;
+            }
             if (queue.isFlagged('m') && typeof this.setMaps === 'function') {
                 this.setMaps(queue);
             } else {
@@ -379,12 +382,13 @@ class SipdDequeue extends EventEmitter {
         const queues = this.queues.filter(queue => queue.isSaveable());
         if (queues.length) {
             const savedQueues = queues.map(queue => {
-                return {
-                    type: queue.type,
-                    id: queue.id,
-                    data: queue.data,
-                    callback: queue.callback,
+                const res = {};
+                for (const prop of ['mode', 'type', 'id', 'data', 'callback']) {
+                    if (queue[prop] !== undefined) {
+                        res[prop] = queue[prop];
+                    }
                 }
+                return res;
             });
             const queueDir = path.join(process.cwd(), 'queue');
             if (!fs.existsSync(queueDir)) {

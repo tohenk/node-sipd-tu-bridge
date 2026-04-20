@@ -40,6 +40,7 @@ class SipdCmdLpjQuery extends SipdCmd {
         let cnt = 0;
         items.forEach(lpj => {
             const [res, queue] = this.dequeue.createQueue({
+                mode: this.mode,
                 type: SipdQueue.QUEUE_LPJ_QUERY,
                 data: lpj,
                 callback: socket?.callback,

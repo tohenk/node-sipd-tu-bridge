@@ -29,13 +29,14 @@ const Cmd = require('@ntlab/ntlib/cmd');
 const Api = require('./api');
 const Configuration = require('./configuration');
 const Work = require('@ntlab/work/work');
-const SipdBridge = require('../bridge');
+const SipdBridgeCommon = require('../bridge/common');
+const SipdBridgeLpj = require('../bridge/lpj');
+const SipdBridgeSpp = require('../bridge/spp');
+const SipdBridgeUtil = require('../bridge/util');
 const SipdCmd = require('../cmd');
 const SipdLogger = require('../sipd/logger');
 const SipdQueue = require('./queue');
-const SipdLpjBridge = require('../bridge/lpj');
-const SipdSppBridge = require('../bridge/spp');
-const SipdUtilBridge = require('../bridge/util');
+const { SipdBridge } = require('../bridge');
 const { Socket } = require('socket.io');
 
 const dtag = 'app';
@@ -111,7 +112,13 @@ class App {
          * @param {SipdQueue} queue
          */
         this.dequeue.setMaps = queue => {
-            queue.maps = this.config.maps;
+            if (!queue.mode) {
+                throw new Error('Unable to set maps on queue without mode!');
+            }
+            if (this.config.maps[queue.mode] === undefined) {
+                throw new Error(`Queue map ${queue.mode} is not loaded!`);
+            }
+            queue.maps = this.config.maps[queue.mode];
             queue.info = queue.getMappedData('info.title');
         }
         this.dequeue
@@ -156,24 +163,30 @@ class App {
                     config.session = 's' + this.sessions[id][browser];
                 }
             }
-            let bridge;
-            switch (this.config.mode) {
-                case Configuration.BRIDGE_SPP:
-                    bridge = new SipdSppBridge(name, config);
-                    break;
-                case Configuration.BRIDGE_LPJ:
-                    bridge = new SipdLpjBridge(name, config);
-                    break;
-                case Configuration.BRIDGE_UTIL:
-                    bridge = new SipdUtilBridge(name, config);
-                    break;
+            const bridge = new SipdBridge(name, config);
+            bridge.year = config.year;
+            bridge.onState = () => this.handleNotify();
+            for (const mode of ['*', Configuration.BRIDGE_LPJ, Configuration.BRIDGE_SPP, Configuration.BRIDGE_UTIL]) {
+                if (mode !== '*' && this.config.mode && this.config.mode !== mode) {
+                    continue;
+                }
+                switch (mode) {
+                    case '*':
+                        bridge.addHandler(SipdBridgeCommon);
+                        break;
+                    case Configuration.BRIDGE_SPP:
+                        bridge.addHandler(SipdBridgeSpp);
+                        break;
+                    case Configuration.BRIDGE_LPJ:
+                        bridge.addHandler(SipdBridgeLpj);
+                        break;
+                    case Configuration.BRIDGE_UTIL:
+                        bridge.addHandler(SipdBridgeUtil);
+                        break;
+                }
             }
-            if (bridge) {
-                bridge.year = config.year;
-                bridge.onState = () => this.handleNotify();
-                this.bridges.push(bridge);
-                console.log('Sipd bridge created: %s', name);
-            }
+            this.bridges.push(bridge);
+            console.log('Sipd bridge created: %s', name);
         }
     }
 
@@ -181,7 +194,7 @@ class App {
      * Create web interface.
      */
     createUI() {
-        if (this.config.ui) {
+        if (this.config.ui && this.bridges.length) {
             try {
                 const factory = require(this.config.ui);
                 this.api = new Api(this);
@@ -197,7 +210,12 @@ class App {
                     }
                 }
             } catch (err) {
-                console.error(`Web interface not available: ${this.config.ui} (${err})`);
+                console.error(`Web interface not available: ${this.config.ui}!`);
+                if (err instanceof Error) {
+                    console.error(err.stack);
+                } else {
+                    console.error(err);
+                }
             }
         }
     }
@@ -291,11 +309,19 @@ class App {
      */
     registerCommands() {
         const prefixes = {
-            [Configuration.BRIDGE_SPP]: 'spp',
             [Configuration.BRIDGE_LPJ]: 'lpj',
+            [Configuration.BRIDGE_SPP]: 'spp',
             [Configuration.BRIDGE_UTIL]: 'util',
         }
-        SipdCmd.register(this, prefixes[this.config.mode]);
+        SipdCmd.setApp(this).register();
+        for (const [mode, prefix] of Object.entries(prefixes)) {
+            if (this.config.mode && this.config.mode !== mode) {
+                continue;
+            }
+            SipdCmd
+                .register(mode, prefix, prefix, true)
+                .register(mode, prefix, 'all', true);
+        }
     }
 
     /**
@@ -351,7 +377,7 @@ class App {
     doSppOp(...args) {
         let command = 'spp:query', data = {}, opts = {}, error;
         if (args.length === 2) {
-            const queue = SipdQueue.createWithMap(this.config.maps);
+            const queue = SipdQueue.createWithMap(this.config.maps[Configuration.BRIDGE_SPP]);
             data[queue.getMap('info.role')] = args[0];
             data[queue.getMap('info.check')] = args[1];
             opts.filename = Cmd.get('out') ?? path.join(this.config.workdir, 'out.json');
@@ -376,20 +402,17 @@ class App {
      * @returns {Array}
      */
     doUtilOp(...args) {
-        let command, data = {}, opts = {}, error;
-        const cmd = args.shift();
-        switch (cmd) {
+        let data = {}, opts = {}, error;
+        const command = args.shift();
+        switch (command) {
             case 'captcha':
-                command = 'util:captcha';
                 data.count = Cmd.get('count') ? parseInt(Cmd.get('count')) : 10;
                 break;
             case 'noop':
-                command = 'util:noop';
                 break;
             case 'rekanan':
                 if (args.length) {
-                    command = cmd;
-                    const queue = SipdQueue.createWithMap(this.config.maps);
+                    const queue = SipdQueue.createWithMap(this.config.maps[Configuration.BRIDGE_UTIL]);
                     data[queue.getMap('info.jenis')] = 'orang';
                     data[queue.getMap('info.role')] = args[0];
                     if (args.length > 1) {
@@ -404,7 +427,7 @@ class App {
                 error = 'Supported utility: captcha, noop, rekanan!';
                 break;
         }
-        return [false, command, data, opts, error];
+        return [false, `util:${command}`, data, opts, error];
     }
 
     /**
@@ -574,8 +597,6 @@ class App {
             }
             this.createServer(serve);
             return true;
-        } else {
-            usage();
         }
     }
 }

@@ -35,6 +35,8 @@ class SipdCmd {
 
     /** @type {string} */
     name = null
+    /** @type {string} */
+    mode = null
     /** @type {object} */
     parent = null
     /** @type {import('../app/configuration')} */
@@ -98,41 +100,71 @@ class SipdCmd {
     }
 
     /**
-     * Register commands.
+     * Set command owner.
      *
-     * @param {import('../app')} owner Application
-     * @param {string} prefix Command prefix
-     * @param {string|undefined} dir The directory
-     * @param {string[]|undefined} ns The namespaces
+     * @param {import('../app')} app Application
      */
-    static register(owner, prefix, dir, ns) {
-        dir = dir || __dirname;
+    static setApp(app) {
+        this.app = app;
+        return this;
+    }
+
+    /**
+     * Set command directory location.
+     *
+     * @param {string} dir Directory
+     */
+    static setDir(dir) {
+        this.dir = dir;
+        return this;
+    }
+
+    /**
+     * Scan and register commands.
+     *
+     * @param {string} mode Bridge mode
+     * @param {string|string[]} name Name prefix
+     * @param {string|string[]} dirname Directory name
+     * @param {boolean} recursive If true, process sub directory as well
+     */
+    static register(mode = null, name = null, dirname = null, recursive = null) {
+        if (this.app === undefined) {
+            throw new Error('Application is not set!');
+        }
+        if (this.dir === undefined) {
+            this.dir = __dirname;
+        }
+        name = this.makeArray(name);
+        dirname = this.makeArray(dirname);
+        const dir = path.join(this.dir, ...dirname);
         const f = entry => entry.isFile() ? 0 : 1;
         const entries = fs.readdirSync(dir, {withFileTypes: true})
             .sort((a, b) => f(a) - f(b));
-        ns = (Array.isArray(ns) ? ns : [ns]).filter(Boolean);
         for (const entry of entries) {
             if (entry.isDirectory()) {
-                this.register(owner, prefix, path.join(dir, entry.name),
-                    [...ns, entry.name !== 'all' ? entry.name : null].filter(Boolean));
+                if (recursive) {
+                    this.register(mode, [...name, entry.name], [...dirname, entry.name], true);
+                }
             } else if (entry.name.endsWith('.js')) {
                 const cmd = entry.name.substr(0, entry.name.length - 3);
                 if (cmd !== 'index') {
-                    const name = [...ns, cmd].join(':');
-                    if (!this.get(name)) {
-                        if (!prefix || name.indexOf(':') < 0 || (prefix && name.startsWith(prefix + ':'))) {
-                            /** @type {typeof SipdCmd} */
-                            const CmdClass = require(path.join(dir, cmd));
-                            const CmdInstance = new CmdClass(name, {parent: owner, dequeue: owner.dequeue});
-                            this.commands.push(CmdInstance);
-                            console.log(`Command ${name} registered`);
+                    const cmdname = [...name, cmd].join(':');
+                    if (!this.get(cmdname)) {
+                        /** @type {typeof SipdCmd} */
+                        const CmdClass = require(path.join(dir, cmd));
+                        const CmdInstance = new CmdClass(cmdname, {parent: this.app, dequeue: this.app.dequeue});
+                        if (mode) {
+                            CmdInstance.mode = mode;
                         }
+                        this.commands.push(CmdInstance);
+                        console.log(`Command ${cmdname} registered`);
                     } else {
-                        console.error(`Command ${name} already registered!`);
+                        console.error(`Command ${cmdname} already registered!`);
                     }
                 }
             }
         }
+        return this;
     }
 
     /**
@@ -183,6 +215,17 @@ class SipdCmd {
             this._commands = [];
         }
         return this._commands;
+    }
+
+    /**
+     * Make array.
+     *
+     * @param {any|any[]} array Array
+     * @returns {any[]}
+     */
+    static makeArray(array) {
+        return (Array.isArray(array) ? array : [array])
+            .filter(Boolean);
     }
 }
 

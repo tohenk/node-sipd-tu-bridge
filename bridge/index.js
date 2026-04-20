@@ -77,6 +77,28 @@ class SipdBridge {
     }
 
     /**
+     * Register bridge handler.
+     *
+     * @param {typeof SipdBridgeHandler} handler Handler
+     */
+    addHandler(handlerClass) {
+        const handler = new handlerClass(this);
+        if (!handler instanceof SipdBridgeHandler) {
+            throw new Error('Bridge handler must be instance of SipdBridgeHandler!');
+        }
+        for (const m of Object.getOwnPropertyNames(handler.constructor.prototype)) {
+            if (m.startsWith('_') || ['constructor', 'initialize'].includes(m)) {
+                continue;
+            }
+            if (typeof handler[m] === 'function') {
+                this[m] = function(...args) {
+                    return handler[m].apply(handler, args);
+                }
+            }
+        }
+    }
+
+    /**
      * Perform self test.
      *
      * @returns {Promise<any>}
@@ -228,9 +250,10 @@ class SipdBridge {
      *
      * @param {string} name Session name
      * @param {number} seq Session sequence
+     * @param {Function} sessionFactory Session factory
      * @returns {SipdSession}
      */
-    getSession(name, seq) {
+    getSession(name, seq, sessionFactory = null) {
         name = name.replace(/\s/g, '');
         const options = {...this.options, bridge: this, loginfo: this.loginfo};
         const sess = [];
@@ -244,7 +267,8 @@ class SipdBridge {
         }
         const sessId = options.session ? options.session : '_';
         if (this.sessions[sessId] === undefined) {
-            const session = this.createSession(options);
+            const session = typeof sessionFactory === 'function' ? sessionFactory(options) :
+                this.createSession(options);
             session.onStateChange(s => {
                 if (typeof this.onState === 'function') {
                     this.onState(s);
@@ -322,56 +346,13 @@ class SipdBridge {
     }
 
     /**
-     * Get captcha image.
-     *
-     * @returns {Promise<string>|undefined}
-     */
-    getCaptcha() {
-        for (const session of this.getSessions()) {
-            if (session.state().captcha) {
-                return session.captchaImage();
-            }
-        }
-    }
-
-    /**
-     * Solve captcha using code.
-     *
-     * @param {string} code Captcha code
-     * @returns {Promise<any>|undefined}
-     */
-    solveCaptcha(code) {
-        for (const session of this.getSessions()) {
-            if (session.state().captcha) {
-                return session.solveCaptcha(code);
-            }
-        }
-    }
-
-    /**
-     * Save captcha image.
-     *
-     * @param {string} dir Directory name
-     * @returns {Promise<string>|undefined}
-     */
-    saveCaptcha(dir) {
-        for (const session of this.getSessions()) {
-            if (session.state().captcha) {
-                return session.works([
-                    [w => session.captchaImage()],
-                    [w => Promise.resolve(session.saveCaptcha(w.getRes(0), dir))],
-                ]);
-            }
-        }
-    }
-
-    /**
      * Do the operation as requested role and returns the session.
      *
      * @param {string} role User role
+     * @param {Function} sessionFactory Session factory
      * @returns {Promise<SipdSession>}
      */
-    doAs(role) {
+    doAs(role, sessionFactory = null) {
         return this.works([
             [w => this.lock.release(this.lockId), w => this.singleSession && this.lock],
             [w => Promise.resolve(this.getUser(role))],
@@ -385,7 +366,7 @@ class SipdBridge {
                     idx = parseInt(title.substr(p + 1).trim()) - 1;
                     title = title.substr(0, p);
                 }
-                const session = this.getSession(user.username, idx);
+                const session = this.getSession(user.username, idx, sessionFactory);
                 if (session) {
                     session.cred = {username: user.username, password: user.password, role: title, idx};
                     this.loginfo.role = role;
@@ -460,25 +441,6 @@ class SipdBridge {
     }
 
     /**
-     * Save screenshot along with error/message and payload.
-     *
-     * @param {SipdQueue} queue Queue
-     * @param {Error|string} message Message
-     * @returns {Promise<any>}
-     */
-    saveScreenshot(queue, message) {
-        const works = [];
-        const sessions = Object.values(this.sessions)
-            .filter(sess => sess.sipd.driver);
-        for (const session of sessions) {
-            works.push(
-                [m => session.captureScreen(message, queue?.data, this.options.capturedirname)],
-            );
-        }
-        return this.works(works);
-    }
-
-    /**
      * End session.
      *
      * @param {SipdQueue} queue Queue
@@ -503,9 +465,10 @@ class SipdBridge {
      * @param {SipdQueue} param0.queue Queue
      * @param {any[]} param0.works Works array
      * @param {Function} param0.done Done callback
+     * @param {Function} param0.onResult On result callback
      * @returns {Promise<any>}
      */
-    processQueue({queue, works, done}) {
+    processQueue({queue, works, done, onResult}) {
         if (this.singleSession) {
             this.lockId = queue.id;
             delete this.lock;
@@ -517,8 +480,8 @@ class SipdBridge {
                 let res = w.res, reply;
                 if (typeof done === 'function') {
                     [res, reply] = done(queue, res);
-                } else if (typeof this.onResult === 'function') {
-                    [res, reply] = this.onResult(queue, res);
+                } else if (typeof onResult === 'function') {
+                    [res, reply] = onResult(queue, res);
                 }
                 if (reply && queue.callback) {
                     const callbackQueue = SipdQueue.createCallbackQueue(reply, queue.callback);
@@ -537,43 +500,31 @@ class SipdBridge {
             ];
         });
     }
+}
+
+
+/**
+ * Bridge command handler.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdBridgeHandler {
 
     /**
-     * Query for partner.
+     * Constructor.
      *
-     * @param {SipdQueue} queue Queue
-     * @returns {Promise<any>}
+     * @param {SipdBridge} bridge Bridge
      */
-    queryRekanan(queue) {
-        return this.processQueue({
-            queue,
-            works: [
-                ['bp', w => this.doAs(SipdRole.BP)],
-                ['bp-login', w => w.bp.login()],
-                ['bp-rekanan', w => w.bp.listRekanan(queue)],
-            ],
-        });
+    constructor(bridge) {
+        /** @type {SipdBridge} */
+        this.bridge = bridge;
+        this.initialize();
     }
 
     /**
-     * Perform noop.
-     *
-     * @param {SipdQueue} queue Queue
-     * @returns {Promise<any>}
+     * Do initialization.
      */
-    noop(queue) {
-        const sess = this.getSessions()[0];
-        if (sess) {
-            return this.do([
-                [w => sess.login()],
-            ], (w, err) => {
-                return [
-                    [e => this.end(queue, this.autoClose)],
-                ];
-            });
-        } else {
-            return Promise.reject('No roles defined!');
-        }
+    initialize() {
     }
 }
 
@@ -658,4 +609,4 @@ class SipdUserLock {
     }
 }
 
-module.exports = SipdBridge;
+module.exports = { SipdBridge, SipdBridgeHandler };

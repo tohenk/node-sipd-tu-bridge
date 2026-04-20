@@ -40,6 +40,7 @@ class SipdCmdSppCreate extends SipdCmd {
         let cnt = 0;
         items.forEach(spp => {
             const res = this.dequeue.createQueue({
+                mode: this.mode,
                 type: SipdQueue.QUEUE_SPP,
                 data: spp,
                 callback: socket?.callback,

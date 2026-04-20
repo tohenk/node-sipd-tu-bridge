@@ -35,6 +35,7 @@ class SipdCmdRekanan extends SipdCmd {
     consume(payload) {
         const { socket, data, filename } = payload;
         const [res, queue] = this.dequeue.createQueue({
+            mode: this.mode,
             type: SipdQueue.QUEUE_REKANAN,
             data,
             callback: socket?.callback,
