@@ -30,6 +30,7 @@ const SipdQueue = require('../app/queue');
 const SipdSession = require('./session');
 const { Sipd, SipdTimer, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
+const { SipdLockManager } = require('./lock');
 const { error } = require('selenium-webdriver');
 
 const dtag = 'bridge';
@@ -525,87 +526,6 @@ class SipdBridgeHandler {
      * Do initialization.
      */
     initialize() {
-    }
-}
-
-/**
- * SIPD user lock manager.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdLockManager {
-
-    /**
-     * Get lock for user.
-     *
-     * @param {string} user User id
-     * @returns {SipdUserLock}
-     */
-    static get(user) {
-        if (this.locks === undefined) {
-            this.locks = {};
-        }
-        if (this.locks[user] === undefined) {
-            this.locks[user] = new SipdUserLock(user);
-        }
-        return this.locks[user];
-    }
-}
-
-/**
- * SIPD user lock.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdUserLock {
-
-    /** @type {string[]} */
-    locks = []
-
-    constructor(user) {
-        /** @type {string} */
-        this.user = user;
-    }
-
-    /**
-     * Acquire lock.
-     *
-     * @param {string} lock Id
-     * @returns {Promise<any>}
-     */
-    acquire(lock) {
-        this.locks.push(lock);
-        return new Promise((resolve, reject) => {
-            const timer = new SipdTimer({delta: 60});
-            const f = () => {
-                const idx = this.locks.indexOf(lock);
-                if (idx === 0) {
-                    SipdLogger.activity(dtag)(`Lock ${this.user}:${lock} is acquired...`);
-                    resolve();
-                } else {
-                    timer.check(t => SipdLogger.activity(dtag)(`Lock ${this.user}:${lock} is still held after ${t.deltaTime}s...`));
-                    setTimeout(f, 100);
-                }
-            }
-            f();
-        });
-    }
-
-    /**
-     * Release lock.
-     *
-     * @param {string} lock Id
-     * @returns {Promise<boolean>}
-     */
-    release(lock) {
-        let res = false;
-        const idx = this.locks.indexOf(lock);
-        if (idx === 0) {
-            this.locks.splice(idx, 1);
-            res = true;
-            SipdLogger.activity(dtag)(`Lock ${this.user}:${lock} is released...`);
-        }
-        return Promise.resolve(res);
     }
 }
 

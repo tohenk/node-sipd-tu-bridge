@@ -133,6 +133,11 @@ class Configuration {
                 this[k] = v;
             }
         }
+        if (this.redis) {
+            const { SipdLockManager, SipdLockStoreRedis } = require('../bridge/lock');
+            SipdLockManager.store = SipdLockStoreRedis.setConnection(this.redis);
+            console.log('Redis connection', this.redis);
+        }
         this.initialized = true;
     }
 
