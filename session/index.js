@@ -25,14 +25,18 @@
 const fs = require('fs');
 const path = require('path');
 const Queue = require('@ntlab/work/queue');
-const SipdQueue = require('../../app/queue');
-const SipdUtil = require('../../sipd/util');
+const SipdActivitySelector = require('./activity');
+const SipdQueue = require('../app/queue');
+const SipdUtil = require('../sipd/util');
 const Util = require('@ntlab/ntlib/util');
-const { Sipd } = require('../../sipd');
-const { SipdColumnQuery } = require('../../sipd/query');
-const { SipdActivitySelector } = require('./activity');
-const { SipdQueryBase, SipdVoterPegawai, SipdVoterRekanan, SipdQueryRekanan, SipdVoterNpd } = require('./query');
+const { Sipd } = require('../sipd');
+const { SipdColumnQuery } = require('../sipd/query');
+const { SipdQueryBase } = require('./query');
+const { SipdVoterPegawai } = require('./query/pegawai');
+const { SipdVoterRekanan, SipdQueryRekanan } = require('./query/rekanan');
+const { SipdVoterNpd } = require('./query/npd');
 const { By, Key, WebElement } = require('selenium-webdriver');
+const _ = require('./fn');
 
 const dtag = 'session';
 

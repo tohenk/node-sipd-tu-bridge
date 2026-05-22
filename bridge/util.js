@@ -24,7 +24,7 @@
 
 const Queue = require('@ntlab/work/queue');
 const SipdQueue = require('../app/queue');
-const SipdSession = require('./session');
+const SipdSession = require('../session');
 const { SipdBridgeHandler } = require('.');
 
 /**

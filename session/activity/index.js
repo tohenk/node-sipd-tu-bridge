@@ -25,7 +25,6 @@
 const Queue = require('@ntlab/work/queue');
 const SipdUtil = require('../../sipd/util');
 const { Sipd } = require('../../sipd');
-const { SipdVoterActivity } = require('./query');
 const { By } = require('selenium-webdriver');
 
 const dtag = 'activity';
@@ -95,47 +94,4 @@ class SipdActivitySelector {
     }
 }
 
-/**
- * Activity selector for SPP.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdSppActivitySelector extends SipdActivitySelector {
-
-    initialize() {
-        this.clicker = By.xpath('//div[@class="css-j-3jq-af-a2fa"]');
-        this.listSelector = By.xpath('//div[@class="css-j03r-a-cf3fa"]/div/span/div/span[2]');
-    }
-}
-
-/**
- * Activity selector for NPD Keg.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdNpdKegActivitySelector extends SipdActivitySelector {
-
-    initialize() {
-        this.listSelector = By.xpath('//div[contains(@class,"css-Sj-ej-fe3f0j")]/div/span/div/span[2]');
-    }
-}
-
-/**
- * Activity selector for NPD Sub Keg.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdNpdSubKegActivitySelector extends SipdActivitySelector {
-
-    select(value) {
-        const voter = new SipdVoterActivity(this.parent, {value});
-        return voter.walk();
-    }
-}
-
-module.exports = {
-    SipdActivitySelector,
-    SipdSppActivitySelector,
-    SipdNpdKegActivitySelector,
-    SipdNpdSubKegActivitySelector,
-}
+module.exports = SipdActivitySelector;

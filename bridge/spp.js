@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-const SipdSppSession = require('./session/spp');
+const SipdSppSession = require('../session/spp');
 const SipdUtil = require('../sipd/util');
 const { SipdBridgeHandler } = require('.');
 const { SipdRole } = require('../sipd/role');

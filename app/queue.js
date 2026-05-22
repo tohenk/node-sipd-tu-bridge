@@ -1093,7 +1093,7 @@ class SipdQueue
      * @returns {boolean}
      */
     isFlagged(flag) {
-        return this.constructor.hasFlag(this.type, flag);
+        return SipdQueue.hasFlag(this.type, flag);
     }
 
     /**

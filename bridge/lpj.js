@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
-const SipdLpjSession = require('./session/lpj');
 const SipdQueue = require('../app/queue');
+const SipdLpjSession = require('../session/lpj');
 const { SipdBridgeHandler } = require('.');
 const { SipdRole } = require('../sipd/role');
 

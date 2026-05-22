@@ -23,9 +23,9 @@
  */
 
 const SipdSession = require('.');
-const SipdUtil = require('../../sipd/util');
-const { SipdSppActivitySelector } = require('./activity');
-const { SipdQuerySpp } = require('./query');
+const SipdSppActivitySelector = require('./activity/spp');
+const SipdUtil = require('../sipd/util');
+const { SipdQuerySpp } = require('./query/spp');
 const { By } = require('selenium-webdriver');
 
 /**

@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
-const SipdUtil = require('../../sipd/util');
-const { SipdColumnQuery } = require('../../sipd/query');
+const SipdUtil = require('../sipd/util');
+const { SipdColumnQuery } = require('../sipd/query');
 
 /**
  * Default column query normalizers and stringables.

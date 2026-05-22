@@ -51,13 +51,13 @@ class SipdRoleSwitcher {
         }
         /** @var {SipdRole} */
         const rr = this.roles[role];
-        for (const roleId of this.constructor.rolesKey) {
+        for (const roleId of SipdRoleSwitcher.rolesKey) {
             // uid can be: reference to the user or the user itself
             let uid = data[roleId], udata; 
             // check if uid is the user itself
             if (typeof uid === 'object') {
                 udata = uid;
-                uid = this.constructor.genUid(SipdUtil.normalize(SipdEncryptable.decrypt(udata.username)));
+                uid = SipdRoleSwitcher.genUid(SipdUtil.normalize(SipdEncryptable.decrypt(udata.username)));
             } else {
                 // set user data from user reference
                 if (users) {
@@ -105,13 +105,13 @@ class SipdRoleSwitcher {
      * @returns {SipdRoleSwitcher}
      */
     load(force = null) {
-        const filename = path.join(this.constructor._dir, path.basename(this.filename));
+        const filename = path.join(SipdRoleSwitcher._dir, path.basename(this.filename));
         if (fs.existsSync(filename) && (force || this.loaded === undefined)) {
             this.loaded = true;
             const data = JSON.parse(fs.readFileSync(filename));
             if (data.roles) {
                 for (const [role, roles] of Object.entries(data.roles)) {
-                    if (this.constructor.isRoles(roles)) {
+                    if (SipdRoleSwitcher.isRoles(roles)) {
                         this.setRole(role, roles, data.users);
                     }
                 }
@@ -133,10 +133,10 @@ class SipdRoleSwitcher {
             if (!roles[role]) {
                 roles[role] = {};
             }
-            for (const roleId of this.constructor.rolesKey) {
+            for (const roleId of SipdRoleSwitcher.rolesKey) {
                 const u = srole.get(roleId);
                 if (u instanceof SipdRoleUser) {
-                    const uid = this.constructor.genUid(SipdUtil.normalize(u.username));
+                    const uid = SipdRoleSwitcher.genUid(SipdUtil.normalize(u.username));
                     if (users[uid] === undefined) {
                         users[uid] = {
                             role: u.role,
@@ -150,7 +150,7 @@ class SipdRoleSwitcher {
             }
         }
         let data = JSON.stringify({users, roles}, null, 4);
-        const filename = path.join(this.constructor._dir, path.basename(this.filename));
+        const filename = path.join(SipdRoleSwitcher._dir, path.basename(this.filename));
         if (fs.existsSync(filename)) {
             const olddata = fs.readFileSync(filename);
             if (olddata.toString() === data) {
@@ -179,7 +179,7 @@ class SipdRoleSwitcher {
         if (Array.isArray(roles)) {
             for (const role of roles) {
                 if (role.keg && role.roles) {
-                    if (this.constructor.isRoles(role.roles)) {
+                    if (SipdRoleSwitcher.isRoles(role.roles)) {
                         this.setRole(role.keg, role.roles);
                     }
                 }

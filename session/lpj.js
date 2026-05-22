@@ -23,8 +23,10 @@
  */
 
 const SipdSession = require('.');
-const { SipdNpdKegActivitySelector, SipdNpdSubKegActivitySelector } = require('./activity');
-const { SipdQueryNpd, SipdQueryTbp } = require('./query');
+const SipdNpdKegActivitySelector = require('./activity/npd-keg');
+const SipdNpdSubKegActivitySelector = require('./activity/npd-subkeg');
+const { SipdQueryNpd } = require('./query/npd');
+const { SipdQueryTbp } = require('./query/tbp');
 const { By } = require('selenium-webdriver');
 
 /**
