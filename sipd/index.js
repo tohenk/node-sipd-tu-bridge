@@ -1092,6 +1092,22 @@ class Sipd extends WebRobot {
     }
 
     /**
+     * Do works in new tab.
+     *
+     * @param {string} url Url to open
+     * @param {array} works Works data
+     * @returns {Promise<any>}
+     */
+    doOpenInNewTab(url, works) {
+        return this.works([
+            [w => this.openInNewTab(url)],
+            ...works,
+        ], {
+            done: (w, err) => this.closeTab(),
+        });
+    }
+
+    /**
      * Get page script part.
      *
      * @returns {string}

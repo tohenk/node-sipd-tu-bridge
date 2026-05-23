@@ -40,6 +40,7 @@ class SipdQueryBase extends SipdQuery {
     initialize() {
         this.mode = SipdQueryBase.MODE_MATCH;
         this.actionEnabled = false;
+        this.restartOnIterate = false;
         this.progressInitialValue = 'Baru';
         this.doPreInitialize();
         this.doInitialize();
@@ -329,7 +330,11 @@ class SipdQueryBase extends SipdQuery {
                 this.onIterate(el, values, result)
                     .then(res => {
                         result.retval.push(res);
-                        reject(new SipdRestartError());
+                        if (this.restartOnIterate) {
+                            reject(new SipdRestartError());
+                        } else {
+                            resolve();
+                        }
                     })
                     .catch(err => reject(err));
             } else {
@@ -400,7 +405,7 @@ class SipdQueryBase extends SipdQuery {
             [w => this.parent.waitLoader()],
             [w => new Promise((resolve, reject) => {
                 const options = {};
-                if (this.mode === SipdQueryBase.MODE_ITERATE) {
+                if (this.mode === SipdQueryBase.MODE_ITERATE && this.restartOnIterate) {
                     options.states = {};
                 }
                 const f = () => {

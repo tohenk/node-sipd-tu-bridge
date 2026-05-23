@@ -1322,12 +1322,14 @@ class SipdSession {
             queue.values = {};
             const actionCol = query.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
             return this.works([
-                [w => values[actionCol.name].click()],
-                [w => this.fillForm(queue, 'rekanan',
-                    By.xpath('//h1/span[text()="Tambah Rekanan"]/../../../..'),
-                    By.xpath('//button[text()="Kembali"]'))],
-                [w => Promise.resolve(queue.values)],
-            ]);
+                [w => values[actionCol.name].getAttribute('href')],
+                [w => this.sipd.doOpenInNewTab(w.getRes(0), [
+                    [x => this.fillForm(queue, 'rekanan',
+                        By.xpath('//h1/span[text()="Tambah Rekanan"]/../../../..'),
+                        By.xpath('//button[text()="Kembali"]'))],
+                    [x => Promise.resolve(queue.values)],
+                ])],
+            ], {alwaysResolved: true});
         }
         query.actionEnabled = true;
         return this.doQuery(query, f);
