@@ -1026,8 +1026,8 @@ class SipdSession {
                         // add waiting
                         case '+':
                             data.done = (d, next) => {
-                                this.debug(dtag)(`Wait ${this.sipd.opdelay} ms before continuing`);
-                                this.sipd.sleep(this.sipd.opdelay)
+                                this.debug(dtag)(`Wait ${this.sipd.animdelay} ms before continuing`);
+                                this.sipd.sleep(this.sipd.animdelay)
                                     .then(() => next())
                                     .catch(err => {
                                         throw err;

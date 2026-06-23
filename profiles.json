@@ -5,25 +5,29 @@
             "timeout": 5000,
             "wait": 2000,
             "delay": 500,
-            "opdelay": 500
+            "opdelay": 500,
+            "animdelay": 1000
         },
         "normal": {
             "timeout": 8000,
             "wait": 2500,
             "delay": 750,
-            "opdelay": 600
+            "opdelay": 600,
+            "animdelay": 1000
         },
         "moderate": {
             "timeout": 10000,
             "wait": 3000,
             "delay": 1000,
-            "opdelay": 750
+            "opdelay": 750,
+            "animdelay": 1000
         },
         "slow": {
             "timeout": 15000,
             "wait": 5000,
             "delay": 2000,
-            "opdelay": 1000
+            "opdelay": 1000,
+            "animdelay": 1000
         }
     }
 }

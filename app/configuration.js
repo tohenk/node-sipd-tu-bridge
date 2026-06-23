@@ -176,9 +176,9 @@ class Configuration {
         }
         if (profile && this.profiles[profile]) {
             console.log('Using profile %s', profile);
-            const keys = ['timeout', 'wait', 'delay', 'opdelay'];
+            const keys = ['timeout', 'wait', 'delay', 'opdelay', 'animdelay'];
             for (const key in this.profiles[profile]) {
-                if (keys.indexOf(key) < 0) {
+                if (!keys.includes(key)) {
                     continue;
                 }
                 this[key] = this.profiles[profile][key];
