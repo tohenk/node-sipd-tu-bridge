@@ -1,5 +1,5 @@
 {
-    "active": "slow",
+    "active": "fast",
     "profiles": {
         "fast": {
             "timeout": 5000,
