@@ -31,7 +31,10 @@ const Util = require('@ntlab/ntlib/util');
 const { Socket } = require('socket.io');
 const { glob } = require('glob');
 
-/* --- BEGIN API V1 --- */
+/* --- BEGIN API V2 --- */
+
+/* V1: 2026-03-05 */
+/* V2: 2026-06-23 */
 
 /**
  * SIPD Penatausahaan Bridge main application.
@@ -48,6 +51,7 @@ const { glob } = require('glob');
  * @property {ActivityFunction} getActivity Get activity logs
  * @property {ObjectFunction} getCount Get activity count
  * @property {PagedObjectsFunction} getErrors Get captured errors
+ * @property {CaptureFileFunction} getCapture Get captured PNG file
  * @property {QueryFunction} query Perform API query
  */
 
@@ -121,6 +125,14 @@ const { glob } = require('glob');
  *
  * @callback LogFilesFunction
  * @returns {Promise<[{name: string, seq: string, time: number}]>}
+ */
+
+/**
+ * Get captured PNG file.
+ *
+ * @callback CaptureFileFunction
+ * @param {string} filename Filename
+ * @returns {Promise<{data: Buffer}>}
  */
 
 /* --- END API --- */
@@ -236,7 +248,6 @@ class Api {
                                 res.items.push({
                                     nr,
                                     filename: file.name,
-                                    image: `data:image/png;base64,${fs.readFileSync(filename).toString('base64')}`,
                                     error: fs.readFileSync(errFilename).toString(),
                                     data: fs.readFileSync(dataFilename).toString(),
                                 });
@@ -244,6 +255,16 @@ class Api {
                         }
                     }
                 }
+            }
+            return res;
+        }
+        /** @type {CaptureFileFunction} */
+        this.getCapture = async (filename) => {
+            const res = {
+            }
+            const captureFile = path.join(app.config.workdir, app.config.capturedirname, filename);
+            if (fs.existsSync(captureFile)) {
+                res.data = fs.readFileSync(captureFile);
             }
             return res;
         }
