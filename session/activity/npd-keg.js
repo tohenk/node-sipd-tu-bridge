@@ -23,6 +23,7 @@
  */
 
 const SipdActivitySelector = require('.');
+const { By } = require('selenium-webdriver');
 
 /**
  * Activity selector for NPD Keg.

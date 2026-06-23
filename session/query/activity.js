@@ -24,6 +24,7 @@
 
 const { SipdVoter } = require('.');
 const { SipdColumnQuery } = require('../../sipd/query');
+const { By } = require('selenium-webdriver');
 const SipdUtil = require('../../sipd/util');
 
 /**
