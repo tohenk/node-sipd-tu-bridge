@@ -125,7 +125,11 @@ class SipdBridge {
                 ['bp', s => this.doAs(SipdRole.BP)],
                 ['done', s => Promise.resolve(f())],
                 ['cleanup', s => s.bp.stop()],
-            ]);
+            ], {
+                done: (s, err) => {
+                    return Promise.resolve(this.purgeSession(s.bp.id));
+                }
+            });
         } else {
             return Promise.resolve(f());
         }
@@ -270,6 +274,7 @@ class SipdBridge {
         if (this.sessions[sessId] === undefined) {
             const session = typeof sessionFactory === 'function' ? sessionFactory(options) :
                 this.createSession(options);
+            session.id = sessId;
             session.onStateChange(s => {
                 if (typeof this.onState === 'function') {
                     this.onState(s);
@@ -278,6 +283,22 @@ class SipdBridge {
             this.sessions[sessId] = session;
         }
         return this.sessions[sessId];
+    }
+
+    /**
+     * Purge session by its id.
+     *
+     * @param {string} sessId Session id
+     * @returns {SipdSession}
+     */
+    purgeSession(sessId) {
+        let res;
+        if (this.sessions[sessId]) {
+            res = this.sessions[sessId];
+            delete this.sessions[sessId];
+        }
+
+        return res;
     }
 
     /**
