@@ -71,6 +71,10 @@ class SipdLockManager {
     static set store(storeClass) {
         this._store = storeClass;
     }
+
+    static get STALE_MS() {
+        return 10 * 60 * 1000; // 10 minutes
+    }
 }
 
 /**
@@ -203,15 +207,33 @@ class SipdLockStoreMemory extends SipdLockStore {
         this.name = 'memory';
         /** @type {string[]} */
         this.locks = [];
+        this.getLock = lock => {
+            return this.locks.findIndex(item => item.lock === lock);
+        }
+        this.cleanStale = () => {
+            const time = new Date().getTime() - SipdLockManager.STALE_MS;
+            let count = 0;
+            while (true) {
+                if (!this.locks.length || this.locks[0].time > time) {
+                    break;
+                }
+                this.locks.splice(0, 1);
+                count++;
+            }
+            if (count) {
+                SipdLogger.activity(dtag)(`Cleaned ${count} stale ${this.name} lock(s)...`);
+            }
+            return this;
+        }
         this.isFree = async lock => {
-            return this.locks.indexOf(lock) === 0;
+            return this.cleanStale().getLock(lock) === 0;
         }
         this.doStore = async lock => {
-            this.locks.push(lock);
+            this.locks.push({lock, time: new Date().getTime()});
             return true;
         }
         this.doPrune = async lock => {
-            if (this.locks.indexOf(lock) === 0) {
+            if (this.getLock(lock) === 0) {
                 this.locks.splice(0, 1);
                 return true;
             }
@@ -235,33 +257,75 @@ class SipdLockStoreRedis extends SipdLockStore {
                 if (!SipdLockStoreRedis._con) {
                     throw new Error('Redis connection string is not set!');
                 }
+                this._ready = false;
                 const { createClient } = require('redis');
-                this._redis = await createClient({url: SipdLockStoreRedis._con})
-                    .on('error', err => console.error(err))
+                this._redis = createClient({url: SipdLockStoreRedis._con});
+                this._redis
+                    .on('error', err => {
+                        if (this._ready) {
+                            this._ready = false;
+                        }
+                    })
+                    .on('ready', () => {
+                        this._ready = true;
+                    })
                     .connect();
             }
+            await new Promise(resolve => {
+                const timer = new SipdTimer({delta: 60});
+                const f = () => {
+                    if (this._ready) {
+                        resolve();
+                    } else {
+                        timer.check(t => SipdLogger.activity(dtag)(`Still waiting Redis connection to be ready after ${t.deltaTime}s...`));
+                        setTimeout(f, 1000);
+                    }
+                }
+                f();
+            });
             return this._redis;
         }
-        this.getLock = async () => {
+        this.getLocks = async () => {
             const redis = await this.getRedis();
             const value = await redis.get(this.key);
-            return value ? JSON.parse(value) : [];
+            this.locks = value ? JSON.parse(value) : [];
+            return redis;
+        }
+        this.cleanStale = async () => {
+            const redis = await this.getLocks();
+            const time = new Date().getTime() - SipdLockManager.STALE_MS;
+            let count = 0;
+            while (true) {
+                if (!this.locks.length || this.locks[0].time > time) {
+                    break;
+                }
+                this.locks.splice(0, 1);
+                count++;
+            }
+            if (count) {
+                await redis.set(this.key, JSON.stringify(this.locks));
+                SipdLogger.activity(dtag)(`Cleaned ${count} stale ${this.name} lock(s)...`);
+            }
+            return this;
+        }
+        this.getLock = lock => {
+            return this.locks.findIndex(item => item.lock === lock);
         }
         this.isFree = async lock => {
-            return (await this.getLock()).indexOf(lock) === 0;
+            await this.cleanStale();
+            return this.getLock(lock) === 0;
         }
         this.doStore = async lock => {
-            const redis = await this.getRedis();
-            const locks = [...(await this.getLock()), lock];
+            const redis = await this.getLocks();
+            const locks = [...this.locks, {lock, time: new Date().getTime()}];
             await redis.set(this.key, JSON.stringify(locks));
             return true;
         }
         this.doPrune = async lock => {
-            const redis = await this.getRedis();
-            const locks = await this.getLock();
-            if (locks.indexOf(lock) === 0) {
-                locks.splice(0, 1);
-                await redis.set(this.key, JSON.stringify(locks));
+            const redis = await this.getLocks();
+            if (this.getLock(lock) === 0) {
+                this.locks.splice(0, 1);
+                await redis.set(this.key, JSON.stringify(this.locks));
                 return true;
             }
             return false;
