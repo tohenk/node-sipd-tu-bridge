@@ -51,7 +51,7 @@ const { glob } = require('glob');
  * @property {ActivityFunction} getActivity Get activity logs
  * @property {ObjectFunction} getCount Get activity count
  * @property {PagedObjectsFunction} getErrors Get captured errors
- * @property {CaptureFileFunction} getCapture Get captured PNG file
+ * @property {CaptureFileFunction} getCapture Get captured error file
  * @property {QueryFunction} query Perform API query
  */
 
@@ -128,7 +128,7 @@ const { glob } = require('glob');
  */
 
 /**
- * Get captured PNG file.
+ * Get captured error file.
  *
  * @callback CaptureFileFunction
  * @param {string} filename Filename
@@ -248,8 +248,8 @@ class Api {
                                 res.items.push({
                                     nr,
                                     filename: file.name,
+                                    datafilename: file.name.substr(0, file.name.lastIndexOf('.')) + '.json',
                                     error: fs.readFileSync(errFilename).toString(),
-                                    data: fs.readFileSync(dataFilename).toString(),
                                 });
                             }
                         }
