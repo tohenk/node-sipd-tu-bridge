@@ -239,7 +239,7 @@ class Api {
                     let nr = (res.page - 1) * res.size;
                     for (const file of files) {
                         res.count++;
-                        if (res.count === nr + 1) {
+                        if (res.count === nr + 1 && res.items.length < res.size) {
                             nr++;
                             const filename = path.join(file.parentPath, file.name);
                             const errFilename = path.join(file.parentPath, file.name.substr(0, file.name.lastIndexOf('.')) + '.err');
