@@ -63,7 +63,6 @@ class SipdUtil {
             if (s.includes('\n')) {
                 s = s.split('\n')[0];
             }
-            s = s.replace(/'/g, '\'\'');
         }
         return s;
     }
