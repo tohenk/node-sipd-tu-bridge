@@ -121,7 +121,7 @@ class SipdComponentFilter extends SipdComponent {
                 const q = new Queue(queues, s => {
                     const data = {
                         elements: [s.el],
-                        value: SipdUtil.escapeTerm(s.value),
+                        value: typeof s.value === 'function' ? s.value() : SipdUtil.escapeTerm(s.value),
                         clearUsingKey: this.parent.options.clearUsingKey,
                     }
                     this.parent.debug(dtag)(`Applying filter ${s.selector} with ${data.value}`);

@@ -56,12 +56,16 @@ class SipdUtil {
      * Escape search term.
      *
      * @param {any} s Search term
+     * @param {boolean} quote Also escape single quote
      * @returns {any}
      */
-    static escapeTerm(s) {
+    static escapeTerm(s, quote = false) {
         if (typeof s === 'string') {
             if (s.includes('\n')) {
                 s = s.split('\n')[0];
+            }
+            if (quote) {
+                s = s.replace(/'/g, '\'\'');
             }
         }
         return s;
