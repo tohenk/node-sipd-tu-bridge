@@ -108,6 +108,7 @@ class SipdSession {
             }
             this.pdfOptimizer = pdfOptimizer;
         }
+        this.pdfOptimizeStrategy = this.options.pdfOptimizeStrategy || 'size';
     }
 
     /**
@@ -1204,7 +1205,7 @@ class SipdSession {
             }
             let storedFile = this.genFilename(tmpdirname, `${queue.id}.${ext}`);
             let storedSize = value.byteLength;
-            let maxSizeByte, saved = false;
+            let maxSizeByte, saved = false, optimize = false;
             const done = () => {
                 if (maxSizeByte && storedSize > maxSizeByte) {
                     reject(`File size is larger than ${maxSize}!`);
@@ -1220,49 +1221,58 @@ class SipdSession {
                     }
                 }
             }
-            if (maxSize) {
-                maxSizeByte = SipdUtil.getBytes(maxSize);
-                // optimize PDF when size is larger than expected
-                if (ext === 'pdf' && storedSize > maxSizeByte && typeof this.pdfOptimizer === 'string') {
-                    const tmpfile = this.genFilename(tmpdirname, `${queue.id}.orig.${ext}`);
-                    this.saveFile(tmpfile, value);
-                    const exec = require('child_process').exec;
-                    const cmd = this.pdfOptimizer
-                        .replace(/%IN%/g, tmpfile)
-                        .replace(/%OUT%/g, storedFile);
-                    exec(cmd, (err, stdout, stderr) => {
-                        if (!err && fs.existsSync(storedFile)) {
-                            saved = true;
-                            const newSize = fs.statSync(storedFile).size;
-                            this.debug(dtag)(`Optimized PDF size ${newSize}, original was ${storedSize}`);
-                            // is optimized PDF reduced in size?
-                            if (newSize < storedSize) {
-                                fs.unlinkSync(tmpfile);
-                                storedSize = newSize;
-                            } else {
-                                // use original
-                                fs.unlinkSync(storedFile);
-                                storedFile = tmpfile;
-                            }
-                            done();
-                        } else {
-                            if (fs.existsSync(tmpfile)) {
-                                fs.unlinkSync(tmpfile);
-                            }
-                            let msg = err instanceof Error ? err.toString() : err;
-                            if (!msg) {
-                                msg = stderr.toString().trim();
-                            }
-                            if (msg) {
-                                reject(`Unable to optimize PDF: ${msg}!`);
-                            } else {
-                                reject(`An error occured while optimizing PDF!`);
+            if (ext === 'pdf' && typeof this.pdfOptimizer === 'string') {
+                switch (this.pdfOptimizeStrategy.toLowerCase()) {
+                    case 'always':
+                        optimize = true;
+                        break;
+                    case 'size':
+                        if (maxSize) {
+                            maxSizeByte = SipdUtil.getBytes(maxSize);
+                            if (storedSize > maxSizeByte) {
+                                optimize = true;
                             }
                         }
-                    });
-                } else {
-                    done();
+                        break;
                 }
+            }
+            if (optimize) {
+                const tmpfile = this.genFilename(tmpdirname, `${queue.id}.orig.${ext}`);
+                this.saveFile(tmpfile, value);
+                const exec = require('child_process').exec;
+                const cmd = this.pdfOptimizer
+                    .replace(/%IN%/g, tmpfile)
+                    .replace(/%OUT%/g, storedFile);
+                exec(cmd, (err, stdout, stderr) => {
+                    if (!err && fs.existsSync(storedFile)) {
+                        saved = true;
+                        const newSize = fs.statSync(storedFile).size;
+                        this.debug(dtag)(`Optimized PDF size ${newSize}, original was ${storedSize}`);
+                        // is optimized PDF reduced in size?
+                        if (newSize < storedSize) {
+                            fs.unlinkSync(tmpfile);
+                            storedSize = newSize;
+                        } else {
+                            // use original
+                            fs.unlinkSync(storedFile);
+                            storedFile = tmpfile;
+                        }
+                        done();
+                    } else {
+                        if (fs.existsSync(tmpfile)) {
+                            fs.unlinkSync(tmpfile);
+                        }
+                        let msg = err instanceof Error ? err.toString() : err;
+                        if (!msg) {
+                            msg = stderr.toString().trim();
+                        }
+                        if (msg) {
+                            reject(`Unable to optimize PDF: ${msg}!`);
+                        } else {
+                            reject(`An error occured while optimizing PDF!`);
+                        }
+                    }
+                });
             } else {
                 done();
             }
