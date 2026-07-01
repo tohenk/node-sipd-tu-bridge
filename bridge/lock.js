@@ -113,7 +113,7 @@ class SipdUserLock {
                                 SipdLogger.activity(dtag)(`Lock ${this.store.name} ${this.user}:${lock} is acquired...`);
                                 resolve();
                             } else {
-                                timer.check(t => SipdLogger.activity(dtag)(`Lock ${this.store.name} ${this.user}:${lock} is still held after ${t.deltaTime}s...`));
+                                timer.check(t => SipdLogger.activity(dtag)(`Lock ${this.store.name} ${this.user}:${lock} is still held after ${t.elapsedTime}...`));
                                 setTimeout(f, 100);
                             }
                         })
@@ -277,7 +277,7 @@ class SipdLockStoreRedis extends SipdLockStore {
                     if (this._ready) {
                         resolve();
                     } else {
-                        timer.check(t => SipdLogger.activity(dtag)(`Still waiting Redis connection to be ready after ${t.deltaTime}s...`));
+                        timer.check(t => SipdLogger.activity(dtag)(`Still waiting Redis connection to be ready after ${t.elapsedTime}...`));
                         setTimeout(f, 1000);
                     }
                 }

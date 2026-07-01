@@ -70,7 +70,7 @@ class SipdComponentDataRow extends SipdComponent {
                             })
                             .catch(err => reject(err));
                     } else {
-                        timer.check(t => this.parent.debug(dtag)(`Still waiting data row ${this._title} result after ${t.deltaTime}s...`));
+                        timer.check(t => this.parent.debug(dtag)(`Still waiting data row ${this._title} result after ${t.elapsedTime}...`));
                         setTimeout(f, this.parent.loopdelay);
                     }
                 })

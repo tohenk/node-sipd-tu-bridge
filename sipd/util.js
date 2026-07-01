@@ -430,6 +430,41 @@ class SipdUtil {
         }
         return '';
     }
+
+    /**
+     * Format seconds as time string.
+     *
+     * @param {number} seconds Time seconds
+     * @returns {string}
+     */
+    static formatTime(seconds) {
+        const times = [];
+        const divider = [24, 60, 60];
+        let idx = 0;
+        while (true) {
+            const divisor = divider.slice(idx).reduce((a, i) => a * i, 1);
+            const whole = Math.trunc(seconds / divisor);
+            times.push(whole);
+            seconds -= whole * divisor;
+            if (idx++ === divider.length) {
+                break;
+            }
+        }
+        while (times.length > 2) {
+            if (times[0] > 0) {
+                break;
+            }
+            times.shift();
+        }
+        const days = [];
+        if (times.length > 3) {
+            days.push(...[times.shift()].map(a => `${a}d`))
+        }
+        return [
+            days,
+            times.map(a => a.toString().padStart(2, '0')).join(':')
+        ].join(' ');
+    }
 }
 
 module.exports = SipdUtil;

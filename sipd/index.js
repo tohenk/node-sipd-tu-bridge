@@ -616,7 +616,7 @@ class Sipd extends WebRobot {
                 ])
                 .then(res => {
                     if (res) {
-                        timer.check(t => this.debug(dtag)(`Still waiting status dismissing after ${t.deltaTime}s...`));
+                        timer.check(t => this.debug(dtag)(`Still waiting status dismissing after ${t.elapsedTime}...`));
                         setTimeout(f, this.loopdelay);
                     } else {
                         resolve();
@@ -1204,6 +1204,14 @@ class Sipd extends WebRobot {
 }
 
 /**
+ * Timer check callback.
+ *
+ * @callback SipdTimerFunction
+ * @param {SipdTimer} t Timer object
+ * @returns {void}
+ */
+
+/**
  * Execute callback for every second delta time.
  *
  * @author Toha <tohenk@yahoo.com>
@@ -1217,6 +1225,12 @@ class SipdTimer
         this.delta = this.options.delta || 5;
     }
 
+    /**
+     * Check if callback should be called.
+     *
+     * @param {SipdTimerFunction} callback The callback
+     * @returns {void}
+     */
     check(callback) {
         this.deltaTime = Math.floor((new Date().getTime() - this.startTime) / 1000);
         if (
@@ -1229,6 +1243,15 @@ class SipdTimer
                 callback(this);
             }
         }
+    }
+
+    /**
+     * Get formatted elapsed time.
+     *
+     * @returns {string}
+     */
+    get elapsedTime() {
+        return SipdUtil.formatTime(this.deltaTime);
     }
 }
 
