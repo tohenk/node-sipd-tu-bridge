@@ -179,17 +179,37 @@ class SipdDequeue extends EventEmitter {
                     }
                 }
             }
-            if (this.processing.length) {
-                this.processTimedout();
-            }
+            this.checkTimedout();
+            this.checkOrphaned();
         }
     }
 
     /**
-     * Process timed out queue.
+     * Check processing queues for timeoout.
      */
-    processTimedout() {
+    checkTimedout() {
         for (const queue of this.processing) {
+            this.checkTimeout(queue);
+        }
+    }
+
+    /**
+     * Check orphaned queues for timeout.
+     */
+    checkOrphaned() {
+        this.consumers
+            .map(consumer => consumer.queue)
+            .filter(Boolean)
+            .forEach(queue => this.checkTimeout(queue));
+    }
+
+    /**
+     * Check queue for timeout.
+     *
+     * @param {SipdQueue} queue Queue
+     */
+    checkTimeout(queue) {
+        if (queue && queue.status === SipdQueue.STATUS_PROCESSING) {
             const t = new Date().getTime();
             const d = t - queue.time.getTime();
             const timeout = queue.data && queue.data.timeout !== undefined ?
@@ -199,8 +219,7 @@ class SipdDequeue extends EventEmitter {
                 if (typeof queue.ontimeout === 'function') {
                     queue.ontimeout()
                         .then(() => this.endQueue(queue))
-                        .catch(() => this.endQueue(queue))
-                    ;
+                        .catch(() => this.endQueue(queue));
                 } else {
                     this.endQueue(queue);
                 }
@@ -214,7 +233,9 @@ class SipdDequeue extends EventEmitter {
      * @param {SipdQueue} queue Queue
      */
     endQueue(queue) {
-        this.processing.splice(this.processing.indexOf(queue), 1);
+        if (this.processing.includes(queue)) {
+            this.processing.splice(this.processing.indexOf(queue), 1);
+        }
         this.completes.push(queue);
         this.setLastQueue(queue);
         if (queue.consumer) {
