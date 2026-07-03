@@ -465,6 +465,33 @@ class SipdUtil {
             times.map(a => a.toString().padStart(2, '0')).join(':')
         ].join(' ');
     }
+
+    /**
+     * Get mime type and the content.
+     *
+     * @param {string} data Mime content
+     * @param {boolean} checksum Calculate checksum
+     * @returns {{mimetype?: string, data?: Buffer, checksum?: string}}
+     */
+    static getMimeContent(data, checksum = false) {
+        const res = {};
+        if (typeof data === 'string') {
+            const [mimetype, payload] = data.split(';');
+            const [encoding, content] = payload.split(',');
+            if (content) {
+                res.mimetype = mimetype;
+                res.data = Buffer.from(content, encoding);
+                if (checksum) {
+                    const csum = require('crypto')
+                        .createHash('md5')
+                        .update(res.data)
+                        .digest('hex');
+                    res.checksum = csum;
+                }
+            }
+        }
+        return res;
+    }
 }
 
 module.exports = SipdUtil;

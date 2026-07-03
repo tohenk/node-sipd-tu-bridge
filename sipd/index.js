@@ -451,7 +451,7 @@ class Sipd extends WebRobot {
      * Solve the captcha.
      *
      * @param {string} code Resolved captcha code
-     * @returns {Promise<boolean>}
+     * @returns {Promise<any>}
      */
     solveCaptcha(code) {
         code = SipdUtil.pickNumber(code);
@@ -459,6 +459,8 @@ class Sipd extends WebRobot {
             [w => this.findElements(By.xpath(this.CAPTCHA_CONTAINER))],
             [w => w.getRes(0)[0].findElements(By.xpath('.//input[@data-index]')), w => w.getRes(0).length],
             [w => Promise.resolve(w.getRes(1).length === code.length), w => w.getRes(0).length],
+            [w => Promise.resolve(this.debug(dtag)(`Solving captcha using ${code}...`)),
+                w => w.getRes(2)],
             [w => new Promise((resolve, reject) => {
                 const q = new Queue(w.getRes(1), el => {
                     this.works([

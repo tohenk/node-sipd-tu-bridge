@@ -198,6 +198,7 @@ class SipdSession {
      *
      * @param {string} filepath File path
      * @param {Buffer|string} content File content
+     * @returns {string}
      */
     saveFile(filepath, content) {
         const dir = path.dirname(filepath);
@@ -207,6 +208,7 @@ class SipdSession {
         if (fs.existsSync(dir)) {
             fs.writeFileSync(filepath, content);
         }
+        return filepath;
     }
 
     /**
@@ -217,19 +219,10 @@ class SipdSession {
      * @returns {string}
      */
     saveCaptcha(data, dir = 'captcha') {
-        if (typeof data === 'string') {
-            const [mimetype, payload] = data.split(';');
-            const [encoding, content] = payload.split(',');
-            if (content) {
-                const buff = Buffer.from(content, encoding);
-                const shasum = require('crypto')
-                    .createHash('md5')
-                    .update(buff)
-                    .digest('hex');
-                const filename = this.genFilename(dir, shasum + '.' + (mimetype.indexOf('png') > 0 ? 'png' : 'jpg'));
-                this.saveFile(filename, buff);
-                return filename;
-            }
+        const content = SipdUtil.getMimeContent(data, true);
+        if (content.data) {
+            const filename = this.genFilename(dir, content.checksum + '.' + (content.mimetype.indexOf('png') > 0 ? 'png' : 'jpg'));
+            return this.saveFile(filename, content.data);
         }
     }
 

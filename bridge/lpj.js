@@ -37,16 +37,6 @@ class SipdBridgeLpj extends SipdBridgeHandler {
     alwaysEditRekanan = false
 
     /**
-     * Create LPJ session.
-     *
-     * @param {object} options Options
-     * @returns {SipdLpjSession}
-     */
-    _createSession(options) {
-        return new SipdLpjSession(options);
-    }
-
-    /**
      * Check if operation is configured in queue?
      *
      * @param {SipdQueue} queue Queue
@@ -100,9 +90,9 @@ class SipdBridgeLpj extends SipdBridgeHandler {
      * @returns {Promise<any>}
      */
     createLpj(queue) {
+        const sess = SipdLpjSession;
         const npd = this._checkOp(queue, 'npd');
         const tbp = this._checkOp(queue, 'tbp');
-        const sess = this._createSession;
         return this.bridge.processQueue({
             queue,
             works: [
@@ -132,9 +122,9 @@ class SipdBridgeLpj extends SipdBridgeHandler {
      * @returns {Promise<any>}
      */
     queryLpj(queue) {
+        const sess = SipdLpjSession;
         const npd = this._checkOp(queue, 'npd');
         const tbp = this._checkOp(queue, 'tbp');
-        const sess = this._createSession;
         return this.bridge.processQueue({
             queue,
             works: [

@@ -81,6 +81,7 @@ class SipdBridge {
      * Register bridge handler.
      *
      * @param {typeof SipdBridgeHandler} handler Handler
+     * @returns {this}
      */
     addHandler(handlerClass) {
         const handler = new handlerClass(this);
@@ -97,6 +98,7 @@ class SipdBridge {
                 }
             }
         }
+        return this;
     }
 
     /**
@@ -255,7 +257,7 @@ class SipdBridge {
      *
      * @param {string} name Session name
      * @param {number} seq Session sequence
-     * @param {Function} sessionFactory Session factory
+     * @param {typeof SipdSession} sessionFactory Session factory
      * @returns {SipdSession}
      */
     getSession(name, seq, sessionFactory = null) {
@@ -270,10 +272,10 @@ class SipdBridge {
         if (sess.length) {
             options.session = sess.join('-');
         }
+        sessionFactory = sessionFactory ?? SipdSession;
         const sessId = options.session ? options.session : '_';
-        if (this.sessions[sessId] === undefined) {
-            const session = typeof sessionFactory === 'function' ? sessionFactory(options) :
-                this.createSession(options);
+        if (this.sessions[sessId] === undefined || !this.sessions[sessId] instanceof sessionFactory) {
+            const session = new sessionFactory(options);
             session.id = sessId;
             session.onStateChange(s => {
                 if (typeof this.onState === 'function') {
@@ -371,7 +373,7 @@ class SipdBridge {
      * Do the operation as requested role and returns the session.
      *
      * @param {string} role User role
-     * @param {Function} sessionFactory Session factory
+     * @param {typeof SipdSession} sessionFactory Session factory
      * @returns {Promise<SipdSession>}
      */
     doAs(role, sessionFactory = null) {

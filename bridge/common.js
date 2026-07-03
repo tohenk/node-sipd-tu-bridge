@@ -22,9 +22,9 @@
  * SOFTWARE.
  */
 
+const Queue = require('@ntlab/work/queue');
 const SipdQueue = require('../app/queue');
 const { SipdBridgeHandler } = require('.');
-const { SipdRole } = require('../sipd/role');
 
 /**
  * SIPD bridge for common handling.
@@ -57,45 +57,63 @@ class SipdBridgeCommon extends SipdBridgeHandler {
     /**
      * Get captcha image.
      *
-     * @returns {Promise<string>|undefined}
+     * @returns {Promise<{[key: string]: string}>}
      */
     getCaptcha() {
-        for (const session of this.bridge.getSessions()) {
-            if (session.state().captcha) {
-                return session.captchaImage();
-            }
-        }
+        return new Promise((resolve, reject) => {
+            const res = {};
+            const q = new Queue([...this.bridge.getSessions()], session => {
+                if (session.state().captcha) {
+                    session.captchaImage()
+                        .then(captcha => {
+                            res[session.id] = captcha;
+                            q.next();
+                        })
+                        .catch(err => reject(err));
+                } else {
+                    q.next();
+                }
+            });
+            q.once('done', () => resolve(res));
+        });
     }
 
     /**
      * Solve captcha using code.
      *
      * @param {string} code Captcha code
-     * @returns {Promise<any>|undefined}
+     * @returns {Promise<any>}
      */
-    solveCaptcha(code) {
-        for (const session of this.bridge.getSessions()) {
-            if (session.state().captcha) {
-                return session.solveCaptcha(code);
-            }
+    solveCaptcha(code, sess) {
+        const session = this.bridge.getSessions().find(session => session.id === sess && session.state().captcha);
+        if (session) {
+            return session.solveCaptcha(code);
         }
+        return Promise.resolve();
     }
 
     /**
      * Save captcha image.
      *
      * @param {string} dir Directory name
-     * @returns {Promise<string>|undefined}
+     * @returns {Promise<undefined>}
      */
     saveCaptcha(dir) {
-        for (const session of this.bridge.getSessions()) {
-            if (session.state().captcha) {
-                return session.works([
-                    [w => session.captchaImage()],
-                    [w => Promise.resolve(session.saveCaptcha(w.getRes(0), dir))],
-                ]);
-            }
-        }
+        return new Promise((resolve, reject) => {
+            const q = new Queue([...this.bridge.getSessions()], session => {
+                if (session.state().captcha) {
+                    session.works([
+                        [w => session.captchaImage()],
+                        [w => Promise.resolve(session.saveCaptcha(w.getRes(0), dir))],
+                    ])
+                    .then(() => q.next())
+                    .catch(err => reject(err));
+                } else {
+                    q.next();
+                }
+            });
+            q.once('done', () => resolve());
+        });
     }
 
     /**
@@ -115,23 +133,6 @@ class SipdBridgeCommon extends SipdBridgeHandler {
             );
         }
         return this.bridge.works(works);
-    }
-
-    /**
-     * Query for partner.
-     *
-     * @param {SipdQueue} queue Queue
-     * @returns {Promise<any>}
-     */
-    queryRekanan(queue) {
-        return this.bridge.processQueue({
-            queue,
-            works: [
-                ['bp', w => this.bridge.doAs(SipdRole.BP)],
-                ['bp-login', w => w.bp.login()],
-                ['bp-rekanan', w => w.bp.listRekanan(queue)],
-            ],
-        });
     }
 }
 

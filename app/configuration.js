@@ -189,68 +189,6 @@ class Configuration {
     }
 
     /**
-     * Configure external captcha solver.
-     *
-     * @returns {this}
-     */
-    applySolver() {
-        // captcha solver
-        if (this.captchaSolver) {
-            // {
-            //     "global": {
-            //         "captchaSolver": {
-            //             "bin": "python",
-            //             "args": ["/path/to/solver.py", "%CAPTCHA%"]
-            //         }
-            //     }
-            // }
-            const cmd = require('@ntlab/ntlib/command')(this.captchaSolver, {});
-            this.solver = (captcha, options) => {
-                if (captcha && fs.existsSync(captcha)) {
-                    const debug = SipdLogger.logger('config', options);
-                    debug('Resolving captcha', captcha);
-                    return new Promise((resolve, reject) => {
-                        let stdout, stderr;
-                        const p = cmd.exec({CAPTCHA: captcha});
-                        p.stdout.on('data', line => {
-                            if (stdout === undefined) {
-                                stdout = line;
-                            } else {
-                                stdout = Buffer.concat([stdout, line]);
-                            }
-                        });
-                        p.stderr.on('data', line => {
-                            if (stderr === undefined) {
-                                stderr = line;
-                            } else {
-                                stderr = Buffer.concat([stderr, line]);
-                            }
-                        });
-                        p.on('exit', code => {
-                            if (fs.existsSync(captcha)) {
-                                fs.rmSync(captcha);
-                            }
-                            let res;
-                            if (stdout) {
-                                res = stdout.toString().trim();
-                                debug('Resolved captcha', res);
-                            } else if (stderr) {
-                                debug('Solver error:', stderr.toString().trim());
-                            }
-                            resolve(res);
-                        });
-                        p.on('error', err => {
-                            reject(err);
-                        });
-                    });
-                }
-                return Promise.resolve();
-            }
-        }
-        return this;
-    }
-
-    /**
      * Get path based on provided root path.
      *
      * @param {string} path Path

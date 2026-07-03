@@ -37,16 +37,6 @@ class SipdBridgeSpp extends SipdBridgeHandler {
     alwaysEditRekanan = false
 
     /**
-     * Create SPP session.
-     *
-     * @param {object} options Options
-     * @returns {SipdSppSession}
-     */
-    _createSession(options) {
-        return new SipdSppSession(options);
-    }
-
-    /**
      * Transform processing result.
      *
      * @param {SipdQueue} queue Queue
@@ -87,7 +77,7 @@ class SipdBridgeSpp extends SipdBridgeHandler {
      * @returns {Promise<any>}
      */
     createSpp(queue) {
-        const sess = this._createSession;
+        const sess = SipdSppSession;
         return this.bridge.processQueue({
             queue,
             works: [
@@ -143,7 +133,7 @@ class SipdBridgeSpp extends SipdBridgeHandler {
             }
             return res;
         }
-        const sess = this._createSession;
+        const sess = SipdSppSession;
         return this.bridge.processQueue({
             queue,
             works: [

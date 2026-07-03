@@ -27,15 +27,18 @@ const path = require('path');
 const util = require('util');
 const Cmd = require('@ntlab/ntlib/cmd');
 const Api = require('./api');
+const CaptchaSolver = require('./solver');
 const Configuration = require('./configuration');
-const Work = require('@ntlab/work/work');
 const SipdBridgeCommon = require('../bridge/common');
+const SipdBridgeRekanan = require('../bridge/rekanan');
 const SipdBridgeLpj = require('../bridge/lpj');
 const SipdBridgeSpp = require('../bridge/spp');
 const SipdBridgeUtil = require('../bridge/util');
 const SipdCmd = require('../cmd');
 const SipdLogger = require('../sipd/logger');
 const SipdQueue = require('./queue');
+const Queue = require('@ntlab/work/queue');
+const Work = require('@ntlab/work/work');
 const { SipdBridge } = require('../bridge');
 const { Socket } = require('socket.io');
 
@@ -49,6 +52,10 @@ const dtag = 'app';
 class App {
 
     VERSION = 'SIPD-BRIDGE-4.2'
+
+    PRIO_FIRST = 10
+    PRIO_ABOVE = 20
+    PRIO_NORMAL = 30
 
     /** @type {Configuration} */
     config = {}
@@ -76,8 +83,8 @@ class App {
         this.config = new Configuration(this.rootDir);
         this.config
             .applyServerKeys()
-            .applyProfile()
-            .applySolver();
+            .applyProfile();
+        this.solver = CaptchaSolver.create(this.config.captchaSolver);
         return this.config.initialized;
     }
 
@@ -172,7 +179,9 @@ class App {
                 }
                 switch (mode) {
                     case '*':
-                        bridge.addHandler(SipdBridgeCommon);
+                        bridge
+                            .addHandler(SipdBridgeCommon)
+                            .addHandler(SipdBridgeRekanan);
                         break;
                     case Configuration.BRIDGE_SPP:
                         bridge.addHandler(SipdBridgeSpp);
@@ -472,11 +481,11 @@ class App {
     registerConsumers() {
         const { SipdBridgeConsumer, SipdCallbackConsumer, SipdCleanerConsumer } = SipdQueue.CONSUMERS;
         const consumers = [
-            new SipdCleanerConsumer(10),
-            new SipdCallbackConsumer(10),
+            new SipdCleanerConsumer(this.PRIO_FIRST),
+            new SipdCallbackConsumer(this.PRIO_FIRST),
         ];
         this.bridges.forEach(bridge => {
-            consumers.push(new SipdBridgeConsumer(bridge, bridge.accepts ? 20 : 30));
+            consumers.push(new SipdBridgeConsumer(bridge, bridge.accepts ? this.PRIO_ABOVE : this.PRIO_NORMAL));
         });
         this.dequeue.setConsumer(consumers);
     }
@@ -507,33 +516,36 @@ class App {
      */
     handleNotify(queue) {
         let captcha = 0;
-        if (typeof this.config.solver === 'function') {
+        if (typeof this.solver === 'function') {
             for (const bridge of this.bridges) {
                 if (bridge.hasState('captcha')) {
                     captcha++;
                     if (!bridge.captchaSolving) {
                         bridge.captchaSolving = true;
-                        const f = () => {
-                            Work.works([
-                                [w => bridge.saveCaptcha(this.config.tmpdirname)],
-                                [w => this.config.solver(w.getRes(0), bridge.loginfo), w => w.getRes(0)],
-                                [w => fs.rm(w.getRes(0), {force: true}), w => fs.existsSync(w.getRes(0))],
-                                [w => bridge.solveCaptcha(w.getRes(1)), w => w.getRes(1)],
-                            ])
-                            .then(res => {
-                                if (res !== undefined && !res) {
-                                    console.error(`Captcha code for ${bridge.name} is invalid, retrying...`);
-                                    f();
-                                } else {
-                                    delete bridge.captchaSolving;
-                                }
-                            })
-                            .catch(err => {
-                                delete bridge.captchaSolving;
-                                console.error(`An error occured while solving captcha: ${err}!`);
-                            });
-                        }
-                        f();
+                        bridge.works([
+                            [w => bridge.getCaptcha()],
+                            [w => new Promise((resolve, reject) => {
+                                const captchas = Object.entries(w.getRes(0));
+                                const q = new Queue(captchas, captcha => {
+                                    const [sess, img] = captcha;
+                                    const works = [
+                                        ...this.solver(img, {dir: path.join(this.config.workdir, this.config.tmpdirname)}),
+                                        [x => bridge.solveCaptcha(x.res, sess), x => x.res],
+                                    ]
+                                    bridge.works(works)
+                                        .then(res => q.next())
+                                        .catch(err => reject(err));
+                                });
+                                q.once('done', () => resolve());
+                            }), w => Object.keys(w.getRes(0)).length],
+                        ])
+                        .then(() => {
+                            delete bridge.captchaSolving;
+                        })
+                        .catch(err => {
+                            delete bridge.captchaSolving;
+                            console.error(`An error occured while solving captcha: ${err}!`);
+                        });
                     }
                 }
             }
