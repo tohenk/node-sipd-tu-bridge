@@ -1249,7 +1249,7 @@ class SipdSession {
                         const newSize = fs.statSync(storedFile).size;
                         this.debug(dtag)(`Optimized PDF size ${newSize}, original was ${storedSize}`);
                         // is optimized PDF reduced in size?
-                        if (newSize < storedSize) {
+                        if (this.pdfOptimizeStrategy.toLowerCase() === 'always' || newSize < storedSize) {
                             fs.unlinkSync(tmpfile);
                             storedSize = newSize;
                         } else {

@@ -458,7 +458,7 @@ class SipdUtil {
         }
         const days = [];
         if (times.length > 3) {
-            days.push(...[times.shift()].map(a => `${a}d`))
+            days.push(...[times.shift()].map(a => `${a}d`));
         }
         return [
             days,
