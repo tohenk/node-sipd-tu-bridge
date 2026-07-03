@@ -243,16 +243,6 @@ class SipdBridge {
     }
 
     /**
-     * Create a session.
-     *
-     * @param {object} options Session constructor options
-     * @returns {SipdSession}
-     */
-    createSession(options) {
-        return new SipdSession(options);
-    }
-
-    /**
      * Get session for a name.
      *
      * @param {string} name Session name
@@ -472,7 +462,10 @@ class SipdBridge {
      * @returns {Promise<any>}
      */
     end(queue, stop = true) {
-        const works = [];
+        const works = [
+            [m => Promise.resolve(this.lock.abort(queue.id)),
+                m => queue.status === SipdQueue.STATUS_TIMED_OUT && this.lock]
+        ];
         for (const session of Object.values(this.sessions)) {
             works.push(
                 [m => session.cleanFiles(queue)],

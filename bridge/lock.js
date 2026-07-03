@@ -93,6 +93,8 @@ class SipdUserLock {
         }
         /** @type {SipdLockStore} */
         this.store = store;
+        /** @type {string[]} */
+        this.aborts = [];
     }
 
     /**
@@ -107,6 +109,10 @@ class SipdUserLock {
             [w => new Promise((resolve, reject) => {
                 const timer = new SipdTimer({delta: 60});
                 const f = () => {
+                    if (this.aborts.includes(lock)) {
+                        this.aborts.splice(this.aborts.indexOf(lock), 1);
+                        return reject(`Lock ${this.store.name} ${this.user}:${lock} is aborted!`);
+                    }
                     this.store.free(lock)
                         .then(res => {
                             if (res) {
@@ -137,6 +143,19 @@ class SipdUserLock {
                 w => w.getRes(0)],
             [w => Promise.resolve(w.getRes(0))],
         ]);
+    }
+
+    /**
+     * Abort the lock.
+     *
+     * @param {string} lock Id
+     * @returns {this}
+     */
+    abort(lock) {
+        if (!this.aborts.includes(lock)) {
+            this.aborts.push(lock);
+        }
+        return this;
     }
 }
 
