@@ -24,7 +24,7 @@
 
 const Work = require('@ntlab/work/work');
 const SipdLogger = require('../sipd/logger');
-const { SipdTimer } = require('../sipd');
+const { SipdTimer, SipdAbortError } = require('../sipd');
 
 const dtag = 'lock';
 
@@ -73,7 +73,7 @@ class SipdLockManager {
     }
 
     static get STALE_MS() {
-        return 10 * 60 * 1000; // 10 minutes
+        return 5 * 60 * 1000; // 5 minutes
     }
 }
 
@@ -111,7 +111,7 @@ class SipdUserLock {
                 const f = () => {
                     if (this.aborts.includes(lock)) {
                         this.aborts.splice(this.aborts.indexOf(lock), 1);
-                        return reject(`Lock ${this.store.name} ${this.user}:${lock} is aborted!`);
+                        return reject(new SipdAbortError(`Lock ${this.store.name} ${this.user}:${lock} is aborted!`));
                     }
                     this.store.free(lock)
                         .then(res => {

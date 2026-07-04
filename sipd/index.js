@@ -60,6 +60,7 @@ class Sipd extends WebRobot {
         super.constructor.expectErr(SipdAnnouncedError);
         super.constructor.expectErr(SipdRestartError);
         super.constructor.expectErr(SipdRetryError);
+        super.constructor.expectErr(SipdAbortError);
     }
 
     /**
@@ -1313,6 +1314,14 @@ class SipdCleanAndRetryError extends SipdRetryError {
 class SipdStopError extends Error {
 }
 
+/**
+ * An error to indicate an operation is aborted.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdAbortError extends Error {
+}
+
 module.exports = {
     Sipd,
     SipdTimer,
@@ -1320,5 +1329,6 @@ module.exports = {
     SipdRestartError,
     SipdRetryError,
     SipdCleanAndRetryError,
-    SipdStopError
+    SipdStopError,
+    SipdAbortError
 }

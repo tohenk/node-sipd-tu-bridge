@@ -503,14 +503,18 @@ class SipdConsumer extends EventEmitter
      */
     consume(queue) {
         const success = res => {
-            queue.done(res);
+            if (!queue.finished()) {
+                queue.done(res);
+            }
             if (typeof queue.resolve === 'function') {
                 queue.resolve(res);
             }
             this.emit('queue-done', queue);
         }
         const fail = err => {
-            queue.error(err);
+            if (!queue.finished()) {
+                queue.error(err);
+            }
             if (typeof queue.reject === 'function') {
                 queue.reject(err);
             }
