@@ -461,7 +461,7 @@ class SipdUtil {
             days.push(...[times.shift()].map(a => `${a}d`));
         }
         return [
-            days,
+            ...days,
             times.map(a => a.toString().padStart(2, '0')).join(':')
         ].join(' ');
     }
