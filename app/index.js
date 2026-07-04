@@ -80,12 +80,55 @@ class App {
      * @returns {boolean}
      */
     initialize() {
+        this
+            .initializeConfiguration()
+            .initializeLogger()
+            .initializeSolver();
+        return this.config.initialized;
+    }
+
+    /**
+     * Initialize application configuration.
+     *
+     * @returns {this}
+     */
+    initializeConfiguration() {
         this.config = new Configuration(this.rootDir);
         this.config
             .applyServerKeys()
             .applyProfile();
+        return this;
+    }
+
+    /**
+     * Initialize application logger.
+     *
+     * @returns {this}
+     */
+    initializeLogger() {
+        SipdLogger.onLogs = (tag, logs) => {
+            if (this.api) {
+                if (tag === SipdLogger.LOG_ACTIVITY) {
+                    this.api.notify('activity', {time: Date.now(), logs});
+                } else {
+                    const bridge = this.bridges.find(b => b.name === tag);
+                    if (bridge) {
+                        this.api.notify('log', {bridge: bridge.name, time: Date.now(), logs});
+                    }
+                }
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Initialize Captcha Solver.
+     *
+     * @returns {this}
+     */
+    initializeSolver() {
         this.solver = CaptchaSolver.create(this.config.captchaSolver);
-        return this.config.initialized;
+        return this;
     }
 
     /**
@@ -208,16 +251,6 @@ class App {
                 const factory = require(this.config.ui);
                 this.api = new Api(this);
                 this.ui = factory(this.api);
-                SipdLogger.onLogs = (tag, logs) => {
-                    if (tag === SipdLogger.LOG_ACTIVITY) {
-                        this.api.notify('activity', {time: Date.now(), logs});
-                    } else {
-                        const bridge = this.bridges.find(b => b.name === tag);
-                        if (bridge) {
-                            this.api.notify('log', {bridge: bridge.name, time: Date.now(), logs});
-                        }
-                    }
-                }
             } catch (err) {
                 console.error(`Web interface not available: ${this.config.ui}!`);
                 if (err instanceof Error) {
