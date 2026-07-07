@@ -142,7 +142,8 @@ class SipdBridgeSpp extends SipdBridgeHandler {
                 ['bp-cek-spp', w => w.bp.checkSpp(queue)],
                 ['bp-cek-spm', w => w.bp.checkSpm(queue)],
                 ['bp-cek-sp2d', w => w.bp.checkSp2d(queue)],
-            ].sort(sorter),
+            ],
+            sorter,
             onResult: this._onResult,
         });
     }

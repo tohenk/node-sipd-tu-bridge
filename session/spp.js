@@ -22,7 +22,8 @@
  * SOFTWARE.
  */
 
-const SipdSession = require('.');
+const SipdQueue = require('../app/queue');
+const SipdRekananSession = require('./rekanan');
 const SipdSppActivitySelector = require('./activity/spp');
 const SipdUtil = require('../sipd/util');
 const { SipdQuerySpp } = require('./query/spp');
@@ -33,7 +34,7 @@ const { By } = require('selenium-webdriver');
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdSppSession extends SipdSession {
+class SipdSppSession extends SipdRekananSession {
 
     VERIFIED = 1
     UNVERIFIED = 2
@@ -45,6 +46,13 @@ class SipdSppSession extends SipdSession {
         this.subkegSelector = SipdSppActivitySelector;
     }
 
+    /**
+     * Query for SPP.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {object} options Options
+     * @returns {Promise<any>}
+     */
     querySpp(queue, options) {
         options = {
             title: 'Surat Permintaan Pembayaran (SPP) | LS',
@@ -58,6 +66,13 @@ class SipdSppSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Check for SPP.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {object} options Options
+     * @returns {Promise<any>}
+     */
     checkSpp(queue, options = null) {
         options = options || {};
         return this.works([
@@ -66,6 +81,12 @@ class SipdSppSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Create SPP.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     createSpp(queue) {
         const allowChange = this.isEditable(queue);
         return this.works([
@@ -82,6 +103,13 @@ class SipdSppSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Do SPP verification.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {string} status Status
+     * @returns {Promise<any>}
+     */
     verifikasiSpp(queue, status = 'Belum Diverifikasi') {
         const allowChange = this.isEditable(queue);
         return this.works([
@@ -96,6 +124,13 @@ class SipdSppSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Query for SPM.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {object} options Options
+     * @returns {Promise<any>}
+     */
     querySpm(queue, options) {
         options = {
             title: 'Pengeluaran',
@@ -110,6 +145,12 @@ class SipdSppSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Check for SPM.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     checkSpm(queue) {
         return this.works([
             [w => Promise.reject('SPP is not created yet!'), w => !queue.SPP],
@@ -117,6 +158,13 @@ class SipdSppSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Do SPM verification.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {string} status Status
+     * @returns {Promise<any>}
+     */
     verifikasiSpm(queue, status = 'Belum Disetujui') {
         const allowChange = this.isEditable(queue);
         return this.works([
@@ -128,6 +176,13 @@ class SipdSppSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Query for SP2D.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {object} options Options
+     * @returns {Promise<any>}
+     */
     querySp2d(queue, options) {
         options = {
             title: 'Surat Perintah Pencairan Dana | Pencairan',
@@ -148,6 +203,12 @@ class SipdSppSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Check for SP2D.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     checkSp2d(queue) {
         return this.works([
             [w => Promise.reject('SPM is not created yet!'), w => !queue.SPM],

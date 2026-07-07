@@ -610,12 +610,12 @@ class SipdBridgeConsumer extends SipdConsumer
     /**
      * Constructor.
      *
-     * @param {import('../bridge')} bridge Bridge
+     * @param {import('../bridge').SipdBridge} bridge Bridge
      * @param {number} priority Priority
      */
     constructor(bridge, priority) {
         super(priority);
-        /** @type {import('../bridge'} */
+        /** @type {import('../bridge').SipdBridge} */
         this.bridge = bridge;
         this.on('pre-queue', queue => {
             SipdLogger.activity(dtag)('%s is handling queue %s', this.bridge.name, queue);

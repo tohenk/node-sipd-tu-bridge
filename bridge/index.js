@@ -28,6 +28,8 @@ const Queue = require('@ntlab/work/queue');
 const SipdLogger = require('../sipd/logger');
 const SipdQueue = require('../app/queue');
 const SipdSession = require('../session');
+const SipdLpjSession = require('../session/lpj');
+const SipdSppSession = require('../session/spp');
 const { Sipd, SipdTimer, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { SipdLockManager } = require('./lock');
@@ -36,9 +38,31 @@ const { error } = require('selenium-webdriver');
 const dtag = 'bridge';
 
 /**
+ * @typedef {Object} BridgeWorker
+ * @property {BridgeSession} bp BP/BPP session
+ * @property {BridgeSession} pptk PPTK session
+ * @property {BridgeSession} pa PA/KPA session
+ * @property {BridgeSession} ppk PPK session
+ */
+
+/**
+ * @typedef {SipdLpjSession & SipdSppSession} BridgeSession
+ */
+
+/**
+ * @callback BridgeWorkFunction
+ * @param {BridgeWorker} w Worker
+ * @returns {Promise<any>}
+ */
+
+/**
+ * @typedef {{[index: number]: string | BridgeWorkFunction}} BridgeWork
+ */
+
+/**
  * Work finished callback. The callback must returns an array of works to do.
  *
- * @callback workFinishedCallback
+ * @callback WorkFinishedCallback
  * @param {Work} w Worker object
  * @param {Error} err An error or rejection thrown
  * @returns {array}
@@ -65,11 +89,17 @@ class SipdBridge {
      * @param {object} options Options
      */
     constructor(name, options) {
+        /** @type {string} */
         this.name = name;
+        /** @type {object} */
         this.options = options;
+        /** @type {number} */
         this.state = this.STATE_NONE;
+        /** @type {boolean} */
         this.autoClose = this.options.autoClose !== undefined ? this.options.autoClose : true;
+        /** @type {boolean} */
         this.singleSession = this.options.singleSession !== undefined ? this.options.singleSession : true;
+        /** @type {boolean} */
         this.stopSessionEarly = this.options.stopSessionEarly !== undefined ? this.options.stopSessionEarly : true;
         this.loginfo = {
             tag: this.name,
@@ -320,11 +350,12 @@ class SipdBridge {
                         err = new SipdRetryError(err.message);
                     } else if (err instanceof error.SessionNotCreatedError) {
                         err = new SipdCleanAndRetryError(err.message);
-                    } else if (this.loginfo.actor && this.loginfo.action) {
+                    } else {
+                        const prefix = this.loginfo.actor && this.loginfo.action ?
+                            `${this.loginfo.actor} (${this.loginfo.action}):` : null;
                         const e = err;
-                        const prefix = `${this.loginfo.actor} (${this.loginfo.action}):`;
                         err = e instanceof Error ? e.message : `${e}`;
-                        if (!err.startsWith(prefix)) {
+                        if (prefix && !err.startsWith(prefix)) {
                             err = `${prefix} ${err}`;
                         }
                         if (e instanceof Error && e.cause) {
@@ -421,7 +452,7 @@ class SipdBridge {
      * Perform works.
      *
      * @param {array} works The works array
-     * @param {workFinishedCallback} callback Finished callback
+     * @param {WorkFinishedCallback} callback Finished callback
      * @returns {Promise<any>}
      */
     do(works, callback = null) {
@@ -480,15 +511,19 @@ class SipdBridge {
      *
      * @param {object} param0 Data
      * @param {SipdQueue} param0.queue Queue
-     * @param {any[]} param0.works Works array
+     * @param {BridgeWork[]} param0.works Works array
+     * @param {Function} param0.sorter Sorter callback
      * @param {Function} param0.done Done callback
      * @param {Function} param0.onResult On result callback
      * @returns {Promise<any>}
      */
-    processQueue({queue, works, done, onResult}) {
+    processQueue({queue, works, sorter, done, onResult}) {
         if (this.singleSession) {
             this.lockId = queue.id;
             delete this.lock;
+        }
+        if (typeof sorter === 'function') {
+            works = works.sort(sorter);
         }
         return this.do([
             ['role', w => this.checkRole(queue)],

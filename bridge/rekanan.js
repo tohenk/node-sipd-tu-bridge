@@ -23,6 +23,7 @@
  */
 
 const SipdQueue = require('../app/queue');
+const SipdRekananSession = require('../session/rekanan');
 const { SipdBridgeHandler } = require('.');
 const { SipdRole } = require('../sipd/role');
 
@@ -43,7 +44,7 @@ class SipdBridgeRekanan extends SipdBridgeHandler {
         return this.bridge.processQueue({
             queue,
             works: [
-                ['bp', w => this.bridge.doAs(SipdRole.BP)],
+                ['bp', w => this.bridge.doAs(SipdRole.BP, SipdRekananSession)],
                 ['bp-login', w => w.bp.login()],
                 ['bp-rekanan', w => w.bp.listRekanan(queue)],
             ],

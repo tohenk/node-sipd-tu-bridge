@@ -213,11 +213,11 @@ class SocketSolver extends Solver {
         this.ns
             .on('connect', () => {
                 this.ready = true;
-                SipdLogger.activity(dtag)(`Connected to socket at ${this.url}...`);
+                SipdLogger.activity(dtag)(`Connected to SocketSolver at ${this.url}...`);
             })
             .on('disconnect', () => {
                 this.ready = false;
-                SipdLogger.activity(dtag)(`Disonnected from socket at ${this.url}...`);
+                SipdLogger.activity(dtag)(`Disonnected from SocketSolver at ${this.url}...`);
             });
     }
 

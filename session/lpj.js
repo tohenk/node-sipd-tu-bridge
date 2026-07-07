@@ -22,9 +22,10 @@
  * SOFTWARE.
  */
 
-const SipdSession = require('.');
 const SipdNpdKegActivitySelector = require('./activity/npd-keg');
 const SipdNpdSubKegActivitySelector = require('./activity/npd-subkeg');
+const SipdQueue = require('../app/queue');
+const SipdRekananSession = require('./rekanan');
 const { SipdQueryNpd } = require('./query/npd');
 const { SipdQueryTbp } = require('./query/tbp');
 const { By } = require('selenium-webdriver');
@@ -34,7 +35,7 @@ const { By } = require('selenium-webdriver');
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdLpjSession extends SipdSession {
+class SipdLpjSession extends SipdRekananSession {
 
     doInitialize() {
         this.createAfektasi('npd');
@@ -42,14 +43,34 @@ class SipdLpjSession extends SipdSession {
         this.subkegSelector = SipdNpdSubKegActivitySelector;
     }
 
+    /**
+     * Query for NPD.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {object} options Options
+     * @returns {Promise<any>}
+     */
     queryNpd(queue, options) {
         return this.doQuery(new SipdQueryNpd(this.sipd, queue, options || {}));
     }
 
+    /**
+     * Check for NPD.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {object} options Options
+     * @returns {Promise<any>}
+     */
     checkNpd(queue, options = null) {
         return this.queryNpd(queue, {navigates: ['Pengeluaran', 'Pengajuan', 'NPD'], ...(options || {})});
     }
 
+    /**
+     * Create NPD.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     createNpd(queue) {
         const allowChange = this.isEditable(queue);
         return this.works([
@@ -65,6 +86,13 @@ class SipdLpjSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Do NPD approval.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {string} status Status
+     * @returns {Promise<any>}
+     */
     setujuiNpd(queue, status = 'Baru') {
         const allowChange = this.isEditable(queue);
         return this.works([
@@ -79,6 +107,13 @@ class SipdLpjSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Do NPD validation.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {string} status Status
+     * @returns {Promise<any>}
+     */
     validasiNpd(queue, status = 'Persetujuan') {
         const allowChange = this.isEditable(queue);
         return this.works([
@@ -93,14 +128,34 @@ class SipdLpjSession extends SipdSession {
         ]);
     }
 
+    /**
+     * Query for TBP.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {object} options Options
+     * @returns {Promise<any>}
+     */
     queryTbp(queue, options) {
         return this.doQuery(new SipdQueryTbp(this.sipd, queue, options || {}));
     }
 
+    /**
+     * Check for TBP.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {object} options Options
+     * @returns {Promise<any>}
+     */
     checkTbp(queue, options = null) {
         return this.queryTbp(queue, {navigates: ['Pengeluaran', 'TBP', 'UP / GU'], ...(options || {})});
     }
 
+    /**
+     * Create TBP.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
     createTbp(queue) {
         const allowChange = this.isEditable(queue);
         return this.works([

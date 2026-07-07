@@ -33,7 +33,7 @@ const { Sipd } = require('../sipd');
 const { SipdColumnQuery } = require('../sipd/query');
 const { SipdQueryBase } = require('./query');
 const { SipdVoterPegawai } = require('./query/pegawai');
-const { SipdVoterRekanan, SipdQueryRekanan } = require('./query/rekanan');
+const { SipdVoterRekanan } = require('./query/rekanan');
 const { SipdVoterNpd } = require('./query/npd');
 const { By, Key, WebElement } = require('selenium-webdriver');
 const _ = require('./fn');
@@ -1281,7 +1281,13 @@ class SipdSession {
      * @returns {Promise<any>}
      */
     captureScreen(message, data, dir = 'captures') {
-        const f = e => e instanceof Error && e.stack ? e.stack : e.toString();
+        const f = e => {
+            const messages = [e instanceof Error && e.stack ? e.stack : e.toString()];
+            if (e.cause) {
+                messages.push(e.cause.toString());
+            }
+            return messages.join('\n');
+        }
         return this.works([
             [w => this.sipd.driver.takeScreenshot()],
             [w => Promise.resolve(Buffer.from(w.getRes(0), 'base64')), w => w.getRes(0)],
@@ -1290,52 +1296,6 @@ class SipdSession {
             [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(2)}.err`), f(message))), w => w.getRes(0) && message],
             [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(2)}.json`), JSON.stringify(data))), w => w.getRes(0) && data],
         ]);
-    }
-
-    /**
-     * Create partner.
-     *
-     * @param {SipdQueue} queue Queue
-     * @param {boolean} forceEdit 
-     * @returns {Promise<any>}
-     */
-    createRekanan(queue, forceEdit = false) {
-        const allowChange = this.isEditable(queue);
-        return this.works([
-            [w => this.doQuery(new SipdQueryRekanan(this.sipd, queue, {navigates: ['Pengeluaran', 'Daftar Rekanan']}))],
-            [w => this.sipd.gotoPageTop(), w => !w.getRes(0) && allowChange],
-            [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Rekanan"]')), w => !w.getRes(0) && allowChange],
-            [w => queue.values.action.click(), w => w.getRes(0) && forceEdit && allowChange],
-            [w => this.fillForm(queue, 'rekanan',
-                By.xpath('//h1/span[text()="Tambah Rekanan"]/../../../..'),
-                By.xpath('//button[text()="Konfirmasi"]')), w => (!w.getRes(0) || forceEdit) && allowChange],
-            [w => this.sipd.confirmSubmission(By.xpath('//section/footer/button[1]'), {spinner: true}), w => (!w.getRes(0) || forceEdit) && allowChange],
-        ]);
-    }
-
-    /**
-     * List partner.
-     *
-     * @param {SipdQueue} queue Queue
-     * @returns {Promise<object[]>}
-     */
-    listRekanan(queue) {
-        const query = new SipdQueryRekanan(this.sipd, queue, {navigates: ['Pengeluaran', 'Daftar Rekanan']});
-        const f = (el, values, result) => {
-            queue.values = {};
-            const actionCol = query.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
-            return this.works([
-                [w => values[actionCol.name].getAttribute('href')],
-                [w => this.sipd.doOpenInNewTab(w.getRes(0), [
-                    [x => this.fillForm(queue, 'rekanan',
-                        By.xpath('//h1/span[text()="Tambah Rekanan"]/../../../..'),
-                        By.xpath('//button[text()="Kembali"]'))],
-                    [x => Promise.resolve(queue.values)],
-                ])],
-            ], {alwaysResolved: true});
-        }
-        query.actionEnabled = true;
-        return this.doQuery(query, f);
     }
 }
 
