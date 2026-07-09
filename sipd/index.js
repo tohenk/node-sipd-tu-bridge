@@ -1001,6 +1001,9 @@ class Sipd extends WebRobot {
                             case 3:
                                 root = './../../../div/div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div';
                                 break;
+                            case 4:
+                                root = './../../../../div/div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div';
+                                break;
                         }
                         const logged = !levels.includes(level);
                         if (logged) {
