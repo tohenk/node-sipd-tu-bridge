@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+const SipdFn = require('./fn');
 const { Sipd } = require('.');
 const { By } = require('selenium-webdriver');
 
@@ -82,9 +83,10 @@ class SipdQuery {
         if (this._columns === undefined) {
             this._columns = [];
             const tselectors = {
+                [SipdColumnQuery.COL_ACTION]: 'div/button',
+                [SipdColumnQuery.COL_ACTION_URL]: 'div/a',
                 [SipdColumnQuery.COL_STATUS]: '*/*/*/p',
                 [SipdColumnQuery.COL_PROGRESS]: '*/ol/li/*/*[@class="stepProgressBar__step__button__indicator"]',
-                [SipdColumnQuery.COL_ACTION]: 'div/button',
                 [SipdColumnQuery.COL_ICON]: '*/*/*[2]/*[1]',
                 [SipdColumnQuery.COL_ICON2]: '*/*/*[2]/*[2]',
                 [SipdColumnQuery.COL_SINGLE]: '*/*/span',
@@ -150,11 +152,11 @@ class SipdColumnQuery {
         if (typeof fn === 'function') {
             this.normalizer = fn;
         }
-        if (typeof fn === 'string' && typeof this.constructor.normalizers[fn] === 'function') {
-            this.normalizer = this.constructor.normalizers[fn];
+        if (typeof fn === 'string' && typeof SipdFn.normalizers[fn] === 'function') {
+            this.normalizer = SipdFn.normalizers[fn];
         }
-        if (this.normalizer === undefined && this.constructor.normalizers.default) {
-            this.normalizer = this.constructor.normalizers.default;
+        if (this.normalizer === undefined && SipdFn.normalizers.default) {
+            this.normalizer = SipdFn.normalizers.default;
         }
         return this;
     }
@@ -169,11 +171,11 @@ class SipdColumnQuery {
         if (typeof fn === 'function') {
             this.toStr = fn;
         }
-        if (typeof fn === 'string' && typeof this.constructor.stringables[fn] === 'function') {
-            this.toStr = this.constructor.stringables[fn];
+        if (typeof fn === 'string' && typeof SipdFn.stringables[fn] === 'function') {
+            this.toStr = SipdFn.stringables[fn];
         }
-        if (this.toStr === undefined && this.constructor.stringables.default) {
-            this.toStr = this.constructor.stringables.default;
+        if (this.toStr === undefined && SipdFn.stringables.default) {
+            this.toStr = SipdFn.stringables.default;
         }
         return this;
     }
@@ -228,38 +230,15 @@ class SipdColumnQuery {
         return this.tippy ? By.xpath(`./td[${this.idx}]/div[@class="custom-tippy"]/div`) : null;
     }
 
-    /**
-     * Column value normalizer functions.
-     *
-     * @returns {object}
-     */
-    static get normalizers() {
-        if (this._normalizers === undefined) {
-            this._normalizers = {};
-        }
-        return this._normalizers;
-    }
-
-    /**
-     * Column value string representation functions.
-     *
-     * @returns {object}
-     */
-    static get stringables() {
-        if (this._stringables === undefined) {
-            this._stringables = {};
-        }
-        return this._stringables;
-    }
-
-    static get COL_ACTION() { return 0 }
-    static get COL_STATUS() { return 1 }
-    static get COL_PROGRESS() { return 2 }
-    static get COL_ICON() { return 3 }
-    static get COL_ICON2() { return 4 }
-    static get COL_SINGLE() { return 5 }
-    static get COL_TIPPY() { return 6 }
-    static get COL_TWOLINE() { return 7 }
+    static get COL_ACTION() { return 1 }
+    static get COL_ACTION_URL() { return 2 }
+    static get COL_STATUS() { return 3 }
+    static get COL_PROGRESS() { return 4 }
+    static get COL_ICON() { return 5 }
+    static get COL_ICON2() { return 6 }
+    static get COL_SINGLE() { return 7 }
+    static get COL_TIPPY() { return 8 }
+    static get COL_TWOLINE() { return 9 }
 }
 
 module.exports = {

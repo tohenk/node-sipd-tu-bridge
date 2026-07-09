@@ -22,12 +22,18 @@
  * SOFTWARE.
  */
 
+const Queue = require('@ntlab/work/queue');
 const SipdNpdKegActivitySelector = require('./activity/npd-keg');
 const SipdNpdSubKegActivitySelector = require('./activity/npd-subkeg');
 const SipdQueue = require('../app/queue');
 const SipdRekananSession = require('./rekanan');
+const SipdLpjReader = require('./reader/lpj');
+const SipdTbpReader = require('./reader/tbp');
+const { SipdColumnQuery } = require('../sipd/query');
+const { SipdQueryBase } = require('./query');
 const { SipdQueryNpd } = require('./query/npd');
 const { SipdQueryTbp } = require('./query/tbp');
+const { SipdQueryLpj } = require('./query/lpj');
 const { By } = require('selenium-webdriver');
 
 /**
@@ -37,10 +43,68 @@ const { By } = require('selenium-webdriver');
  */
 class SipdLpjSession extends SipdRekananSession {
 
+    partial = 25
+
     doInitialize() {
         this.createAfektasi('npd');
         this.kegSelector = SipdNpdKegActivitySelector;
         this.subkegSelector = SipdNpdSubKegActivitySelector;
+    }
+
+    /**
+     * Create LPJ iterator.
+     *
+     * @param {SipdQueryBase} query
+     * @param {SipdQueue} queue
+     * @returns {Function}
+     */
+    createLpjIterator(query, queue) {
+        const reader = new SipdLpjReader(this.sipd);
+        return (el, values, result) => {
+            if (values?.url) {
+                const url = values.url;
+                delete values.url;
+                return this.works([
+                    [w => query.getRowState(values)],
+                    [w => this.sipd.doOpenInNewTab(url, [
+                        [w => reader.extract()],
+                        [w => new Promise((resolve, reject) => {
+                            const queues = [...w.res.tbp];
+                            const parts = [];
+                            const q = new Queue(queues, tbp => {
+                                const tbpQueue = SipdQueue.createWithMap(queue.maps)
+                                    .setData({
+                                        [queue.getMap('npd.npd:TGL')]: tbp.TBP_TGL,
+                                        [queue.getMap('npd.npd:NOMINAL')]: tbp.TBP_NOM,
+                                        [queue.getMap('npd.npd:UNTUK')]: tbp.TBP_UNTUK,
+                                    });
+                                this.checkTbp(tbpQueue, {detail: true})
+                                    .then(res => {
+                                        Object.assign(tbp, tbpQueue.values[SipdTbpReader.KEY]);
+                                        for (const [p, op] of [['URAIAN', 'TBP_UNTUK'], ['AFEKTASI', 'TBP_NOM']]) {
+                                            if (tbp[p] !== undefined) {
+                                                delete tbp[op];
+                                            }
+                                        }
+                                        if (this.partial) {
+                                            parts.push(tbp);
+                                            if (parts.length === this.partial) {
+                                                queue.sendResult([{...values, [SipdLpjReader.KEY]: parts}]);
+                                                parts.splice(0);
+                                            }
+                                        }
+                                        q.next();
+                                    })
+                                    .catch(err => reject(err));
+                            });
+                            q.once('done', () => resolve({...values, ...w.res}));
+                        })],
+                    ]), w => w.getRes(0)],
+                ], {alwaysResolved: true});
+            } else {
+                return Promise.resolve(values);
+            }
+        }
     }
 
     /**
@@ -136,7 +200,11 @@ class SipdLpjSession extends SipdRekananSession {
      * @returns {Promise<any>}
      */
     queryTbp(queue, options) {
-        return this.doQuery(new SipdQueryTbp(this.sipd, queue, options || {}));
+        const query = new SipdQueryTbp(this.sipd, queue, options || {});
+        if (options.detail) {
+            this.createReader(query, SipdTbpReader);
+        }
+        return this.doQuery(query);
     }
 
     /**
@@ -168,6 +236,20 @@ class SipdLpjSession extends SipdRekananSession {
             [w => this.sipd.confirmSubmission(By.xpath('//button[text()="Tambah Sekarang"]'), {spinner: true}), w => !w.getRes(0) && allowChange],
             [w => this.queryTbp(queue), w => !w.getRes(0) && allowChange],
         ]);
+    }
+
+    /**
+     * List LPJ.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<object[]>}
+     */
+    listLpj(queue) {
+        const query = new SipdQueryLpj(this.sipd, queue, {
+            navigates: ['Pengeluaran', 'LPJ', 'UP / GU', 'Pembuatan'],
+            jenis: 'Diverifikasi',
+        });
+        return this.doQuery(query, this.createLpjIterator(query, queue));
     }
 }
 

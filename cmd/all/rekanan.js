@@ -33,15 +33,15 @@ const SipdQueue = require('../../app/queue');
 class SipdCmdRekanan extends SipdCmd {
 
     consume(payload) {
-        const { socket, data, filename } = payload;
+        const { socket, data, outdir } = payload;
         const [res, queue] = this.dequeue.createQueue({
             mode: this.mode,
             type: SipdQueue.QUEUE_REKANAN,
             data,
             callback: socket?.callback,
         }, true);
-        if (filename) {
-            queue.filename = filename;
+        if (outdir) {
+            queue.outdir = outdir;
         }
         return res;
     }

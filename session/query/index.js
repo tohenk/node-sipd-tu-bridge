@@ -191,13 +191,15 @@ class SipdQueryBase extends SipdQuery {
                 const works = [];
                 switch (col.type) {
                     case SipdColumnQuery.COL_ACTION:
+                    case SipdColumnQuery.COL_ACTION_URL:
                         works.push(...[
-                            [w => this.parent.findElement({el, data: col.xpath})]
+                            [w => this.parent.findElement({el, data: col.xpath})],
+                            [w => w.res.getAttribute('href'), w => w.res && col.type === SipdColumnQuery.COL_ACTION_URL],
                         ]);
                         break;
                     case SipdColumnQuery.COL_PROGRESS:
                         works.push(...[
-                            [w => this.getProgress(el, col.xpath)]
+                            [w => this.getProgress(el, col.xpath)],
                         ]);
                         break;
                     default:
@@ -227,15 +229,14 @@ class SipdQueryBase extends SipdQuery {
     }
 
     /**
-     * Perform row data match.
+     * Evaluate if row values matches data sought.
      *
-     * @param {WebElement} el Row element
-     * @param {Object} values Row values
-     * @param {Object} result Match result
-     * @returns {Promise<any>}
+     * @param {object} values Row values
+     * @returns {Promise<object|undefined>}
      */
-    doMatch(el, values, result) {
+    getRowState(values) {
         return new Promise((resolve, reject) => {
+            const result = {};
             const dbg = (l, s) => `${l} (${s ? '✓' : '✗'})`;
             const f = (...args) => {
                 const res = {
@@ -246,7 +247,7 @@ class SipdQueryBase extends SipdQuery {
                     if (arg[2]) {
                         let okay;
                         if (typeof arg[2] === 'function') {
-                            // 0 -> constant value
+                            // 0 -> ref value
                             // 1 -> row value
                             okay = arg[2](arg[1], arg[0]);
                         } else if (typeof arg[0] === 'string' && typeof arg[1] === 'string') {
@@ -270,10 +271,13 @@ class SipdQueryBase extends SipdQuery {
                 return res;
             }
             const compares = [];
-            for (const [col, value, required] of this.diffs) {
+            for (const [col, value, opt] of this.diffs) {
                 const column = this.columns.find(column => column.name === col);
                 if (column) {
-                    compares.push([column.asString(value), column.asString(values[col]), required !== undefined ? required : true]);
+                    const cmpFnOrRequired = opt !== undefined ? opt : true;
+                    const cmpRef = typeof cmpFnOrRequired === 'function' ? value : column.asString(value);
+                    const cmpVal = typeof cmpFnOrRequired === 'function' ? values[col] : column.asString(values[col]);
+                    compares.push([cmpRef, cmpVal, cmpFnOrRequired]);
                 }
             }
             result.expectedValue = compares
@@ -283,33 +287,52 @@ class SipdQueryBase extends SipdQuery {
             result.statusCol = this.columns.find(column => [SipdColumnQuery.COL_STATUS, SipdColumnQuery.COL_PROGRESS]
                 .includes(column.type));
             result.actionCol = this.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
-            let status;
             if (result.statusCol) {
-                status = values[result.statusCol.name];
+                result.status = values[result.statusCol.name];
             }
             const states = f(...compares);
             const rowstate = `[${states.okay ? '✓' : '✗'}]`;
-            if (status !== undefined) {
-                this.parent.debug(dtag)('Row state:', rowstate, `<${status}>`, ...states.info);
+            if (result.status !== undefined) {
+                this.parent.debug(dtag)('Row state:', rowstate, `<${result.status}>`, ...states.info);
             } else {
                 this.parent.debug(dtag)('Row state:', rowstate, ...states.info);
             }
-            if (states.okay) {
-                result.retval = el;
-                if (this.isActionEnabled() && result.actionCol) {
-                    result.clicker = values[result.actionCol.name];
-                }
-                if (status !== undefined) {
-                    this.data.STATUS = status;
-                }
-                this.data.values = values;
-                if (typeof this.onResult === 'function') {
-                    this.onResult();
-                }
-                reject(new SipdStopError());
-            } else {
-                resolve();
-            }
+            resolve(states.okay ? result : undefined);
+        });
+    }
+
+    /**
+     * Perform row data match.
+     *
+     * @param {WebElement} el Row element
+     * @param {object} values Row values
+     * @param {object} result Match result
+     * @returns {Promise<any>}
+     */
+    doMatch(el, values, result) {
+        return new Promise((resolve, reject) => {
+            this.getRowState(values)
+                .then(res => {
+                    if (res) {
+                        Object.assign(result, res);
+                        result.values = values;
+                        result.retval = el;
+                        if (this.isActionEnabled() && result.actionCol) {
+                            result.clicker = values[result.actionCol.name];
+                        }
+                        if (result.status !== undefined) {
+                            this.data.STATUS = result.status;
+                        }
+                        this.data.values = values;
+                        if (typeof this.onResult === 'function') {
+                            this.onResult();
+                        }
+                        reject(new SipdStopError());
+                    } else {
+                        resolve();
+                    }
+                })
+                .catch(err => reject(err));
         });
     }
 
@@ -317,8 +340,8 @@ class SipdQueryBase extends SipdQuery {
      * Perform row data iteration.
      *
      * @param {WebElement} el Row element
-     * @param {Object} values Row values
-     * @param {Object} result Match result
+     * @param {object} values Row values
+     * @param {object} result Match result
      * @returns {Promise<any>}
      */
     doIterate(el, values, result) {
@@ -326,10 +349,12 @@ class SipdQueryBase extends SipdQuery {
             if (result.retval === undefined) {
                 result.retval = [];
             }
-            if (this.isActionEnabled() && typeof this.onIterate === 'function') {
+            if (typeof this.onIterate === 'function') {
                 this.onIterate(el, values, result)
                     .then(res => {
-                        result.retval.push(res);
+                        if (res) {
+                            result.retval.push(res);
+                        }
                         if (this.restartOnIterate) {
                             reject(new SipdRestartError());
                         } else {
@@ -385,7 +410,13 @@ class SipdQueryBase extends SipdQuery {
                 switch (this.mode) {
                     case SipdQueryBase.MODE_MATCH:
                         if (!this.actionEnabled) {
-                            resolve(res.retval);
+                            if (typeof this.onAction === 'function') {
+                                this.onAction(res)
+                                    .then(() => resolve(res.retval))
+                                    .catch(err => reject(err));
+                            } else {
+                                resolve(res.retval);
+                            }
                         } else if (res.clicker) {
                             res.clicker.click()
                                 .then(() => resolve())

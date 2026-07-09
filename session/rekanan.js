@@ -24,6 +24,7 @@
 
 const SipdQueue = require('../app/queue');
 const SipdSession = require('.');
+const { SipdQueryBase } = require('./query');
 const { SipdQueryRekanan } = require('./query/rekanan');
 const { By } = require('selenium-webdriver');
 
@@ -33,6 +34,31 @@ const { By } = require('selenium-webdriver');
  * @author Toha <tohenk@yahoo.com>
  */
 class SipdRekananSession extends SipdSession {
+
+    /**
+     * Create partner iterator.
+     *
+     * @param {SipdQueryBase} query
+     * @param {SipdQueue} queue
+     * @returns {Function}
+     */
+    createRekananIterator(query, queue) {
+        return (el, values, result) => {
+            queue.values = {};
+            if (values?.url) {
+                return this.works([
+                    [w => this.sipd.doOpenInNewTab(values.url, [
+                        [x => this.fillForm(queue, 'rekanan',
+                            By.xpath('//h1/span[text()="Tambah Rekanan"]/../../../..'),
+                            By.xpath('//button[text()="Kembali"]'))],
+                        [x => Promise.resolve(queue.values)],
+                    ])],
+                ], {alwaysResolved: true});
+            } else {
+                return Promise.resolve(queue.values);
+            }
+        }
+    }
 
     /**
      * Create partner.
@@ -63,21 +89,7 @@ class SipdRekananSession extends SipdSession {
      */
     listRekanan(queue) {
         const query = new SipdQueryRekanan(this.sipd, queue, {navigates: ['Pengeluaran', 'Daftar Rekanan']});
-        const f = (el, values, result) => {
-            queue.values = {};
-            const actionCol = query.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
-            return this.works([
-                [w => values[actionCol.name].getAttribute('href')],
-                [w => this.sipd.doOpenInNewTab(w.getRes(0), [
-                    [x => this.fillForm(queue, 'rekanan',
-                        By.xpath('//h1/span[text()="Tambah Rekanan"]/../../../..'),
-                        By.xpath('//button[text()="Kembali"]'))],
-                    [x => Promise.resolve(queue.values)],
-                ])],
-            ], {alwaysResolved: true});
-        }
-        query.actionEnabled = true;
-        return this.doQuery(query, f);
+        return this.doQuery(query, this.createRekananIterator(query, queue));
     }
 }
 

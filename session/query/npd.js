@@ -91,7 +91,7 @@ class SipdQueryNpd extends SipdVoterNpd {
             const tgl = SipdUtil.getDate(this.data.getMappedData('npd.npd:TGL'));
             const nominal = this.data.getMappedData('npd.npd:NOMINAL');
             const untuk = SipdUtil.getSafeStr(this.data.getMappedData('npd.npd:UNTUK'));
-            this.filter = [untuk];
+            this.filter = [() => SipdUtil.escapeTerm(untuk, true)];
             this.diffs = [
                 ['tgl', tgl],
                 ['untuk', untuk],

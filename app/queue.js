@@ -118,6 +118,9 @@ class SipdDequeue extends EventEmitter {
             case SipdQueue.QUEUE_LPJ_QUERY:
                 queue = SipdQueue.createLpjQueryQueue(data.data, data.callback);
                 break;
+            case SipdQueue.QUEUE_LPJ_LIST:
+                queue = SipdQueue.createLpjListQueue(data.data, data.callback);
+                break;
             case SipdQueue.QUEUE_REKANAN:
                 queue = SipdQueue.createRekananQueue(data.data, data.callback);
                 break;
@@ -631,6 +634,7 @@ class SipdBridgeConsumer extends SipdConsumer
             SipdQueue.QUEUE_SPP_QUERY,
             SipdQueue.QUEUE_LPJ,
             SipdQueue.QUEUE_LPJ_QUERY,
+            SipdQueue.QUEUE_LPJ_LIST,
             SipdQueue.QUEUE_REKANAN,
             SipdQueue.QUEUE_CAPTCHA,
             SipdQueue.QUEUE_NOOP,
@@ -705,6 +709,8 @@ class SipdBridgeConsumer extends SipdConsumer
                 return this.bridge.createLpj(queue);
             case SipdQueue.QUEUE_LPJ_QUERY:
                 return this.bridge.queryLpj(queue);
+            case SipdQueue.QUEUE_LPJ_LIST:
+                return this.bridge.listLpj(queue);
             case SipdQueue.QUEUE_REKANAN:
                 return this.bridge.queryRekanan(queue);
             case SipdQueue.QUEUE_CAPTCHA:
@@ -814,72 +820,86 @@ class SipdQueue
      * Set queue type.
      *
      * @param {string} type Queue type
+     * @returns {this}
      */
     setType(type) {
         this.type = type;
+        return this;
     }
 
     /**
      * Set queue id.
      *
      * @param {string} id Queue id
+     * @returns {this}
      */
     setId(id) {
         this.id = id;
+        return this;
     }
 
     /**
      * Set queue data.
      *
      * @param {object} data Queue data
+     * @returns {this}
      */
     setData(data) {
         this.data = data;
+        return this;
     }
 
     /**
      * Set queue callback.
      *
      * @param {string} callback Queue callback
+     * @returns {this}
      */
     setCallback(callback) {
         this.callback = callback;
+        return this;
     }
 
     /**
      * Set queue status.
      *
      * @param {string} status Queue status
+     * @returns {this}
      */
     setStatus(status) {
         if (this.status !== status) {
             this.status = status;
             SipdLogger.activity(dtag)('Queue %s %s', this.toString(), this.getStatusText());
         }
+        return this;
     }
 
     /**
      * Set queue result.
      *
      * @param {any} result Queue result
+     * @returns {this}
      */
     setResult(result) {
         if (this.result !== result) {
             this.result = result;
             SipdLogger.activity(dtag)('Queue %s result: %s', this.toString(), SipdUtil.toStr(result));
         }
+        return this;
     }
 
     /**
      * Set queue time.
      *
      * @param {Date} time Queue time
+     * @returns {this}
      */
     setTime(time) {
         if (time === null || time === undefined) {
             time = new Date();
         }
         this.time = time;
+        return this;
     }
 
     /**
@@ -1090,6 +1110,37 @@ class SipdQueue
     }
 
     /**
+     * Send result to callback or save to file.
+     *
+     * @param {any} result
+     * @returns {this}
+     */
+    sendResult(result, dest) {
+        if (result) {
+            if (dest) {
+                let queue;
+                if (dest.match(/^(http(s)?:\/\/)/)) {
+                    queue = SipdQueue.createCallbackQueue(result, dest);
+                } else {
+                    const stat = fs.statSync(dest);
+                    if (stat && stat.isDirectory()) {
+                        const Util = require('@ntlab/ntlib/util');
+                        const filename = path.join(dest, `${this.type}-${Util.formatDate(new Date(), 'yyyyMMddHHmmsszzz')}.json`);
+                        fs.writeFileSync(filename, JSON.stringify(result));
+                        console.log(`Result saved to ${filename}...`);
+                    }
+                }
+                if (queue) {
+                    SipdQueue.addQueue(queue);
+                }
+            } else if (this.callback || this.outdir) {
+                this.sendResult(result, this.callback || this.outdir);
+            }
+        }
+        return this;
+    }
+
+    /**
      * Compare queue for sorting.
      *
      * @param {SipdQueue} queue Queue to compare
@@ -1224,6 +1275,17 @@ class SipdQueue
     }
 
     /**
+     * Create LPJ LIST queue.
+     *
+     * @param {object} data Queue data
+     * @param {string} callback Queue callback
+     * @returns {SipdQueue}
+     */
+    static createLpjListQueue(data, callback = null) {
+        return this.create(SipdQueue.QUEUE_LPJ_LIST, data, callback);
+    }
+
+    /**
      * Create REKANAN queue.
      *
      * @param {object} data Queue data
@@ -1329,6 +1391,14 @@ class SipdQueue
         const metadata = this.QUEUE_METADATA;
         if (typeof metadata[type] === 'string') {
             return metadata[type].includes(flag) ? true : false;
+        } else {
+            if (this.notices === undefined) {
+                this.notices = {};
+            }
+            if (this.notices[type] === undefined) {
+                this.notices[type] = true;
+                console.warn(`Queue metadata ${type} is not defined, add metadata in QUEUE_METADATA first!`);
+            }
         }
         return false;
     }
@@ -1344,7 +1414,9 @@ class SipdQueue
             [this.QUEUE_SPP_QUERY]: 'emu-',
             [this.QUEUE_LPJ]: 'emru',
             [this.QUEUE_LPJ_QUERY]: 'emu-',
+            [this.QUEUE_LPJ_LIST]: 'emu-',
             [this.QUEUE_REKANAN]: 'em-',
+            [this.QUEUE_CLEAN]: '',
         }
     }
 
@@ -1352,6 +1424,7 @@ class SipdQueue
     static get QUEUE_SPP_QUERY() { return 'spp-query' }
     static get QUEUE_LPJ() { return 'lpj' }
     static get QUEUE_LPJ_QUERY() { return 'lpj-query' }
+    static get QUEUE_LPJ_LIST() { return 'lpj-list' }
     static get QUEUE_REKANAN() { return 'rekanan' }
     static get QUEUE_CALLBACK() { return 'callback' }
     static get QUEUE_CAPTCHA() { return 'captcha' }

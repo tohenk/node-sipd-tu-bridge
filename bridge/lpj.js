@@ -136,6 +136,24 @@ class SipdBridgeLpj extends SipdBridgeHandler {
             onResult: this._onResult,
         });
     }
+
+    /**
+     * Do list LPJ task.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
+    listLpj(queue) {
+        const sess = SipdLpjSession;
+        return this.bridge.processQueue({
+            queue,
+            works: [
+                ['bp', w => this.bridge.doAs(SipdRole.BP, sess)],
+                ['bp-login', w => w.bp.login()],
+                ['bp-lpj', w => w.bp.listLpj(queue)],
+            ],
+        });
+    }
 }
 
 module.exports = SipdBridgeLpj;

@@ -100,6 +100,7 @@ class SipdQueryRekanan extends SipdVoterRekanan {
 
     doPostInitialize() {
         this.defaultColumns.action.selector = './td[4]/a';
+        this.defaultColumns.url = {type: SipdColumnQuery.COL_ACTION_URL, selector: './td[4]/a'};
     }
 }
 

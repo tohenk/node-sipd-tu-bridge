@@ -26,38 +26,25 @@ const SipdCmd = require('..');
 const SipdQueue = require('../../app/queue');
 
 /**
- * Handle SPP query.
+ * Handle LPJ list.
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdCmdSppQuery extends SipdCmd {
+class SipdCmdLpjList extends SipdCmd {
 
     consume(payload) {
-        let result;
         const { socket, data, outdir } = payload;
-        const batch = Array.isArray(data.items);
-        const items = batch ? data.items : [data];
-        let cnt = 0;
-        items.forEach(spp => {
-            const [res, queue] = this.dequeue.createQueue({
-                mode: this.mode,
-                type: SipdQueue.QUEUE_SPP_QUERY,
-                data: spp,
-                callback: socket?.callback,
-            }, true);
-            cnt++;
-            if (!batch) {
-                if (outdir) {
-                    queue.outdir = outdir;
-                }
-                result = res;
-            }
-        });
-        if (batch) {
-            result = {count: cnt, message: 'SPP query is being queued'};
+        const [res, queue] = this.dequeue.createQueue({
+            mode: this.mode,
+            type: SipdQueue.QUEUE_LPJ_LIST,
+            data,
+            callback: socket?.callback,
+        }, true);
+        if (outdir) {
+            queue.outdir = outdir;
         }
-        return result;
+        return res;
     }
 }
 
-module.exports = SipdCmdSppQuery;
+module.exports = SipdCmdLpjList;

@@ -32,11 +32,11 @@ const Util = require('@ntlab/ntlib/util');
 const { Sipd } = require('../sipd');
 const { SipdColumnQuery } = require('../sipd/query');
 const { SipdQueryBase } = require('./query');
+const { SipdReader } = require('./reader');
 const { SipdVoterPegawai } = require('./query/pegawai');
 const { SipdVoterRekanan } = require('./query/rekanan');
 const { SipdVoterNpd } = require('./query/npd');
 const { By, Key, WebElement } = require('selenium-webdriver');
-const _ = require('./fn');
 
 const dtag = 'session';
 
@@ -313,6 +313,33 @@ class SipdSession {
      */
     getRetry(queue) {
         return Array.isArray(queue.files) && queue.files.length ? 3 : 0;
+    }
+
+    /**
+     * Create a reader for handle query action.
+     *
+     * @param {SipdQueryBase} query
+     * @param {typeof SipdReader} readerClass
+     */
+    createReader(query, readerClass) {
+        const reader = new readerClass(this.sipd);
+        query.onAction = result => {
+            if (result?.values?.url) {
+                const url = result.values.url;
+                delete result.values.url;
+                return this.works([
+                    [w => this.sipd.doOpenInNewTab(url, [
+                        [w => reader.extract()],
+                        [w => new Promise((resolve, reject) => {
+                            Object.assign(result.values, w.res);
+                            resolve();
+                        })],
+                    ])],
+                ], {alwaysResolved: true});
+            } else {
+                return Promise.resolve();
+            }
+        }
     }
 
     /**

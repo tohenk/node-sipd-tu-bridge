@@ -37,6 +37,7 @@ const SipdBridgeUtil = require('../bridge/util');
 const SipdCmd = require('../cmd');
 const SipdLogger = require('../sipd/logger');
 const SipdQueue = require('./queue');
+const SipdUtil = require('../sipd/util');
 const Queue = require('@ntlab/work/queue');
 const Work = require('@ntlab/work/work');
 const { SipdBridge } = require('../bridge');
@@ -422,7 +423,7 @@ class App {
             const queue = SipdQueue.createWithMap(this.config.maps[Configuration.BRIDGE_SPP]);
             data[queue.getMap('info.role')] = args[0];
             data[queue.getMap('info.check')] = args[1];
-            opts.filename = Cmd.get('out') ?? path.join(this.config.workdir, 'out.json');
+            opts.outdir = Cmd.get('out') ?? this.config.workdir;
         } else {
             error = 'SPP query requires KEG and SPP/SPM/SP2D number!';
         }
@@ -430,11 +431,27 @@ class App {
     }
 
     /**
-     * Do LPJ operation (dummy).
+     * Do LPJ operation.
      *
      * @param  {...any} args Arguments
      */
     doLpjOp(...args) {
+        let command = 'lpj:list', data = {}, opts = {}, error;
+        if (args.length === 2) {
+            const queue = SipdQueue.createWithMap(this.config.maps[Configuration.BRIDGE_LPJ]);
+            data[queue.getMap('info.role')] = args[0];
+            const date = args[1].split('~');
+            if (date.length === 2) {
+                data['LPJ_START'] = SipdUtil.getDate(date[0]);
+                data['LPJ_END'] = SipdUtil.getDate(date[1]);
+                opts.outdir = Cmd.get('out') ?? this.config.workdir;
+            } else {
+                error = 'Date range required, eg. 2026-01-01~2026-01-31!';
+            }
+        } else {
+            error = 'LPJ list requires KEG and date range (delimited by ~)!';
+        }
+        return [false, command, data, opts, error];
     }
 
     /**
@@ -460,7 +477,7 @@ class App {
                     if (args.length > 1) {
                         data[queue.getMap('info.nik')] = args[1];
                     }
-                    opts.filename = Cmd.get('out') ?? path.join(this.config.workdir, 'out.json');
+                    opts.outdir = Cmd.get('out') ?? this.config.workdir;
                 } else {
                     error = 'Partner utility requires KEG and an optional NIK!';
                 }

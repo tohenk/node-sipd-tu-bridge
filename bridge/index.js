@@ -536,11 +536,10 @@ class SipdBridge {
                     [res, reply] = onResult(queue, res);
                 }
                 if (reply && queue.callback) {
-                    const callbackQueue = SipdQueue.createCallbackQueue(reply, queue.callback);
-                    SipdQueue.addQueue(callbackQueue);
+                    queue.sendResult(reply, queue.callback);
                 }
-                if (res && queue.filename) {
-                    fs.writeFileSync(queue.filename, JSON.stringify(res));
+                if (res && queue.outdir) {
+                    queue.sendResult(res, queue.outdir);
                 }
                 resolve(res ? res : false);
             })],

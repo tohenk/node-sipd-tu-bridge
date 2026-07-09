@@ -22,42 +22,29 @@
  * SOFTWARE.
  */
 
-const SipdCmd = require('..');
-const SipdQueue = require('../../app/queue');
+const { SipdReader, SipdReaderBase } = require('.');
 
 /**
- * Handle SPP query.
+ * Reads page and extract data information within.
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdCmdSppQuery extends SipdCmd {
+class SipdLpjReader extends SipdReader {
 
-    consume(payload) {
-        let result;
-        const { socket, data, outdir } = payload;
-        const batch = Array.isArray(data.items);
-        const items = batch ? data.items : [data];
-        let cnt = 0;
-        items.forEach(spp => {
-            const [res, queue] = this.dequeue.createQueue({
-                mode: this.mode,
-                type: SipdQueue.QUEUE_SPP_QUERY,
-                data: spp,
-                callback: socket?.callback,
-            }, true);
-            cnt++;
-            if (!batch) {
-                if (outdir) {
-                    queue.outdir = outdir;
-                }
-                result = res;
+    initialize() {
+        this.addReader('table', SipdLpjReader.KEY, {
+            readAs: SipdReaderBase.AS_COLLECTION,
+            pageIndex: 2,
+            normalize: {
+                TBP: {label: 'Nomor TBP'},
+                TBP_TGL: {label: 'Tanggal TBP', normalizer: 'tgl'},
+                TBP_UNTUK: {label: 'Keterangan TBP'},
+                TBP_NOM: {label: 'Nilai TBP', normalizer: 'nom'},
             }
         });
-        if (batch) {
-            result = {count: cnt, message: 'SPP query is being queued'};
-        }
-        return result;
     }
+
+    static get KEY() { return 'tbp' }
 }
 
-module.exports = SipdCmdSppQuery;
+module.exports = SipdLpjReader;

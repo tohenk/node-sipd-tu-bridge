@@ -27,42 +27,37 @@ const { SipdColumnQuery } = require('../../sipd/query');
 const SipdUtil = require('../../sipd/util');
 
 /**
- * Handles TBP data paging.
+ * Handles LPJ data paging.
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdQueryTbp extends SipdQueryBase {
+class SipdQueryLpj extends SipdQueryBase {
 
     doInitialize() {
-        this.options.title = 'Tanda Bukti Pembayaran';
-        this.placeholder = 'tujuan pembayaran';
-        this.pageOptions = {filter: this.getFilterSelector()};
+        this.options.title = 'Laporan Pertanggung Jawaban';
+        this.group = this.options.jenis;
         this.defaultColumns = {
             no: 1,
             tgl: 2,
-            untuk: [3, SipdColumnQuery.COL_SINGLE, true],
-            nom: 6,
+            nom: 5,
             url: {type: SipdColumnQuery.COL_ACTION_URL, selector: './/a/span/p[text()="Cetak"]/../..'},
         }
-        const nomor = SipdQueryTbp.TBP;
-        const tgl = SipdUtil.getDate(this.data.getMappedData('npd.npd:TGL'));
-        const nominal = this.data.getMappedData('npd.npd:NOMINAL');
-        const untuk = SipdUtil.getSafeStr(this.data.getMappedData('npd.npd:UNTUK'));
-        this.filter = [() => SipdUtil.escapeTerm(untuk, true)];
+        const nomor = SipdQueryLpj.LPJ;
+        const tgl = [
+            SipdUtil.getDate(this.data.getDataValue('LPJ_START')),
+            SipdUtil.getDate(this.data.getDataValue('LPJ_END'))
+        ];
         this.diffs = [
-            ['tgl', tgl],
-            ['untuk', untuk],
-            ['nom', nominal],
+            ['tgl', tgl, SipdUtil.isDateInRange.bind(SipdUtil)],
         ];
         this.onResult = () => {
             this.data[`${nomor}`] = this.data.values.no;
             this.data[`${nomor}_TGL`] = this.data.values.tgl;
-            this.data[`${nomor}_UNTUK`] = this.data.values.untuk;
             this.data[`${nomor}_NOM`] = this.data.values.nom;
         }
     }
 
-    static get TBP() { return 'TBP' }
+    static get LPJ() { return 'LPJ' }
 }
 
-module.exports = { SipdQueryTbp };
+module.exports = { SipdQueryLpj };

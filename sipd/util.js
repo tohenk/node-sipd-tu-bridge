@@ -195,6 +195,24 @@ class SipdUtil {
     }
 
     /**
+     * Check if date is in range?
+     *
+     * @param {Date} date Date to check
+     * @param {Date[]} range Date ranges
+     * @returns {boolean}
+     */
+    static isDateInRange(date, range) {
+        date = this.getDate(date);
+        const start = this.getDate(range[0]);
+        const end = this.getDate(range[1]);
+        if (start && end) {
+            return date.getTime() >= start.getTime() && date.getTime() <= end.getTime() ?
+                true : false;
+        }
+        return false;
+    }
+
+    /**
      * Pick the number only of number string.
      *
      * @param {string} s The number string
