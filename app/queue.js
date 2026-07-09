@@ -1116,7 +1116,7 @@ class SipdQueue
      * @returns {this}
      */
     sendResult(result, dest) {
-        if (result) {
+        if ((Array.isArray(result) && result.length) || (typeof result === 'object' && Object.keys(result).length)) {
             if (dest) {
                 let queue;
                 if (dest.match(/^(http(s)?:\/\/)/)) {
