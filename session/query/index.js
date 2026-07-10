@@ -191,10 +191,14 @@ class SipdQueryBase extends SipdQuery {
                 const works = [];
                 switch (col.type) {
                     case SipdColumnQuery.COL_ACTION:
+                        works.push(...[
+                            [w => this.parent.findElement({el, data: col.xpath})],
+                        ]);
+                        break;
                     case SipdColumnQuery.COL_ACTION_URL:
                         works.push(...[
                             [w => this.parent.findElement({el, data: col.xpath})],
-                            [w => w.res.getAttribute('href'), w => w.res && col.type === SipdColumnQuery.COL_ACTION_URL],
+                            [w => w.res.getAttribute('href')],
                         ]);
                         break;
                     case SipdColumnQuery.COL_PROGRESS:
