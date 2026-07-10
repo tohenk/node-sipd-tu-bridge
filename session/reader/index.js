@@ -90,7 +90,7 @@ class SipdReader {
             [w => this.parent.waitForPresence(
                 By.xpath('//div[contains(@class,"real-frame-pdf")]/div[@class="cetak"]')
             )],
-            [w => this.parent.sleep(this.parent.animdelay)],
+            [w => this.parent.sleep(this.parent.animdelay), w => w.getRes(0)],
             [w => new Promise((resolve, reject) => {
                 const values = {};
                 const readers = [...this.readers];
@@ -128,7 +128,7 @@ class SipdReader {
                         .catch(err => reject(err));
                 });
                 q.once('done', () => resolve(values));
-            })],
+            }), w => w.getRes(0)],
         ]);
     }
 }

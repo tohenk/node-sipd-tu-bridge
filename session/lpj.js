@@ -36,6 +36,8 @@ const { SipdQueryTbp } = require('./query/tbp');
 const { SipdQueryLpj } = require('./query/lpj');
 const { By } = require('selenium-webdriver');
 
+const dtag = 'lpjsession';
+
 /**
  * Provides LPJ functionality.
  *
@@ -92,8 +94,12 @@ class SipdLpjSession extends SipdRekananSession {
                                         q.next();
                                     })
                                     .catch(err => {
-                                        this.debug()(`TBP error: ${err}!`);
-                                        q.next();
+                                        this.sipd.isContinueable()
+                                            .then(() => {
+                                                this.debug(dtag)(`TBP error: ${err}!`);
+                                                q.next();
+                                            })
+                                            .catch(err => q.done());
                                     });
                             });
                             q.once('done', () => resolve({...values, ...w.res}));

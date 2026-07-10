@@ -45,7 +45,7 @@ class SipdComponent {
         /** @type {Sipd} */
         this.parent = parent;
         this.options = options;
-        this.works = this.parent.works;
+        this.works = this.parent.works.bind(this.parent);
         this.initialize();
         this.components = [];
         for (const factory of this._subComponents) {

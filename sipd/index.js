@@ -151,8 +151,7 @@ class Sipd extends WebRobot {
      */
     doPreLogin() {
         return this.works([
-            [w => this.isWafError()],
-            [w => this.isInMaintenance()],
+            [w => this.isContinueable(null, false)],
             [w => this.gotoPenatausahaan()],
             [w => this.dismissAnnouncement()],
         ]);
@@ -200,7 +199,7 @@ class Sipd extends WebRobot {
                             spinner: true,
                             prefillCallback: () => this.waitCaptcha(),
                             retry: 3,
-                            isretryable: err => err.includes('Gagal memproses permintaan'),
+                            isretryable: err => typeof err === 'string' && err.includes('Gagal memproses permintaan'),
                         }
                     )
                     .then(() => resolve())
@@ -544,6 +543,24 @@ class Sipd extends WebRobot {
         return this.works([
             [w => this.waitForPresence(By.xpath('//h1[contains(@class,"css-n-ca-jf-qawac") and text()="Maintenance"]'), {timeout: this.delay})],
             [w => Promise.reject('SIPD Penatausahaan is in maintenance!'), w => w.getRes(0)],
+        ]);
+    }
+
+    /**
+     * Check if operation is continueable?
+     *
+     * @param {Error} err Error object
+     * @param {boolean} secured Is require secure context
+     * @returns {Promise<any>}
+     */
+    isContinueable(err, secured = true) {
+        return this.works([
+            [w => Promise.reject('Window has been closed!'),
+                w => err && (err instanceof error.NoSuchWindowError || err instanceof error.NoSuchSessionError)],
+            [w => this.isWafError()],
+            [w => this.isInMaintenance()],
+            [w => this.isLoggedIn(), w => secured],
+            [w => Promise.reject('Not logged in!'), w => secured && !w.getRes(3)],
         ]);
     }
 
@@ -1110,7 +1127,7 @@ class Sipd extends WebRobot {
             [w => this.openInNewTab(url)],
             ...works,
         ], {
-            done: (w, err) => this.closeTab(),
+            onDone: (w, err) => this.closeTab(),
         });
     }
 

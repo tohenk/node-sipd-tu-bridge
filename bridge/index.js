@@ -103,7 +103,7 @@ class SipdBridge {
         this.stopSessionEarly = this.options.stopSessionEarly !== undefined ? this.options.stopSessionEarly : true;
         this.loginfo = {
             tag: this.name,
-            onerror: () => SipdLogger.logger('error', this.loginfo),
+            onError: () => SipdLogger.logger('error', this.loginfo),
         }
     }
 
@@ -332,18 +332,18 @@ class SipdBridge {
      * @see Work.works
      */
     works(w, options) {
+        options = options || {};
+        options.loginfo = this.loginfo;
+        options.onWork = (worker, w) => {
+            if (worker.name && worker.name.includes('-')) {
+                const role = worker.name.substr(0, worker.name.indexOf('-'));
+                if ([SipdRole.BP, SipdRole.PA, SipdRole.PPK, SipdRole.PPTK].includes(role)) {
+                    this.loginfo.action = worker.name.substr(worker.name.indexOf('-') + 1);
+                }
+            }
+        }
         return new Promise((resolve, reject) => {
-            Work.works(w, Sipd.WorkErrorLogger.create(this.loginfo).onerror({
-                    onwork: (worker, w) => {
-                        if (worker.name && worker.name.includes('-')) {
-                            const role = worker.name.substr(0, worker.name.indexOf('-'));
-                            if ([SipdRole.BP, SipdRole.PA, SipdRole.PPK, SipdRole.PPTK].includes(role)) {
-                                this.loginfo.action = worker.name.substr(worker.name.indexOf('-') + 1);
-                            }
-                        }
-                    },
-                    ...(options || {})
-                }))
+            Work.works(w, options)
                 .then(res => resolve(res))
                 .catch(err => {
                     if (err instanceof error.WebDriverError && err.message.includes('net::ERR_CONNECTION_TIMED_OUT')) {
