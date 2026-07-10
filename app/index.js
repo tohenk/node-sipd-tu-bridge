@@ -332,8 +332,7 @@ class App {
                     } else {
                         console.error('Self test reaches an error!');
                     }
-                })
-            ;
+                });
             this.checkReadiness();
         });
     }
@@ -423,7 +422,7 @@ class App {
             const queue = SipdQueue.createWithMap(this.config.maps[Configuration.BRIDGE_SPP]);
             data[queue.getMap('info.role')] = args[0];
             data[queue.getMap('info.check')] = args[1];
-            opts.outdir = Cmd.get('out') ?? this.config.workdir;
+            opts.outdir = this.config.outdir;
         } else {
             error = 'SPP query requires KEG and SPP/SPM/SP2D number!';
         }
@@ -444,7 +443,7 @@ class App {
             if (date.length === 2) {
                 data['LPJ_START'] = SipdUtil.getDate(date[0]);
                 data['LPJ_END'] = SipdUtil.getDate(date[1]);
-                opts.outdir = Cmd.get('out') ?? this.config.workdir;
+                opts.outdir = this.config.outdir;
             } else {
                 error = 'Date range required, eg. 2026-01-01~2026-01-31!';
             }
@@ -477,7 +476,7 @@ class App {
                     if (args.length > 1) {
                         data[queue.getMap('info.nik')] = args[1];
                     }
-                    opts.outdir = Cmd.get('out') ?? this.config.workdir;
+                    opts.outdir = this.config.outdir;
                 } else {
                     error = 'Partner utility requires KEG and an optional NIK!';
                 }

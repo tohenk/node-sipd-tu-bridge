@@ -39,7 +39,7 @@ Cmd.addBool('clean', '', 'Clean profile directory');
 Cmd.addBool('queue', 'q', 'Enable queue saving and loading');
 Cmd.addBool('noop', '', 'Do not process queue');
 Cmd.addVar('count', '', 'Limit number of operation such as when fetching captcha', 'number');
-Cmd.addVar('out', '', 'Set the output filename for certain operation', 'filename');
+Cmd.addVar('out', '', 'Set the output directory for certain operation', 'directory');
 
 /**
  * Application configuration.
@@ -64,9 +64,10 @@ class Configuration {
             }
             Object.assign(this, config);
         }
-        for (const c of ['mode', 'url']) {
-            if (Cmd.get(c)) {
-                this[c] = Cmd.get(c);
+        for (const c of ['mode', 'url', ['out', 'outdir']]) {
+            const [cmd, prop] = Array.isArray(c) ? c : [c, c];
+            if (Cmd.get(cmd)) {
+                this[prop] = Cmd.get(cmd);
             }
         }
         if (fs.existsSync(filename)) {
@@ -125,6 +126,7 @@ class Configuration {
         const defaults = {
             ui: '@ntlab/sipd-tu-bridge-ui',
             sessiondir: path.join(this.workdir, Configuration.SESSION_DIR),
+            outdir: path.join(this.workdir, Configuration.OUT_DIR),
             tmpdirname: Configuration.TMP_DIR,
             capturedirname: Configuration.CAPTURE_DIR,
         }
@@ -290,6 +292,7 @@ class Configuration {
     static get LOG_DIR() { return 'logs' }
     static get CAPTURE_DIR() { return 'captures' }
     static get SESSION_DIR() { return 'sessions' }
+    static get OUT_DIR() { return 'out' }
     static get TMP_DIR() { return 'tmp' }
 }
 
