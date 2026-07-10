@@ -35,8 +35,6 @@ class SipdQueryTbp extends SipdQueryBase {
 
     doInitialize() {
         this.options.title = 'Tanda Bukti Pembayaran';
-        this.placeholder = 'tujuan pembayaran';
-        this.pageOptions = {filter: this.getFilterSelector()};
         this.defaultColumns = {
             no: 1,
             tgl: 2,
@@ -45,15 +43,23 @@ class SipdQueryTbp extends SipdQueryBase {
             url: {type: SipdColumnQuery.COL_ACTION_URL, selector: './/a/span/p[text()="Cetak"]/../..'},
         }
         const nomor = SipdQueryTbp.TBP;
+        const no = this.data.getMappedData('info.tbp');
         const tgl = SipdUtil.getDate(this.data.getMappedData('npd.npd:TGL'));
         const nominal = this.data.getMappedData('npd.npd:NOMINAL');
         const untuk = SipdUtil.getSafeStr(this.data.getMappedData('npd.npd:UNTUK'));
-        this.filter = [() => SipdUtil.escapeTerm(untuk, true)];
+        if (no) {
+            this.placeholder = 'nomor dokumen';
+            this.filter = [no];
+        } else {
+            this.placeholder = 'tujuan pembayaran';
+            this.filter = [() => SipdUtil.escapeTerm(untuk, true)];
+        }
         this.diffs = [
             ['tgl', tgl],
             ['untuk', untuk],
             ['nom', nominal],
         ];
+        this.pageOptions = {filter: this.getFilterSelector()};
         this.onResult = () => {
             this.data[`${nomor}`] = this.data.values.no;
             this.data[`${nomor}_TGL`] = this.data.values.tgl;

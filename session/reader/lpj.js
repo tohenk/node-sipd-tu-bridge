@@ -36,10 +36,10 @@ class SipdLpjReader extends SipdReader {
             readAs: SipdReaderBase.AS_COLLECTION,
             pageIndex: 2,
             normalize: {
-                TBP: {label: 'Nomor TBP'},
-                TBP_TGL: {label: 'Tanggal TBP', normalizer: 'tgl'},
-                TBP_UNTUK: {label: 'Keterangan TBP'},
-                TBP_NOM: {label: 'Nilai TBP', normalizer: 'nom'},
+                NO_TBP: {label: 'Nomor TBP'},
+                TGL_TBP: {label: 'Tanggal TBP', normalizer: 'tgl'},
+                URAIAN: {label: 'Keterangan TBP'},
+                AFEKTASI: {label: 'Nilai TBP', normalizer: 'nom'},
             }
         });
     }

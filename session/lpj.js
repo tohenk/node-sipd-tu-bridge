@@ -74,18 +74,14 @@ class SipdLpjSession extends SipdRekananSession {
                             const q = new Queue(queues, tbp => {
                                 const tbpQueue = SipdQueue.createWithMap(queue.maps)
                                     .setData({
-                                        [queue.getMap('npd.npd:TGL')]: tbp.TBP_TGL,
-                                        [queue.getMap('npd.npd:NOMINAL')]: tbp.TBP_NOM,
-                                        [queue.getMap('npd.npd:UNTUK')]: tbp.TBP_UNTUK,
+                                        [queue.getMap('info.tbp')]: tbp.NO_TBP,
+                                        [queue.getMap('npd.npd:TGL')]: tbp.TGL_TBP,
+                                        [queue.getMap('npd.npd:NOMINAL')]: tbp.AFEKTASI,
+                                        [queue.getMap('npd.npd:UNTUK')]: tbp.URAIAN,
                                     });
                                 this.checkTbp(tbpQueue, {detail: true})
                                     .then(res => {
                                         Object.assign(tbp, tbpQueue.values[SipdTbpReader.KEY]);
-                                        for (const [p, op] of [['URAIAN', 'TBP_UNTUK'], ['AFEKTASI', 'TBP_NOM']]) {
-                                            if (tbp[p] !== undefined) {
-                                                delete tbp[op];
-                                            }
-                                        }
                                         if (this.partial) {
                                             parts.push(tbp);
                                             if (parts.length === this.partial) {
@@ -95,7 +91,10 @@ class SipdLpjSession extends SipdRekananSession {
                                         }
                                         q.next();
                                     })
-                                    .catch(err => reject(err));
+                                    .catch(err => {
+                                        this.debug()(`TBP error: ${err}!`);
+                                        q.next();
+                                    });
                             });
                             q.once('done', () => resolve({...values, ...w.res}));
                         })],

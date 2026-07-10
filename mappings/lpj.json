@@ -8,6 +8,8 @@
         "nik": "NIK",
         "rekanan": "NAMA",
         "check": "NPD",
+        "npd": "NO_NPD",
+        "tbp": "NO_TBP",
         "operasi": "OP"
     },
     "npd": {

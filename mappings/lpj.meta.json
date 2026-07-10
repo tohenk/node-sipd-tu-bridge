@@ -2,6 +2,7 @@
     "OP": "Operasi yang akan dilakukan dipisahkan dengan tanda koma (npd/tbp)",
     "ID": "Identifikasi unik",
     "NO_NPD": "Nomor NPD",
+    "NO_TBP": "Nomor TBP",
     "TGL_NPD": "Tanggal NPD",
     "TGL_SETUJU": "Tanggal persetujuan NPD",
     "TGL_VALIDASI": "Tanggal validasi NPD",

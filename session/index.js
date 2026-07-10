@@ -124,7 +124,7 @@ class SipdSession {
      * @returns {Function}
      */
     debug(tag) {
-        return this.sipd.debug(tag);
+        return this.sipd.debug(tag ?? dtag);
     }
 
     /**
