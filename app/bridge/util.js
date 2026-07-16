@@ -1,0 +1,98 @@
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2022-2026 Toha <tohenk@yahoo.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+const Queue = require('@ntlab/work/queue');
+const SipdQueue = require('../queue');
+const SipdSession = require('../session');
+const { SipdBridgeHandler } = require('.');
+
+/**
+ * Sipd bridge for utility handling.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdBridgeUtil extends SipdBridgeHandler {
+
+    /**
+     * Get captcha images.
+     *
+     * @param {SipdSession} sess Session object
+     * @param {number} count Number of captcha to fetch
+     * @returns {Promise<any>}
+     */
+    _getCaptchas(sess, count) {
+        return new Promise((resolve, reject) => {
+            const sequences = Array.from({length: count}, (v, i) => i + 1);
+            const q = new Queue(sequences, async (seq) => {
+                const res = await sess.captchaImage();
+                if (res) {
+                    this.bridge.getSessions()[0]
+                        .saveCaptcha(res);
+                }
+                await sess.reloadCaptcha();
+                q.next();
+            });
+            q.once('done', () => resolve());
+        });
+    }
+
+    /**
+     * Do fetch captcha task.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {Promise<any>}
+     */
+    fetchCaptcha(queue) {
+        const sess = this.bridge.getSessions()[0];
+        if (sess) {
+            const count = queue.data.count || 100;
+            const oldOnState = this.bridge.onState;
+            this.bridge.onState = s => {
+                if (sess.state().captcha && !this._captcha) {
+                    this._captcha = true;
+                    const f = () => {
+                        this._captcha = false;
+                    }
+                    this._getCaptchas(sess, count)
+                        .then(() => f())
+                        .catch(() => f());
+                }
+                if (typeof oldOnState === 'function') {
+                    oldOnState(s);
+                }
+            }
+            return this.bridge.do([
+                [w => sess.login()],
+            ], (w, err) => {
+                return [
+                    [e => this.bridge.end(queue, this.bridge.autoClose)],
+                ];
+            });
+        } else {
+            return Promise.reject('No roles defined!');
+        }
+    }
+}
+
+module.exports = SipdBridgeUtil;

@@ -27,9 +27,9 @@ const path = require('path');
 const util = require('util');
 const EventEmitter = require('events');
 const SipdNotifier = require('./notifier');
-const SipdLogger = require('../sipd/logger');
-const SipdUtil = require('../sipd/util');
-const { SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
+const SipdLogger = require('./sipd/logger');
+const SipdUtil = require('./sipd/util');
+const { SipdRetryError, SipdCleanAndRetryError } = require('./sipd');
 const { glob } = require('glob');
 
 const dtag = 'queue';

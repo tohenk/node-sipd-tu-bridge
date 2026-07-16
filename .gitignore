@@ -106,6 +106,7 @@ dist
 # app
 /captcha/
 /captures/
+/out/
 /profile/
 /sessions/
 /tmp/

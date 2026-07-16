@@ -6,7 +6,7 @@ It's designed as backend service which serves the functionality to client using 
 ## Quickstart
 
 ```sh
-node main.js --help  
+node main.js --help
 ```
 
 ```

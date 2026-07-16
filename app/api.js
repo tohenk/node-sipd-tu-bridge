@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2026 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2022-2026 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -24,9 +24,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const SipdLogger = require('../sipd/logger');
+const SipdLogger = require('./sipd/logger');
 const SipdQueue = require('./queue');
-const SipdUtil = require('../sipd/util');
+const SipdUtil = require('./sipd/util');
 const Util = require('@ntlab/ntlib/util');
 const { Socket } = require('socket.io');
 const { glob } = require('glob');

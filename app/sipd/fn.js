@@ -1,0 +1,128 @@
+/**
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2022-2026 Toha <tohenk@yahoo.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+const SipdUtil = require('./util');
+
+/**
+ * @callback NormalizerFunction
+ * @param {string} value
+ * @returns {any}
+ */
+
+/**
+ * @callback StringableFunction
+ * @param {any} value
+ * @returns {string}
+ */
+
+/**
+ * Function repository to do value normalization and value conversion as string.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdFn {
+
+    /**
+     * Value normalizer functions.
+     *
+     * @returns {{[key: string]: NormalizerFunction}}
+     */
+    static get normalizers() {
+        if (this._normalizers === undefined) {
+            this._normalizers = {};
+        }
+        return this._normalizers;
+    }
+
+    /**
+     * Value string representation functions.
+     *
+     * @returns {{[key: string]: StringableFunction}}
+     */
+    static get stringables() {
+        if (this._stringables === undefined) {
+            this._stringables = {};
+        }
+        return this._stringables;
+    }
+
+    /**
+     * Register value normalizer.
+     *
+     * @param {string} name Normalizer name
+     * @param {NormalizerFunction} fn Normalizer handler
+     * @returns {typeof SipdFn}
+     */
+    static setNormalizer(name, fn) {
+        if (this.normalizers[name] === undefined) {
+            this.normalizers[name] = fn;
+        }
+        return this;
+    }
+
+    /**
+     * Register value stringable.
+     *
+     * @param {string} name Stringable name
+     * @param {StringableFunction} fn Stringable handler
+     * @returns {typeof SipdFn}
+     */
+    static setStringable(name, fn) {
+        if (this.stringables[name] === undefined) {
+            this.stringables[name] = fn;
+        }
+        return this;
+    }
+}
+
+const normalizers = {
+    default: value => typeof value === 'string' ? SipdUtil.getSafeStr(value) : value,
+    nama: value => {
+        if (typeof value === 'string') {
+            value = SipdUtil.getSafeStr(value);
+            if (value.includes('\n')) {
+                value = value.split('\n')[0];
+            }
+        }
+        return value;
+    },
+    nom: value => parseFloat(SipdUtil.pickCurr(value)),
+    nr: value => SipdUtil.pickNumber(value),
+    num: value => parseInt(SipdUtil.pickNumber(value)),
+    ref: value => SipdUtil.pickNr(value),
+    tgl: value => SipdUtil.getDate(value),
+}
+const stringables = {
+    default: value => value.toString(),
+    nom: value => SipdUtil.fmtCurr(value),
+    tgl: value => SipdUtil.dateSerial(value),
+}
+for (const [normalizer, fn] of Object.entries(normalizers)) {
+    SipdFn.setNormalizer(normalizer, fn);
+}
+for (const [stringable, fn] of Object.entries(stringables)) {
+    SipdFn.setStringable(stringable, fn);
+}
+
+module.exports = SipdFn;

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2025-2026 Toha <tohenk@yahoo.com>
+ * Copyright (c) 2022-2026 Toha <tohenk@yahoo.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,8 +26,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const Cmd = require('@ntlab/ntlib/cmd');
-const SipdLogger = require('../sipd/logger');
-const { SipdRoleSwitcher } = require('../sipd/role');
+const SipdLogger = require('./sipd/logger');
+const { SipdRoleSwitcher } = require('./sipd/role');
 
 Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
 Cmd.addVar('mode', 'm', 'Set bridge mode, spp, lpj, or util', 'bridge-mode');
@@ -61,6 +61,14 @@ class Configuration {
             if (config.global) {
                 this.bridges = config.bridges;
                 config = config.global;
+            }
+            for (const k of Object.keys(config)) {
+                if (typeof config[k] === 'string' && config[k].startsWith('@')) {
+                    const refKey = config[k].substr(1);
+                    if (config[refKey] !== undefined) {
+                        config[k] = config[refKey];
+                    }
+                }
             }
             Object.assign(this, config);
         }
@@ -136,7 +144,7 @@ class Configuration {
             }
         }
         if (this.redis) {
-            const { SipdLockManager, SipdLockStoreRedis } = require('../bridge/lock');
+            const { SipdLockManager, SipdLockStoreRedis } = require('./bridge/lock');
             SipdLockManager.store = SipdLockStoreRedis.setConnection(this.redis);
             console.log('Redis connection', this.redis);
         }
