@@ -775,10 +775,12 @@ class Sipd extends WebRobot {
      * Wait for SIPD Penatausahaan page to be fully loaded.
      *
      * @param {number} reload Force reload page in second
+     * @param {number} restartCount Number of page restart to try before throwing error
      * @returns {Promise<any>}
      */
-    waitPage(reload = 60) {
+    waitPage(reload = 60, restartCount = 10) {
         return new Promise((resolve, reject) => {
+            let count = 0;
             const f = () => {
                 let restart = false;
                 this.works([
@@ -787,6 +789,7 @@ class Sipd extends WebRobot {
                     [w => this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0})],
                     [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]'))],
                     [w => w.getRes(2)[0].click(), w => w.getRes(2).length],
+                    [w => Promise.resolve(count++), w => w.getRes(2).length],
                     [w => Promise.resolve(restart = true), w => w.getRes(2).length],
                 ])
                 .then(() => {
@@ -795,7 +798,11 @@ class Sipd extends WebRobot {
                         delete this.tmo;
                     }
                     if (restart) {
-                        setTimeout(f, 0);
+                        if (count > restartCount) {
+                            reject('Too many retry while opening SIPD Penatausahaan!');
+                        } else {
+                            setTimeout(f, this.delay);
+                        }
                     } else {
                         resolve();
                     }
