@@ -284,10 +284,6 @@ class SipdQueryBase extends SipdQuery {
                     compares.push([cmpRef, cmpVal, cmpFnOrRequired]);
                 }
             }
-            result.expectedValue = compares
-                .filter(v => v[2])
-                .map(v => v[0])
-                .join('-');
             result.statusCol = this.columns.find(column => [SipdColumnQuery.COL_STATUS, SipdColumnQuery.COL_PROGRESS]
                 .includes(column.type));
             result.actionCol = this.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
@@ -301,7 +297,12 @@ class SipdQueryBase extends SipdQuery {
             } else {
                 this.parent.debug(dtag)('Row state:', rowstate, ...states.info);
             }
-            resolve(states.okay ? result : undefined);
+            resolve(states.okay ? result : {
+                error: compares
+                    .filter(v => v[2])
+                    .map(v => v[0])
+                    .join('-')
+            });
         });
     }
 
@@ -317,7 +318,7 @@ class SipdQueryBase extends SipdQuery {
         return new Promise((resolve, reject) => {
             this.getRowState(values)
                 .then(res => {
-                    if (res) {
+                    if (!res.error) {
                         Object.assign(result, res);
                         result.values = values;
                         result.retval = el;
@@ -333,6 +334,7 @@ class SipdQueryBase extends SipdQuery {
                         }
                         reject(new SipdStopError());
                     } else {
+                        result.expectedValue = res.error;
                         resolve();
                     }
                 })
@@ -383,7 +385,7 @@ class SipdQueryBase extends SipdQuery {
      * @returns {Promise<any>}
      */
     walk() {
-        let result = {};
+        const result = {};
         const filterable = value => {
             if (value) {
                 if (Array.isArray(value)) {
