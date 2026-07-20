@@ -835,10 +835,10 @@ class SipdSession {
             if (Array.isArray(s)) {
                 s = s.map(s => trunc(s, len));
             }
-            if (s instanceof Buffer) {
-                s = s.toString();
-            }
-            if (typeof s === 'string' && s.length > len) {
+            if (Buffer.isBuffer(s)) {
+                const { inspect } = require('util');
+                s = inspect(s);
+            } else if (typeof s === 'string' && s.length > len) {
                 s = s.substr(0, len) + '...';
             }
             return s;
