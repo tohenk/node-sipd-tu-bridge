@@ -197,6 +197,13 @@ class CliSolver extends Solver {
  *         "url": "http://localhost:4001",
  *         "options": {
  *             "token": "my-token"
+ *         },
+ *         "data": {
+ *             "event": "solve",
+ *             "payload": {
+ *                  "model": "mymodel",
+ *                  "data": "%CAPTCHA%"
+ *             }
  *         }
  *     }
  * }
@@ -219,6 +226,7 @@ class SocketSolver extends Solver {
                 this.ready = false;
                 SipdLogger.activity(dtag)(`Disonnected from SocketSolver at ${this.url}...`);
             });
+        this.initializeEvent();
     }
 
     /**
@@ -257,6 +265,13 @@ class SocketSolver extends Solver {
         } else {
             throw new Error('Unable to create socket client without url!');
         }
+    }
+
+    initializeEvent() {
+        /** @type {string} */
+        this.eventName = this.config.data?.event || 'solve';
+        /** @type {object} */
+        this.eventData = this.config.data?.payload || {data: '%CAPTCHA%'};
     }
 
     /**
@@ -303,7 +318,13 @@ class SocketSolver extends Solver {
         return new Promise((resolve, reject) => {
             const content = SipdUtil.getMimeContent(captcha);
             if (content.data) {
-                this.ns.emit('solve', {model: 'sipd', data: content.data}, res => {
+                const data = {...this.eventData};
+                for (const k of Object.keys(data)) {
+                    if (data[k] === '%CAPTCHA%') {
+                        data[k] = content.data;
+                    }
+                }
+                this.ns.emit(this.eventName, data, res => {
                     resolve(res.captcha ?? undefined);
                 });
             } else {
