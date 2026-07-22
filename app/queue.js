@@ -140,7 +140,7 @@ class SipdDequeue extends EventEmitter {
             }
             if (queue.isFlagged('m') && typeof this.setMaps === 'function') {
                 this.setMaps(queue);
-            } else {
+            } else if (queue.info === undefined) {
                 queue.info = null;
             }
             if (queue.isFlagged('r')) {
@@ -1122,10 +1122,12 @@ class SipdQueue
                 if (dest.match(/^(http(s)?:\/\/)/)) {
                     queue = SipdQueue.createCallbackQueue(result, dest);
                 } else {
+                    if (!fs.existsSync(dest)) {
+                        fs.mkdirSync(dest, {recursive: true});
+                    }
                     const stat = fs.statSync(dest);
                     if (stat && stat.isDirectory()) {
-                        const Util = require('@ntlab/ntlib/util');
-                        const filename = path.join(dest, `${this.type}-${Util.formatDate(new Date(), 'yyyyMMddHHmmsszzz')}.json`);
+                        const filename = path.join(dest, `${this.filename}.json`);
                         fs.writeFileSync(filename, JSON.stringify(result));
                         console.log(`Result saved to ${filename}...`);
                     }
@@ -1198,6 +1200,14 @@ class SipdQueue
     toString() {
         const info = this.getInfo();
         return `${this.getTypeText()}:${this.id}${info ? ' ' + info : ''}`;
+    }
+
+    /**
+     * @returns {string}
+     */
+    get filename() {
+        const Util = require('@ntlab/ntlib/util');
+        return `${this.type}-${Util.formatDate(new Date(), 'yyyyMMddHHmmsszzz')}`;
     }
 
     /**

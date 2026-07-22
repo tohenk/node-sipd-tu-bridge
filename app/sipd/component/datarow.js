@@ -120,7 +120,7 @@ class SipdComponentDataRow extends SipdComponent {
             [w => this._rows.findElements(By.xpath('.//table/tbody/tr')), w => this._rows],
             [w => new Promise((resolve, reject) => {
                 const rows = [];
-                const q = new Queue(w.res, el => {
+                const q = new Queue([...w.res], el => {
                     this.isRow(el)
                         .then(res => {
                             if (res) {

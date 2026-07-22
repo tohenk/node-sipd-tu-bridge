@@ -23,6 +23,7 @@
  */
 
 const { Sipd } = require('..');
+const { error } = require('selenium-webdriver');
 
 /**
  * SIPD interaction component abstraction.
@@ -48,7 +49,7 @@ class SipdComponent {
         this.initialize();
         this.components = [];
         for (const factory of this._subComponents) {
-            const name = factory.name.substr(13).toLowerCase();
+            const name = SipdComponent.getName(factory.name).toLowerCase();
             const comp = new factory(this.parent, this.options);
             comp.enabled = true;
             // register exposed functions
@@ -86,7 +87,27 @@ class SipdComponent {
         if (typeof this.doPostSetup === 'function') {
             works.push([c => this.doPostSetup()]);
         }
-        return this.works(works);
+        return new Promise((resolve, reject) => {
+            this.works(works)
+                .then(() => resolve())
+                .catch(err => {
+                    if (err instanceof error.NoSuchElementError) {
+                        this.parent.isLoggedIn(false)
+                            .then(res => {
+                                if (res) {
+                                    reject(err);
+                                } else {
+                                    const e = new Error(`Session has been logged-out while setup ${SipdComponent.getName(this.constructor.name)}!`);
+                                    e.cause = err;
+                                    reject(e);
+                                }
+                            })
+                            .catch(err => reject(err));
+                    } else {
+                        reject(err);
+                    }
+                });
+        });
     }
 
     /**
@@ -96,6 +117,16 @@ class SipdComponent {
      */
     doSetup() {
         return Promise.reject('Not implemented yet!');
+    }
+
+    /**
+     * Get component name.
+     *
+     * @param {string} name Component name
+     * @returns {string}
+     */
+    static getName(name) {
+        return name.substr(13);
     }
 }
 

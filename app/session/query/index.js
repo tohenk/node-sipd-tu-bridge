@@ -440,6 +440,7 @@ class SipdQueryBase extends SipdQuery {
         return this.parent.works([
             [w => this.parent.navigate(...this.navigates), w => this.navigates],
             [w => this.parent.waitLoader()],
+            [w => this.parent.waitContent()],
             [w => new Promise((resolve, reject) => {
                 const options = {};
                 if (this.mode === SipdQueryBase.MODE_ITERATE && this.restartOnIterate) {

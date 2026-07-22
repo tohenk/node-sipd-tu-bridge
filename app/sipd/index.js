@@ -833,6 +833,18 @@ class Sipd extends WebRobot {
     }
 
     /**
+     * Wait for content to be fully loaded.
+     *
+     * @returns {Promise<any>}
+     */
+    waitContent() {
+        return this.works([
+            [w => this.waitForPresence(By.xpath('//div/span[text()="Pusat Pengaduan"]'), {timeout: 0})],
+            [w => this.sleep(this.animdelay)],
+        ]);
+    }
+
+    /**
      * Wait for SIPD Penatausahaan spinner to be gone.
      *
      * @param {WebElement} el Spinner container element
@@ -877,7 +889,7 @@ class Sipd extends WebRobot {
         }
         return new Promise((resolve, reject) => {
             const log = `${options.presence ? 'Wait for present' : 'Wait for gone'} ${target}`;
-            this.debug(dtag)(log, 'in', options.timeout, 'ms');
+            this.debug(dtag)(log, 'in', options.timeout > 0 ? options.timeout : '∞', 'ms');
             options.t = Date.now();
             const f = () => {
                 this.works([
@@ -1105,13 +1117,34 @@ class Sipd extends WebRobot {
         return new Promise((resolve, reject) => {
             const q = new Queue([...subs], nav => {
                 this.works([
-                    [w => this.waitAndClick(By.xpath(`//button/p[text()="${nav}"]/..`))],
-                    [w => this.waitSpinner(w.getRes(0), this.SPINNER_CHAKRA)],
+                    [w => this.findElements(By.xpath(`//button/p[text()="${nav}"]/..`))],
+                    [w => w.getRes(0)[0].click(), w => w.getRes(0).length],
+                    [w => this.sleep(this.loopdelay), w => w.getRes(0).length],
+                    [w => new Promise((resolve, reject) => {
+                        const el = w.getRes(0)[0];
+                        const f = () => {
+                            el.getAttribute('disabled')
+                                .then(res => {
+                                    if (res) {
+                                        setTimeout(f, this.loopdelay);
+                                    } else {
+                                        resolve();
+                                    }
+                                })
+                                .catch(err => reject(err));
+                        }
+                        f();
+                    }), w => w.getRes(0).length],
+                    [w => this.isLoggedIn(false), w => w.getRes(0).length === 0],
+                    [w => Promise.reject(`Unable to find sub page ${nav}, session logged-out!`), w => w.getRes(0).length === 0 && !w.getRes(3)],
                 ])
                 .then(() => q.next())
                 .catch(err => reject(err));
             });
-            q.once('done', () => resolve());
+            q.once('done', () => {
+                this.debug(dtag)(`Done navigating to sub page ${subs.join('->')}`)
+                resolve();
+            });
         });
     }
 

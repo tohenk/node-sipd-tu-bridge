@@ -59,7 +59,7 @@ class SipdLogger {
             this._loggers = {};
         }
         const defaults = this.getDefaults(this.FILE);
-        const logTag = options.tag ?? (defaults.tag ?? 'sipd');
+        const logTag = options.tag ?? (defaults.tag ?? this.DEFAULT_TAG);
         if (this._loggers[logTag] === undefined) {
             const logFile = this.getLogFile(logTag);
             if (!fs.existsSync(path.dirname(logFile))) {
@@ -89,7 +89,7 @@ class SipdLogger {
      */
     static debugLogger(tag, options) {
         const defaults = this.getDefaults(this.DEBUG);
-        const logTag = options.tag ?? (defaults.tag ?? 'sipd');
+        const logTag = options.tag ?? (defaults.tag ?? this.DEFAULT_TAG);
         return require('debug')([options.tag ?? logTag, options.role, options.action, tag].filter(Boolean).join(':'));
     }
 
@@ -155,6 +155,7 @@ class SipdLogger {
     static get DEBUG() { return 'debug' }
     static get FILE() { return 'file' }
     static get LOG_ACTIVITY() { return 'activity' }
+    static get DEFAULT_TAG() { return 'misc' }
 }
 
 module.exports = SipdLogger;
