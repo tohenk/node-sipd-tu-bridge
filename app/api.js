@@ -194,7 +194,7 @@ class Api {
                 items: [],
             }
             if (queues.length) {
-                let start = (res.page - 1) * res.size;
+                let start = this.getPageStart(res, queues.length);
                 res.items.push(...(queues
                     .slice(start, start + res.size))
                     .map(data => ({nr: ++start, ...data})));
@@ -236,7 +236,7 @@ class Api {
                         return b1.localeCompare(a1) || aa.join('-').localeCompare(bb.join('-'));
                     }
                     files.sort((a, b) => cmp(a, b));
-                    let nr = (res.page - 1) * res.size;
+                    let nr = this.getPageStart(res, files.length);
                     for (const file of files) {
                         res.count++;
                         if (res.count === nr + 1 && res.items.length < res.size) {
@@ -324,6 +324,33 @@ class Api {
             return res;
         }
         this.config = app.config;
+    }
+
+    /**
+     * Get page start index.
+     *
+     * @param {object} data Data paging
+     * @param {number} count Items count
+     * @param {boolean} fix Fix out of bound page
+     * @returns {number}
+     */
+    getPageStart(data, count, fix = true) {
+        let start;
+        for (const k of ['page', 'size']) {
+            if (typeof data[k] === 'string') {
+                data[k] = parseInt(data[k]);
+            }
+        }
+        while (true) {
+            start = (data.page - 1) * data.size;
+            if (fix && start > count && data.page > 1) {
+                data.page--;
+            }
+            if (!fix || start < count) {
+                break;
+            }
+        }
+        return start;
     }
 
     /**
