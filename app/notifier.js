@@ -32,17 +32,24 @@ const UrlFetch = require('@ntlab/urllib/fetch');
 class SipdNotifier {
 
     /**
-     * Notify queue result.
+     * Notify result.
      *
-     * @param {import('./queue')} queue Queue
+     * @param {string} url Url
+     * @param {string} token Bearer token
+     * @param {object} data Data to sent
      * @returns {Promise<any>}
      */
-    static notify(queue) {
+    static notify(url, token, data) {
+        const headers = {};
+        if (token) {
+            headers.authorization = `Bearer ${token}`;
+        }
         const notifier = new UrlFetch();
-        return notifier.fetch(queue.callback, {
+        return notifier.fetch(url, {
             method: 'POST',
+            headers,
             dataType: 'application/json',
-            data: Buffer.from(JSON.stringify(queue.data)),
+            data: Buffer.from(JSON.stringify(data)),
         });
     }
 }

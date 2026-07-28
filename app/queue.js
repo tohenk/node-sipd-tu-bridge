@@ -742,7 +742,8 @@ class SipdCallbackConsumer extends SipdConsumer
      * @returns {Promise<any>}
      */
     doConsume(queue) {
-        return SipdNotifier.notify(queue);
+        const [url, token] = SipdQueue.getCallback(queue.callback);
+        return SipdNotifier.notify(url, token, queue.data);
     }
 }
 
@@ -1104,7 +1105,7 @@ class SipdQueue
     getInfo() {
         let info = this.info;
         if (!info && this.type === SipdQueue.QUEUE_CALLBACK) {
-            info = this.callback;
+            [info, ] = SipdQueue.getCallback(this.callback);
         }
         return info;
     }
@@ -1411,6 +1412,24 @@ class SipdQueue
             }
         }
         return false;
+    }
+
+    /**
+     * Get callback url along with bearer token.
+     *
+     * @param {string} callback Callback url
+     * @returns {string[]}
+     */
+    static getCallback(callback) {
+        if (typeof callback === 'string') {
+            let token;
+            if (callback.includes('#')) {
+                const p = callback.indexOf('#');
+                token = callback.substr(p + 1);
+                callback = callback.substr(0, p);
+            }
+            return [callback, token];
+        }
     }
 
     static get QUEUE_METADATA() {
