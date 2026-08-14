@@ -176,46 +176,85 @@ class Sipd extends WebRobot {
      *
      * @param {string} username Username
      * @param {string} password Password
-     * @param {string|Array} role User role
      * @returns {Promise<any>}
      */
     doLogin(username, password, role) {
         return this.works([
-            [w => new Promise((resolve, reject) => {
-                const f = () => {
-                    this.formSubmit(
-                        By.xpath(this.LOGIN_FORM),
-                        By.xpath('//button[@type="submit"]'),
-                        [
-                            {
-                                target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'),
-                                value: this.year,
-                                onfill: (el, value) => this.reactSelect(el, value, 'Budgeting year is not available!')
-                            },
-                            {target: By.id('ed_username'), value: username},
-                            {target: By.id('ed_password'), value: password},
-                        ],
-                        {
-                            spinner: true,
-                            prefillCallback: () => this.waitCaptcha(),
-                            retry: 3,
-                            isretryable: err => typeof err === 'string' && err.includes('Gagal memproses permintaan'),
-                        }
-                    )
-                    .then(() => resolve())
-                    .catch(err => {
-                        // retry on invalid captcha
-                        if (typeof err === 'string' && err.toLowerCase().includes('invalid captcha')) {
-                            setTimeout(f, this.loopdelay);
-                        } else {
-                            reject(err);
-                        }
-                    });
-                }
-                f();
-            })],
-            [w => this.selectAccount(role)],
+            [w => this.doSubmitLogin(username, password)],
+            [w => this.doSelectRole(username, role)],
             [w => this.waitLoader()],
+        ]);
+    }
+
+    /**
+     * Perform login.
+     *
+     * @param {string} username Username
+     * @param {string} password Password
+     * @returns {Promise<any>}
+     */
+    doSubmitLogin(username, password) {
+        return new Promise((resolve, reject) => {
+            const f = () => {
+                this.formSubmit(
+                    By.xpath(this.LOGIN_FORM),
+                    By.xpath('//button[@type="submit"]'),
+                    [
+                        {
+                            target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'),
+                            value: this.year,
+                            onfill: (el, value) => this.reactSelect(el, value, 'Budgeting year is not available!')
+                        },
+                        {target: By.id('ed_username'), value: username},
+                        {target: By.id('ed_password'), value: password},
+                    ],
+                    {
+                        spinner: true,
+                        prefillCallback: () => this.waitCaptcha(),
+                        retry: 3,
+                        isretryable: err => typeof err === 'string' && err.includes('Gagal memproses permintaan'),
+                    }
+                )
+                .then(() => resolve())
+                .catch(err => {
+                    // retry on invalid captcha
+                    if (typeof err === 'string' && err.toLowerCase().includes('invalid captcha')) {
+                        setTimeout(f, this.loopdelay);
+                    } else {
+                        reject(err);
+                    }
+                });
+            }
+            f();
+        });
+    }
+
+    /**
+     * Pick user role.
+     *
+     * @param {string} username Username
+     * @param {string|Array} role User role
+     * @returns {Promise<any>}
+     */
+    doSelectRole(username, role) {
+        const idx = Array.isArray(role) ? role[1] : 0;
+        role = Array.isArray(role) ? role[0] : role;
+        return this.works([
+            [w => this.findElements(By.xpath('//h6[text()="Akun Tidak Ditemukan"]'))],
+            [w => this.waitFor(By.xpath('//div[@class="container-account-select"]')),
+                w => !w.getRes(0).length],
+            [w => this.findElements({el: w.getRes(1), data: By.xpath(`.//div[@class="container-txt-account-list"]/h1[text()="${role}"]/../../../button`)}),
+                w => !w.getRes(0).length],
+            [w => w.getRes(2)[idx].click(), w => !w.getRes(0).length && w.getRes(2).length],
+            [w => this.waitSpinner(w.getRes(1)), w => !w.getRes(0).length && w.getRes(2).length],
+            [w => this.findElements({el: w.getRes(1), data: By.xpath('.//div[@class="container-txt-account-list"]/h1')}),
+                w => !w.getRes(0).length && !w.getRes(2).length],
+            [w => this.getText(w.getRes(5)),
+                w => !w.getRes(0).length && !w.getRes(2).length],
+            [w => Promise.reject(`User ${username} does not have role ${role}, but has ${w.getRes(6).join(', ')}!`),
+                w => !w.getRes(0).length && !w.getRes(2).length],
+            [w => Promise.reject(`User ${username} is not found!`),
+                w => w.getRes(1).length],
         ]);
     }
 
@@ -574,24 +613,6 @@ class Sipd extends WebRobot {
             [w => this.waitLoader(), w => wait],
             [w => this.findElements(By.xpath(this.LOGIN_FORM))],
             [w => Promise.resolve(w.getRes(1).length > 0 ? false : true)],
-        ]);
-    }
-
-    /**
-     * Confirm user role.
-     *
-     * @param {string|Array} role User role
-     * @returns {Promise<any>}
-     */
-    selectAccount(role) {
-        const idx = Array.isArray(role) ? role[1] : 0;
-        role = Array.isArray(role) ? role[0] : role;
-        return this.works([
-            [w => this.waitFor(By.xpath('//div[@class="container-account-select"]'))],
-            [w => this.findElements({el: w.getRes(0), data: By.xpath(`.//div[@class="container-txt-account-list"]/h1[text()="${role}"]/../../../button`)})],
-            [w => w.getRes(1)[idx].click(), w => w.getRes(1).length],
-            [w => this.waitSpinner(w.getRes(0)), w => w.getRes(1).length],
-            [w => Promise.reject(`Unable to select account ${role}!`), w => !w.getRes(1).length],
         ]);
     }
 
