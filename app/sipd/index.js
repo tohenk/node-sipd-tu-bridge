@@ -254,7 +254,7 @@ class Sipd extends WebRobot {
             [w => Promise.reject(`User ${username} does not have role ${role}, but has ${w.getRes(6).join(', ')}!`),
                 w => !w.getRes(0).length && !w.getRes(2).length],
             [w => Promise.reject(`User ${username} is not found!`),
-                w => w.getRes(1).length],
+                w => w.getRes(0).length],
         ]);
     }
 
