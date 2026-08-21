@@ -27,7 +27,7 @@ const SipdComponent = require('.');
 const SipdComponentDataRow = require('./datarow');
 const SipdComponentFilter = require('./filter');
 const SipdComponentPager = require('./pager');
-const { SipdStopError } = require('..');
+const { Sipd, SipdStopError } = require('..');
 const { By } = require('selenium-webdriver');
 
 const dtag = 'page';
@@ -49,7 +49,7 @@ class SipdComponentPage extends SipdComponent {
         this._subComponents.push(SipdComponentDataRow);
         this._subComponents.push(SipdComponentPager);
         this._subComponents.push(SipdComponentFilter);
-        this.parent.constructor.expectErr(SipdStopError);
+        Sipd.expectErr(SipdStopError);
     }
 
     /**

@@ -30,7 +30,6 @@ const SipdQueue = require('../queue');
 const SipdUtil = require('../sipd/util');
 const Util = require('@ntlab/ntlib/util');
 const { Sipd } = require('../sipd');
-const { SipdColumnQuery } = require('../sipd/query');
 const { SipdQueryBase } = require('./query');
 const { SipdReader } = require('./reader');
 const { SipdVoterPegawai } = require('./query/pegawai');

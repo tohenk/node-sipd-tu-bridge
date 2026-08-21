@@ -22,7 +22,6 @@
  * SOFTWARE.
  */
 
-const fs = require('fs');
 const Work = require('@ntlab/work/work');
 const Queue = require('@ntlab/work/queue');
 const SipdLogger = require('../sipd/logger');
@@ -30,7 +29,7 @@ const SipdQueue = require('../queue');
 const SipdSession = require('../session');
 const SipdLpjSession = require('../session/lpj');
 const SipdSppSession = require('../session/spp');
-const { Sipd, SipdTimer, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
+const { SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { SipdLockManager } = require('./lock');
 const { error } = require('selenium-webdriver');
@@ -347,9 +346,9 @@ class SipdBridge {
                 .then(res => resolve(res))
                 .catch(err => {
                     if (err instanceof error.WebDriverError && err.message.includes('net::ERR_CONNECTION_TIMED_OUT')) {
-                        err = new SipdRetryError(err.message);
+                        err = SipdRetryError.from(err);
                     } else if (err instanceof error.SessionNotCreatedError) {
-                        err = new SipdCleanAndRetryError(err.message);
+                        err = SipdCleanAndRetryError.from(err);
                     } else {
                         const prefix = this.loginfo.actor && this.loginfo.action ?
                             `${this.loginfo.actor} (${this.loginfo.action}):` : null;

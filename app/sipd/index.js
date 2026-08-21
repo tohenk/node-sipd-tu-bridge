@@ -56,11 +56,11 @@ class Sipd extends WebRobot {
         this.typedelay = this.options.typedelay || 5;
         this.loopdelay = this.options.loopdelay || 25;
         this.animdelay = this.options.animdelay || 1000;
-        super.constructor.expectErr(error.StaleElementReferenceError);
-        super.constructor.expectErr(SipdAnnouncedError);
-        super.constructor.expectErr(SipdRestartError);
-        super.constructor.expectErr(SipdRetryError);
-        super.constructor.expectErr(SipdAbortError);
+        WebRobot.expectErr(error.StaleElementReferenceError);
+        WebRobot.expectErr(SipdAnnouncedError);
+        WebRobot.expectErr(SipdRestartError);
+        WebRobot.expectErr(SipdRetryError);
+        WebRobot.expectErr(SipdAbortError);
     }
 
     /**
@@ -140,7 +140,7 @@ class Sipd extends WebRobot {
                 [w => this.doPostLogin()],
             ])
             .then(() => resolve())
-            .catch(err => reject(new SipdRetryError(err instanceof Error ? err.message : err)));
+            .catch(err => reject(SipdRetryError.from(err)));
         });
     }
 
@@ -727,7 +727,7 @@ class Sipd extends WebRobot {
             [w => el.getAttribute('aria-controls')],
             [w => this.findElement(By.id(w.getRes(1)))],
             [w => w.getRes(2).findElements(By.xpath(`.//*[contains(.,"${value}")]`))],
-            [w => Promise.reject(SipdAnnouncedError.create(util.format(message ? message : 'Select choice %s is unavailable!', value))), w => w.getRes(3).length === 0],
+            [w => Promise.reject(new SipdAnnouncedError(util.format(message ? message : 'Select choice %s is unavailable!', value))), w => w.getRes(3).length === 0],
             [w => w.getRes(3)[0].click(), w => w.getRes(3).length],
         ]);
     }
@@ -1342,11 +1342,11 @@ class SipdTimer
 }
 
 /**
- * An error to indicate a message is need to be announced to caller.
+ * Base error.
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdAnnouncedError extends Error {
+class SipdError extends Error {
 
     toString() {
         return this.message;
@@ -1356,12 +1356,35 @@ class SipdAnnouncedError extends Error {
         return this.toString();
     }
 
-    static create(message, queue = null) {
-        const err = new SipdAnnouncedError(message);
-        if (queue) {
-            err._queue = queue;
+    static getErrorClass() {
+        return this;
+    }
+
+    /**
+     * Create new error.
+     *
+     * @param {Error|string} ref Error reference or message
+     * @returns {SipdError}
+     */
+    static from(ref) {
+        const error = this.getErrorClass();
+        const err = new error(ref instanceof Error ? ref.message : ref);
+        if (ref instanceof Error && ref.cause) {
+            err.cause = ref.cause;
         }
         return err;
+    }
+}
+
+/**
+ * An error to indicate a message is need to be announced to caller.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdAnnouncedError extends SipdError {
+
+    static getErrorClass() {
+        return this;
     }
 }
 
@@ -1370,7 +1393,11 @@ class SipdAnnouncedError extends Error {
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdRestartError extends Error {
+class SipdRestartError extends SipdError {
+
+    static getErrorClass() {
+        return this;
+    }
 }
 
 /**
@@ -1378,7 +1405,11 @@ class SipdRestartError extends Error {
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdRetryError extends Error {
+class SipdRetryError extends SipdError {
+
+    static getErrorClass() {
+        return this;
+    }
 }
 
 /**
@@ -1387,6 +1418,10 @@ class SipdRetryError extends Error {
  * @author Toha <tohenk@yahoo.com>
  */
 class SipdCleanAndRetryError extends SipdRetryError {
+
+    static getErrorClass() {
+        return this;
+    }
 }
 
 /**
@@ -1394,7 +1429,11 @@ class SipdCleanAndRetryError extends SipdRetryError {
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdStopError extends Error {
+class SipdStopError extends SipdError {
+
+    static getErrorClass() {
+        return this;
+    }
 }
 
 /**
@@ -1402,12 +1441,17 @@ class SipdStopError extends Error {
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdAbortError extends Error {
+class SipdAbortError extends SipdError {
+
+    static getErrorClass() {
+        return this;
+    }
 }
 
 module.exports = {
     Sipd,
     SipdTimer,
+    SipdError,
     SipdAnnouncedError,
     SipdRestartError,
     SipdRetryError,

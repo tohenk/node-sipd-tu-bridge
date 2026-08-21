@@ -29,7 +29,6 @@ const SipdQueue = require('../queue');
 const SipdRekananSession = require('./rekanan');
 const SipdLpjReader = require('./reader/lpj');
 const SipdTbpReader = require('./reader/tbp');
-const { SipdColumnQuery } = require('../sipd/query');
 const { SipdQueryBase } = require('./query');
 const { SipdQueryNpd } = require('./query/npd');
 const { SipdQueryTbp } = require('./query/tbp');
