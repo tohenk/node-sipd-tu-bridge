@@ -73,7 +73,7 @@ class SipdLockManager {
     }
 
     static get STALE_MS() {
-        return 5 * 60 * 1000; // 5 minutes
+        return 2 * 6e4; // 2 minutes
     }
 }
 
@@ -125,6 +125,17 @@ class SipdUserLock {
             }
             f();
         });
+    }
+
+    /**
+     * Update lock time.
+     *
+     * @param {string} lock Id
+     * @returns {Promise<boolean>}
+     */
+    update(lock) {
+        return this.store.tick(lock, res => res &&
+            SipdLogger.activity(dtag)(`Lock ${this.store.name} ${this.user}:${lock} is updated...`));
     }
 
     /**
@@ -189,13 +200,15 @@ class SipdLockStore {
 
     /**
      * Perform refresh and purge stale locks.
+     *
+     * @param {boolean} clean Purge stale locks
      */
     async refresh(clean = true) {
         if (typeof this.doRefresh === 'function') {
             await this.doRefresh();
         }
-        this.stale = 0;
         if (clean) {
+            this.stale = 0;
             const time = SipdLockStore.getTime() - SipdLockManager.STALE_MS;
             while (true) {
                 if (!this.locks.length || this.locks[0].time > time) {
@@ -208,6 +221,32 @@ class SipdLockStore {
                 SipdLogger.activity(dtag)(`Cleaned ${this.stale} stale ${this.name} lock(s)...`);
             }
         }
+    }
+
+    /**
+     * Do check an operation on lock.
+     *
+     * @param {string} lock Lock id
+     * @param {Function} op Operation callback
+     * @param {Function} cb Result callback
+     * @returns {Promise<boolean>}
+     */
+    async check(lock, op, cb) {
+        let res = false, updated = false;
+        await this.refresh(false);
+        if (this.getIndex(lock) === 0) {
+            if (typeof op === 'function') {
+                updated = op();
+                if (typeof cb === 'function') {
+                    cb(updated);
+                }
+            }
+            res = true;
+        }
+        if (updated && typeof this.doStore === 'function') {
+            await this.doStore();
+        }
+        return res;
     }
 
     /**
@@ -233,22 +272,24 @@ class SipdLockStore {
     }
 
     /**
+     * Update lock time.
+     *
+     * @param {string} lock Lock id
+     * @param {Function} cb Result callback
+     * @returns {Promise<boolean>}
+     */
+    async tick(lock, cb) {
+        return this.check(lock, () => (this.locks[0].time = SipdLockStore.getTime(), true), cb);
+    }
+
+    /**
      * Prune lock and return true if successful, false otherwise.
      *
      * @param {string} lock Lock id
      * @returns {Promise<boolean>}
      */
     async prune(lock) {
-        let res = false;
-        await this.refresh(false);
-        if (this.getIndex(lock) === 0) {
-            this.locks.splice(0, 1);
-            res = true;
-        }
-        if (res && typeof this.doStore === 'function') {
-            await this.doStore();
-        }
-        return res;
+        return this.check(lock, () => (this.locks.splice(0, 1), true));
     }
 
     /**

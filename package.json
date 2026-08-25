@@ -23,7 +23,7 @@
     "@ntlab/sipd-tu-bridge-ui": "^1.7.9",
     "@ntlab/urllib": "^1.1.0",
     "@ntlab/webrobot": "^2.9.1",
-    "@ntlab/work": "^2.8.2",
+    "@ntlab/work": "^2.9.0",
     "debug": "^4.4.3",
     "glob": "^13.0.6",
     "redis": "^5.12.1",

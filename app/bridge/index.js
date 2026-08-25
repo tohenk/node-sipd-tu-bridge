@@ -465,6 +465,7 @@ class SipdBridge {
             _works.push(works);
         }
         return this.works(_works, {
+            heartbeat: [6e4, () => this.lock && this.lock.update(this.lockId)],
             done: (w, err) => {
                 if (err instanceof SipdAnnouncedError && err._queue) {
                     const queue = err._queue;

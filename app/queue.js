@@ -67,7 +67,7 @@ class SipdDequeue extends EventEmitter {
         this.processing = [];
         /** @type {SipdQueue[]} */
         this.completes = [];
-        this.timeout = 10 * 60 * 1000;
+        this.timeout = 10 * 6e4;
         this.retry = 3;
         /** @type {CreateQueue} */
         this.createQueue;
