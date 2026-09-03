@@ -103,7 +103,7 @@ class SipdLpjSession extends SipdRekananSession {
                             });
                             q.once('done', () => resolve({...values, ...w.res}));
                         })],
-                    ]), w => !w.getRes(0).error],
+                    ]), w => w.getRes(0)],
                 ], {alwaysResolved: true});
             } else {
                 return Promise.resolve(values);

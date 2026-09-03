@@ -47,6 +47,7 @@ class SipdQueryBase extends SipdQuery {
         this.doPostInitialize();
         this.doPageInitialize();
         this.doCreatePage();
+        this.queryState = new SipdQueryState(this.columns, this.diffs);
     }
 
     doInitialize() {
@@ -240,69 +241,13 @@ class SipdQueryBase extends SipdQuery {
      */
     getRowState(values) {
         return new Promise((resolve, reject) => {
-            const result = {};
-            const dbg = (l, s) => `${l} (${s ? '✓' : '✗'})`;
-            const f = (...args) => {
-                const res = {
-                    states: [],
-                    info: [],
-                }
-                for (const arg of args) {
-                    if (arg[2]) {
-                        let okay;
-                        if (typeof arg[2] === 'function') {
-                            // 0 -> ref value
-                            // 1 -> row value
-                            okay = arg[2](arg[1], arg[0]);
-                        } else if (typeof arg[0] === 'string' && typeof arg[1] === 'string') {
-                            okay = arg[0].toLowerCase() === arg[1].toLowerCase();
-                        } else {
-                            okay = arg[0] == arg[1];
-                        }
-                        res.states.push(okay);
-                        res.info.push(dbg(arg[1], okay));
-                    } else {
-                        res.info.push(arg[1]);
-                    }
-                }
-                res.okay = true;
-                res.states.forEach(state => {
-                    if (!state) {
-                        res.okay = false;
-                        return true;
-                    }
-                });
-                return res;
-            }
-            const compares = [];
-            for (const [col, value, opt] of this.diffs) {
-                const column = this.columns.find(column => column.name === col);
-                if (column) {
-                    const cmpFnOrRequired = opt !== undefined ? opt : true;
-                    const cmpRef = typeof cmpFnOrRequired === 'function' ? value : column.asString(value);
-                    const cmpVal = typeof cmpFnOrRequired === 'function' ? values[col] : column.asString(values[col]);
-                    compares.push([cmpRef, cmpVal, cmpFnOrRequired]);
-                }
-            }
-            result.statusCol = this.columns.find(column => [SipdColumnQuery.COL_STATUS, SipdColumnQuery.COL_PROGRESS]
-                .includes(column.type));
-            result.actionCol = this.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
-            if (result.statusCol) {
-                result.status = values[result.statusCol.name];
-            }
-            const states = f(...compares);
-            const rowstate = `[${states.okay ? '✓' : '✗'}]`;
-            if (result.status !== undefined) {
-                this.parent.debug(dtag)('Row state:', rowstate, `<${result.status}>`, ...states.info);
+            const [state, rowstate, res] = this.queryState.check(values);
+            if (res.status !== undefined) {
+                this.parent.debug(dtag)('Row state:', rowstate, `<${res.status}>`, ...state.info);
             } else {
-                this.parent.debug(dtag)('Row state:', rowstate, ...states.info);
+                this.parent.debug(dtag)('Row state:', rowstate, ...state.info);
             }
-            resolve(states.okay ? result : {
-                error: compares
-                    .filter(v => v[2])
-                    .map(v => v[0])
-                    .join('-')
-            });
+            resolve(state.okay ? res : undefined);
         });
     }
 
@@ -318,7 +263,7 @@ class SipdQueryBase extends SipdQuery {
         return new Promise((resolve, reject) => {
             this.getRowState(values)
                 .then(res => {
-                    if (!res.error) {
+                    if (res) {
                         Object.assign(result, res);
                         result.values = values;
                         result.retval = el;
@@ -334,7 +279,6 @@ class SipdQueryBase extends SipdQuery {
                         }
                         reject(new SipdStopError());
                     } else {
-                        result.expectedValue = res.error;
                         resolve();
                     }
                 })
@@ -428,7 +372,7 @@ class SipdQueryBase extends SipdQuery {
                                 .then(() => resolve())
                                 .catch(err => reject(err));
                         } else {
-                            reject(new SipdAnnouncedError(`${this.options.title}: ${res.expectedValue} not found!`));
+                            reject(new SipdAnnouncedError(`${this.options.title}: ${this.queryState.expectedValue} not found!`));
                         }
                         break;
                     case SipdQueryBase.MODE_ITERATE:
@@ -501,6 +445,88 @@ class SipdVoter extends SipdQueryBase {
             } : {}),
             ...(this.pageOptions || {}),
         }
+    }
+}
+
+/**
+ * Compares between expected and sought values.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdQueryState {
+
+    constructor(columns, diffs) {
+        this.states = [];
+        for (const [col, value, opt] of diffs) {
+            const column = columns.find(column => column.name === col);
+            if (column) {
+                const cmpFnOrRequired = opt !== undefined ? opt : true;
+                const cmpRef = typeof cmpFnOrRequired === 'function' ? value : column.asString(value);
+                this.states.push({column, ref: cmpRef, fnOrReq: cmpFnOrRequired});
+            }
+        }
+        /** @type {SipdColumnQuery} */
+        this.statusCol = columns.find(column => [SipdColumnQuery.COL_STATUS, SipdColumnQuery.COL_PROGRESS]
+            .includes(column.type));
+        /** @type {SipdColumnQuery} */
+        this.actionCol = columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
+        /** @type {string} */
+        this.expectedValue = this.states
+            .filter(v => v.fnOrReq)
+            .map(v => v.ref)
+            .join('-');
+    }
+
+    dbg(l, s) {
+        return `${l} (${s ? '✓' : '✗'})`;
+    }
+
+    test(values) {
+        const res = {states: [], info: []};
+        for (const state of this.states) {
+            const val = typeof state.fnOrReq === 'function' ?
+                values[state.column.name] : state.column.asString(values[state.column.name]);
+            if (state.fnOrReq) {
+                let okay;
+                if (typeof state.fnOrReq === 'function') {
+                    // 0 -> ref value
+                    // 1 -> row value
+                    okay = state.fnOrReq(val, state.ref);
+                } else if (typeof state.ref === 'string' && typeof val === 'string') {
+                    okay = state.ref.toLowerCase() === val.toLowerCase();
+                } else {
+                    okay = state.ref == val;
+                }
+                res.states.push(okay);
+                res.info.push(this.dbg(val, okay));
+            } else {
+                res.info.push(val);
+            }
+        }
+        res.okay = true;
+        res.states.forEach(state => {
+            if (!state) {
+                res.okay = false;
+                return true;
+            }
+        });
+        return res;
+    }
+
+    check(values) {
+        const res = {};
+        const state = this.test(values);
+        const rowstate = `[${state.okay ? '✓' : '✗'}]`;
+        if (this.actionCol) {
+            res.actionCol = this.actionCol;
+        }
+        if (this.statusCol) {
+            res.statusCol = this.statusCol;
+        }
+        if (res.statusCol) {
+            res.status = values[res.statusCol.name];
+        }
+        return [state, rowstate, res];
     }
 }
 
