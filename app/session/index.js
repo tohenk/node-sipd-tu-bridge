@@ -613,11 +613,12 @@ class SipdSession {
      *
      * @param {WebElement} el Element
      * @param {string} value Activity id
+     * @param {number} kegSeq Activity selector id
      * @returns {Promise<any>}
      */
-    fillKegiatan(el, value) {
+    fillKegiatan(el, value, kegSeq) {
         /** @type {typeof SipdActivitySelector} */
-        const activityClass = this.kegSeq++ === 0 ? this.kegSelector : this.subkegSelector;
+        const activityClass = kegSeq === 0 ? this.kegSelector : this.subkegSelector;
         const selector = new activityClass(this.sipd);
         return this.works([
             [w => el.click()],
@@ -639,7 +640,10 @@ class SipdSession {
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.findElements(By.xpath('//div[@class="css-kw-3t-2fa3"]/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
             [w => this.fillAccount(w.getRes(2), value, afektasi)],
-            [w => Promise.reject(`Unable to allocate ${SipdUtil.fmtCurr(value)} to ${afektasi.keg}-${afektasi.rek}, available ${SipdUtil.fmtCurr(afektasi.sisa)}!`), w => !w.getRes(3)],
+            [w => Promise.reject(`Unable to allocate ${SipdUtil.fmtCurr(value)} to ${afektasi.keg}-${afektasi.rek}, available ${SipdUtil.fmtCurr(afektasi.sisa)}!`),
+                w => w.getRes(3) === false],
+            [w => Promise.reject(`Unable to allocate ${SipdUtil.fmtCurr(value)} to ${afektasi.keg}-${afektasi.rek}, account unavailable!`),
+                w => w.getRes(3) === undefined],
         ]);
     }
 
@@ -653,7 +657,7 @@ class SipdSession {
      */
     fillAccount(accounts, value, afektasi) {
         return new Promise((resolve, reject) => {
-            let result = false;
+            let result;
             const q = new Queue(accounts, el => {
                 this.works([
                     [w => this.isAccount(el, afektasi)],
@@ -664,6 +668,9 @@ class SipdSession {
                         result = true;
                         q.done();
                     } else {
+                        if (result === undefined) {
+                            result = false;
+                        }
                         q.next();
                     }
                 })
@@ -842,8 +849,8 @@ class SipdSession {
             }
             return s;
         }
-        delete this.afektasi;
-        this.kegSeq = 0;
+        delete queue.afektasi;
+        queue.kegSeq = 0;
         for (const k of Object.keys(maps)) {
             const selector = [];
             const f = this.getFormKey(k);
@@ -948,9 +955,7 @@ class SipdSession {
                 selector.push(`[@${attr}="${key}"]`);
             }
             if (afektasi) {
-                if (!this.afektasi) {
-                    this.afektasi = afektasi;
-                }
+                queue.afektasi = afektasi;
             } else {
                 data = {
                     target: By.xpath(f.sflags.includes('=') ? key : `.//*${selector.join('')}`),
@@ -979,16 +984,16 @@ class SipdSession {
                         data.onfill = (el, value) => this.fillRekanan(el, value, queue);
                         break;
                     case 'KEG':
-                        data.onfill = (el, value) => this.fillKegiatan(el, value);
+                        data.onfill = (el, value) => this.fillKegiatan(el, value, queue.kegSeq++);
                         break;
                     case 'NPD':
                         data.onfill = (el, value) => this.fillNpd(el, value, queue);
                         break;
                     case 'AFEKTASI':
                         data.onfill = (el, value) => {
-                            if (this.afektasi) {
-                                if (this.afektasi.isValid()) {
-                                    return this.fillAfektasi(el, value, this.afektasi);
+                            if (queue.afektasi) {
+                                if (queue.afektasi.isValid()) {
+                                    return this.fillAfektasi(el, value, queue.afektasi);
                                 }
                                 return Promise.reject('Unable to fill allocation with invalid metadata!');
                             } else {
