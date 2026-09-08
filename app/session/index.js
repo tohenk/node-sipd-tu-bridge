@@ -641,9 +641,9 @@ class SipdSession {
             [w => this.sipd.findElements(By.xpath('//div[@class="css-kw-3t-2fa3"]/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
             [w => this.fillAccount(w.getRes(2), value, afektasi)],
             [w => Promise.reject(`Unable to allocate ${SipdUtil.fmtCurr(value)} to ${afektasi.keg}-${afektasi.rek}, available ${SipdUtil.fmtCurr(afektasi.sisa)}!`),
-                w => w.getRes(3) === false],
+                w => w.getRes(3) === 0],
             [w => Promise.reject(`Unable to allocate ${SipdUtil.fmtCurr(value)} to ${afektasi.keg}-${afektasi.rek}, account unavailable!`),
-                w => w.getRes(3) === undefined],
+                w => w.getRes(3) === false],
         ]);
     }
 
@@ -653,23 +653,23 @@ class SipdSession {
      * @param {WebElement[]} accounts Elements
      * @param {number} value Charge ammount
      * @param {SipdAfektasi} afektasi Account charge
-     * @returns {Promise<any>}
+     * @returns {Promise<boolean|number>}
      */
     fillAccount(accounts, value, afektasi) {
         return new Promise((resolve, reject) => {
-            let result;
-            const q = new Queue(accounts, el => {
+            let result = false;
+            const q = new Queue([...accounts], el => {
                 this.works([
                     [w => this.isAccount(el, afektasi)],
                     [w => this.canFillAccount(el, value, afektasi), w => w.getRes(0)],
                 ])
                 .then(res => {
                     if (res) {
-                        result = true;
+                        result = value;
                         q.done();
                     } else {
-                        if (result === undefined) {
-                            result = false;
+                        if (result === false) {
+                            result = 0;
                         }
                         q.next();
                     }
@@ -1313,10 +1313,15 @@ class SipdSession {
      */
     captureScreen(message, data, dir = 'captures') {
         const f = e => {
-            const messages = [e instanceof Error && e.stack ? e.stack : e.toString()];
-            if (e.cause) {
-                messages.push(e.cause.toString());
+            const messages = [];
+            if (e.stack) {
+                messages.push(...e.stack.split('\n').slice(1));
             }
+            let message = e instanceof Error ? e.message : e;
+            if (e.cause instanceof Error) {
+                message = `${message} ${e.cause.message}`;
+            }
+            messages.unshift(message);
             return messages.join('\n');
         }
         return this.works([
