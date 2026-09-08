@@ -34,8 +34,6 @@ const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { SipdLockManager } = require('./lock');
 const { error } = require('selenium-webdriver');
 
-const dtag = 'bridge';
-
 /**
  * @typedef {Object} BridgeWorker
  * @property {BridgeSession} bp BP/BPP session

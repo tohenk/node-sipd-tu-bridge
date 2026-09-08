@@ -396,7 +396,7 @@ class ApiBridge {
      * Constructor.
      *
      * @param {import('.')} app Application
-     * @param {import('../bridge')} bridge Bridge
+     * @param {import('./bridge').SipdBridge} bridge Bridge
      */
     constructor(app, bridge) {
         this.name = bridge.name;
