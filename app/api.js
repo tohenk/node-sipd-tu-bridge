@@ -241,14 +241,16 @@ class Api {
                         res.count++;
                         if (res.count === nr + 1 && res.items.length < res.size) {
                             nr++;
-                            const filename = path.join(file.parentPath, file.name);
-                            const errFilename = path.join(file.parentPath, file.name.substr(0, file.name.lastIndexOf('.')) + '.err');
-                            const dataFilename = path.join(file.parentPath, file.name.substr(0, file.name.lastIndexOf('.')) + '.json');
+                            const name = file.name.substr(0, file.name.lastIndexOf('.'));
+                            const errFilename = path.join(file.parentPath, `${name}.err`);
+                            const dataFilename = path.join(file.parentPath, `${name}.json`);
                             if (fs.existsSync(errFilename) && fs.existsSync(dataFilename)) {
                                 res.items.push({
                                     nr,
-                                    filename: file.name,
-                                    datafilename: file.name.substr(0, file.name.lastIndexOf('.')) + '.json',
+                                    name,
+                                    imgfilename: file.name,
+                                    srcfilename: `${name}.html`,
+                                    datafilename: `${name}.json`,
                                     error: fs.readFileSync(errFilename).toString(),
                                 });
                             }

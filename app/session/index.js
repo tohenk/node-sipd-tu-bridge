@@ -1326,11 +1326,13 @@ class SipdSession {
         }
         return this.works([
             [w => this.sipd.driver.takeScreenshot()],
+            [w => this.sipd.driver.getPageSource()],
             [w => Promise.resolve(Buffer.from(w.getRes(0), 'base64')), w => w.getRes(0)],
             [w => Promise.resolve(`${this.bridge.name}-${Util.formatDate(new Date(), 'yyyyMMddHHmmsszzz')}`), w => w.getRes(0)],
-            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(2)}.png`), w.getRes(1))), w => w.getRes(0)],
-            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(2)}.err`), f(message))), w => w.getRes(0) && message],
-            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(2)}.json`), JSON.stringify(data))), w => w.getRes(0) && data],
+            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(3)}.html`), w.getRes(1))), w => w.getRes(0)],
+            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(3)}.png`), w.getRes(2))), w => w.getRes(0)],
+            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(3)}.err`), f(message))), w => w.getRes(0) && message],
+            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(3)}.json`), JSON.stringify(data))), w => w.getRes(0) && data],
         ]);
     }
 }
