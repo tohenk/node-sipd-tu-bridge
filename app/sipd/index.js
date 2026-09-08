@@ -151,6 +151,7 @@ class Sipd extends WebRobot {
      */
     doPreLogin() {
         return this.works([
+            [w => Promise.resolve(this.isSecure = false)],
             [w => this.isContinueable(null, false)],
             [w => this.gotoPenatausahaan()],
             [w => this.dismissAnnouncement()],
@@ -183,6 +184,7 @@ class Sipd extends WebRobot {
             [w => this.doSubmitLogin(username, password)],
             [w => this.doSelectRole(username, role)],
             [w => this.waitLoader()],
+            [w => Promise.resolve(this.isSecure = true)],
         ]);
     }
 
@@ -884,6 +886,7 @@ class Sipd extends WebRobot {
      * @param {By} data.data Element selector
      * @param {object} options The options
      * @param {boolean} options.presence Presence state
+     * @param {boolean} options.secured Check for login form to allow break on wait
      * @param {number} options.timeout Wait time out
      * @returns {Promise<WebElement>}
      */
@@ -891,6 +894,9 @@ class Sipd extends WebRobot {
         options = options || {};
         if (options.presence === undefined) {
             options.presence = true;
+        }
+        if (options.secured === undefined && this.isSecure) {
+            options.secured = true;
         }
         if (options.timeout === undefined || options.timeout === null) {
             options.timeout = this.timeout;
@@ -900,14 +906,7 @@ class Sipd extends WebRobot {
             options.classname = data.data;
             data.data = By.xpath(`.//*[contains(@class,"${options.classname}")]`);
         }
-        let target;
-        if (data.data instanceof By) {
-            target = data.data.value;
-        } else if (data instanceof By) {
-            target = data.value;
-        } else {
-            target = data;
-        }
+        const target = this.getTargetForDisplay(data);
         return new Promise((resolve, reject) => {
             const log = `${options.presence ? 'Wait for present' : 'Wait for gone'} ${target}`;
             this.debug(dtag)(log, 'in', options.timeout > 0 ? options.timeout : '∞', 'ms');
@@ -915,8 +914,8 @@ class Sipd extends WebRobot {
             const f = () => {
                 this.works([
                     [w => this.isStale(data.el), w => data.el],
-                    [w => this.observeChildren({data, target, options}), w => !w.getRes(0)],
-                    [w => this.isWaiting({data, options}), w => !w.getRes(0)],
+                    [w => this.observeChildren({data, options}), w => !w.getRes(0)],
+                    [w => this.isWaiting({data, target, options}), w => !w.getRes(0)],
                     [w => this.sleep(this.loopdelay), w => !w.getRes(0)],
                     [w => this.getObservedChildren({target, options}), w => !w.getRes(0)],
                     [w => Promise.resolve(w.getRes(0) ? false : (w.getRes(4) !== undefined ? w.getRes(4) : w.getRes(2)))],
@@ -952,22 +951,26 @@ class Sipd extends WebRobot {
      *
      * @param {object} param0
      * @param {object|By} param0.data Element to wait for
+     * @param {string} param0.target Element as display
      * @param {object} param0.options The options
+     * @param {boolean} param0.options.secured Check for login form
      * @param {number} param0.options.timeout Wait timeout, pass 0 for unlimited
      * @returns {Promise<boolean>}
      */
-    isWaiting({data, options}) {
+    isWaiting({data, target, options}) {
         let res;
         return this.works([
             [w => this.findElements(data)],
+            [w => this.isLoggedIn(false), w => options.secured],
             [w => new Promise((resolve, reject) => {
-                res = options.presence ? w.res.length === 0 : w.res.length > 0;
+                const found = w.getRes(0);
+                res = options.presence ? found.length === 0 : found.length > 0;
                 // is it timed out?
                 if (res && options.timeout > 0 && Date.now() - options.t > options.timeout) {
                     res = false;
                 }
-                if (w.res.length) {
-                    options.res = w.res[0];
+                if (found.length) {
+                    options.res = found[0];
                 }
                 resolve();
             })],
@@ -986,9 +989,11 @@ class Sipd extends WebRobot {
                         resolve();
                     })
                     .catch(() => resolve());
-            }), w => w.getRes(2) === true],
+            }), w => w.getRes(3) === true],
             [w => Promise.resolve(options.sres = this.truncate(options.sres)),
                 w => typeof options.sres === 'string'],
+            [w => Promise.reject(`Expecting ${target} to be ${options.presence ? 'present' : 'gone'}, but got login form instead!`),
+                w => res && options.secured && !w.getRes(1)],
             [w => Promise.resolve(res)],
         ]);
     }
@@ -1192,6 +1197,24 @@ class Sipd extends WebRobot {
         ], {
             onDone: (w, err) => this.closeTab(),
         });
+    }
+
+    /**
+     * Get target element for display.
+     *
+     * @param {object|By} data Source data
+     * @returns {string}
+     */
+    getTargetForDisplay(data) {
+        let res;
+        if (data.data instanceof By) {
+            res = data.data.value;
+        } else if (data instanceof By) {
+            res = data.value;
+        } else {
+            res = data;
+        }
+        return res;
     }
 
     /**
