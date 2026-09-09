@@ -1313,15 +1313,13 @@ class SipdSession {
      */
     captureScreen(message, data, dir = 'captures') {
         const f = e => {
-            const messages = [];
-            if (e.stack) {
-                messages.push(...e.stack.split('\n').slice(1));
-            }
-            let message = e instanceof Error ? e.message : e;
+            const messages = (e instanceof Error ? e.message : e).split('\n');
             if (e.cause instanceof Error) {
-                message = `${message} ${e.cause.message}`;
+                messages[0] = `${messages[0]} ${e.cause.message}`;
             }
-            messages.unshift(message);
+            if (e.stack) {
+                messages.push(...e.stack.split('\n').slice(messages.length));
+            }
             return messages.join('\n');
         }
         return this.works([
