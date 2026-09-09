@@ -113,9 +113,10 @@ class SipdComponentPager extends SipdComponent {
     getPage() {
         return this.works([
             [w => Promise.reject('Pager is not initialized!'), w => !this._pager],
-            [w => this._pager.findElement(By.xpath(`.//ul[@class="${this.PAGINATION_CLASS}"]/li[@class="selected"]`))],
-            [w => w.getRes(1).getAttribute('innerText')],
-            [w => Promise.resolve(parseInt(w.getRes(2)))],
+            [w => this._pager.findElements(By.xpath(`.//ul[@class="${this.PAGINATION_CLASS}"]/li[@class="selected"]`))],
+            [w => w.getRes(1)[0].getAttribute('innerText'), w => w.getRes(1).length],
+            [w => Promise.resolve(parseInt(w.getRes(2))), w => w.getRes(1).length],
+            [w => Promise.resolve(0), w => !w.getRes(1).length],
         ]);
     }
 
@@ -206,7 +207,7 @@ class SipdComponentPager extends SipdComponent {
             // get current page
             [w => this.getPage()],
             // activate page if not current
-            [w => this.gotoPage(page), w => w.getRes(0) !== page],
+            [w => this.gotoPage(page), w => w.getRes(0) !== page && w.getRes(0) > 0],
             // get page data rows
             [w => onrows()],
             // process rows
