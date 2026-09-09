@@ -497,7 +497,7 @@ class SipdBridge {
         ];
         for (const session of Object.values(this.sessions)) {
             works.push(
-                [m => session.cleanFiles(queue)],
+                [m => session.cleanQueue(queue)],
                 [m => session.stop(), m => stop],
             );
         }

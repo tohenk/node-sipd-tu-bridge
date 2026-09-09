@@ -94,7 +94,6 @@ class SipdSppSession extends SipdRekananSession {
             [w => this.sipd.gotoPageTop(), w => !w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//button/span/p[text()="Tambah SPP LS"]/../..')), w => !w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//a/span/p[text()="Barang dan Jasa"]/../..')), w => !w.getRes(0) && allowChange],
-            [w => Promise.resolve(this.spp.clear()), w => !w.getRes(0) && allowChange],
             [w => this.fillForm(queue, 'spp',
                 By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],

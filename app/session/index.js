@@ -163,7 +163,7 @@ class SipdSession {
      */
     createAfektasi(key) {
         key = key.toLowerCase();
-        this[key] = SipdAfektasi.get(key);
+        this[key] = SipdAfektasiFactory.create(key);
         return this;
     }
 
@@ -171,14 +171,15 @@ class SipdSession {
      * Get account charge.
      *
      * @param {string} key The key
+     * @param {string} id The account id
      * @returns {SipdAfektasi}
      */
-    getAfektasi(key) {
+    getAfektasi(key, id) {
         key = key.toLowerCase();
-        if (this[key] === undefined || !this[key] instanceof SipdAfektasi) {
+        if (this[key] === undefined || !this[key] instanceof SipdAfektasiFactory) {
             throw new Error(`Account charges ${key} is not registered!`);
         }
-        return this[key];
+        return this[key].get(id);
     }
 
     /**
@@ -849,12 +850,13 @@ class SipdSession {
             }
             return s;
         }
-        delete queue.afektasi;
+        let afektasi;
+        delete queue.doCleanup;
         queue.kegSeq = 0;
         for (const k of Object.keys(maps)) {
             const selector = [];
             const f = this.getFormKey(k);
-            let key = f.selector, attr, vcond, vtype, data, afektasi;
+            let key = f.selector, attr, vcond, vtype, data, isAfektasi = false;
             switch (true) {
                 case f.sflags.includes('#'):
                     attr = 'id';
@@ -948,15 +950,16 @@ class SipdSession {
             if (key.indexOf(':') > 0) {
                 const y = key.split(':');
                 key = y[1];
-                afektasi = this.getAfektasi(y[0])
-                    .set(key, value);
+                if (afektasi === undefined) {
+                    afektasi = this.getAfektasi(y[0], queue.id);
+                }
+                afektasi.set(key, value);
+                isAfektasi = true;
             }
             if (!f.sflags.includes('=')) {
                 selector.push(`[@${attr}="${key}"]`);
             }
-            if (afektasi) {
-                queue.afektasi = afektasi;
-            } else {
+            if (!isAfektasi) {
                 data = {
                     target: By.xpath(f.sflags.includes('=') ? key : `.//*${selector.join('')}`),
                     value
@@ -991,9 +994,9 @@ class SipdSession {
                         break;
                     case 'AFEKTASI':
                         data.onfill = (el, value) => {
-                            if (queue.afektasi) {
-                                if (queue.afektasi.isValid()) {
-                                    return this.fillAfektasi(el, value, queue.afektasi);
+                            if (afektasi) {
+                                if (afektasi.isValid()) {
+                                    return this.fillAfektasi(el, value, afektasi);
                                 }
                                 return Promise.reject('Unable to fill allocation with invalid metadata!');
                             } else {
@@ -1102,6 +1105,9 @@ class SipdSession {
                 }
                 result.push(data);
             }
+            if (afektasi && queue.doCleanup === undefined) {
+                queue.doCleanup = Promise.resolve(this[afektasi.name].purge(afektasi.id));
+            }
         }
         return result;
     }
@@ -1181,14 +1187,14 @@ class SipdSession {
     }
 
     /**
-     * Clean any temporary files while queue is processing.
+     * Do queue clean up.
      *
      * @param {SipdQueue} queue Queue
      * @returns {Promise<any>}
      */
-    cleanFiles(queue) {
-        if (Array.isArray(queue.files) && queue.files.length) {
-            return new Promise((resolve, reject) => {
+    cleanQueue(queue) {
+        return this.works([
+            [w => new Promise((resolve, reject) => {
                 const q = new Queue(queue.files, file => {
                     if (fs.existsSync(file)) {
                         fs.unlinkSync(file);
@@ -1196,10 +1202,9 @@ class SipdSession {
                     q.next();
                 });
                 q.once('done', () => resolve());
-            });
-        } else {
-            return Promise.resolve();
-        }
+            }), w => Array.isArray(queue.files) && queue.files.length],
+            [w => queue.doCleanup(), w => typeof queue.doCleanup === 'function'],
+        ]);
     }
 
     /**
@@ -1353,6 +1358,13 @@ class SipdAfektasi {
         sisa: false,
     }
 
+    constructor(name, id) {
+        /** @type {string} */
+        this.name = name;
+        /** @type {string} */
+        this.id = id;
+    }
+
     /**
      * Set key value.
      *
@@ -1397,21 +1409,63 @@ class SipdAfektasi {
         }
         return true;
     }
+}
+
+/**
+ * Account charges factory.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdAfektasiFactory {
+
+    constructor(name) {
+        /** @type {string} */
+        this.name = name;
+    }
 
     /**
-     * Create or get account charge.
+     * Get account charge.
      *
      * @param {string} id The account id
      * @returns {SipdAfektasi}
      */
-    static get(id) {
+    get(id) {
+        if (this.items === undefined) {
+            this.items = {};
+        }
+        if (this.items[id] === undefined) {
+            this.items[id] = new SipdAfektasi(this.name, id);
+        }
+        return this.items[id];
+    }
+
+    /**
+     * Purge account charge.
+     *
+     * @param {string} id The account id
+     * @returns {SipdAfektasiFactory}
+     */
+    purge(id) {
+        if (this.items && this.items[id] !== undefined) {
+            delete this.items[id];
+        }
+        return this;
+    }
+
+    /**
+     * Create account charge factory.
+     *
+     * @param {string} name The account name
+     * @returns {SipdAfektasiFactory}
+     */
+    static create(name) {
         if (this.instances === undefined) {
             this.instances = {};
         }
-        if (this.instances[id] === undefined) {
-            this.instances[id] = new this();
+        if (this.instances[name] === undefined) {
+            this.instances[name] = new this(name);
         }
-        return this.instances[id];
+        return this.instances[name];
     }
 }
 

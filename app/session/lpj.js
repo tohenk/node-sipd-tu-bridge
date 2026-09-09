@@ -145,7 +145,6 @@ class SipdLpjSession extends SipdRekananSession {
             [w => this.checkNpd(queue)],
             [w => this.sipd.gotoPageTop(), w => !w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//a/button[text()="Tambah"]/..')), w => !w.getRes(0) && allowChange],
-            [w => Promise.resolve(this.npd.clear()), w => !w.getRes(0) && allowChange],
             [w => this.fillForm(queue, 'npd',
                 By.xpath('//h1[text()="Pengajuan | Nota Pencairan Dana"]/../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],
