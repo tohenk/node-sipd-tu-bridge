@@ -81,7 +81,7 @@ class SipdDequeue extends EventEmitter {
      */
     setConsumer(consumer) {
         /** @type {SipdConsumer[]} */
-        this.consumers = Array.isArray(consumer) ? consumer : [consumer];
+        this.consumers = Array.isArray(consumer) ? consumer.sort((a, b) => a.priority - b.priority) : [consumer];
         for (consumer of this.consumers) {
             consumer
                 .on('queue-done', queue => {
@@ -156,34 +156,42 @@ class SipdDequeue extends EventEmitter {
     /**
      * Process queue by handing queue to consumer.
      */
-    processQueue() {
+    async processQueue() {
         if (this.consumers) {
-            if (this.queues.length) {
-                for (const queue of this.queues) {
-                    // query idle consumer
-                    const consumers = this.consumers
-                        .sort((a, b) => a.priority - b.priority)
-                        .filter(consumer => !consumer.queue && consumer.isAccepted(queue));
-                    if (consumers.length) {
-                        const pickedConsumers = consumers
-                            .filter(consumer => consumer.priority === consumers[0].priority);
-                        if (pickedConsumers.length) {
-                            const idx = pickedConsumers.length > 1 ? Math.floor(Math.random() * pickedConsumers.length) : 0;
-                            const consumer = pickedConsumers[idx];
-                            // move queue to processing
-                            this.queues.splice(this.queues.indexOf(queue), 1);
-                            this.processing.push(queue);
-                            // hand the queue to consumer
-                            queue.maxretry = this.retry;
-                            consumer.consume(queue);
-                            // start over
+            try {
+                if (this.queues.length) {
+                    let i = 0;
+                    while (true) {
+                        if (i >= this.queues.length) {
                             break;
                         }
+                        const queue = this.queues[i];
+                        // query idle consumer
+                        const consumers = this.consumers.filter(consumer => !consumer.queue && consumer.isAccepted(queue));
+                        if (consumers.length) {
+                            const pickedConsumers = consumers
+                                .filter(consumer => consumer.priority === consumers[0].priority);
+                            if (pickedConsumers.length) {
+                                const idx = pickedConsumers.length > 1 ? Math.floor(Math.random() * pickedConsumers.length) : 0;
+                                const consumer = pickedConsumers[idx];
+                                // move queue to processing
+                                this.queues.splice(i, 1);
+                                this.processing.push(queue);
+                                // hand the queue to consumer
+                                queue.maxretry = this.retry;
+                                consumer.consume(queue);
+                                await new Promise(resolve => setTimeout(resolve, 50));
+                                continue;
+                            }
+                        }
+                        i++;
                     }
                 }
+                this.checkTimedout();
+                this.checkOrphaned();
+            } catch (err) {
+                console.error(err);
             }
-            this.checkTimedout();
-            this.checkOrphaned();
         }
     }
 
@@ -677,9 +685,9 @@ class SipdBridgeConsumer extends SipdConsumer
             if (dtime % 100 === 0) {
                 this._time = ctime;
                 if (data) {
-                    SipdLogger.activity(dtag)('%s not ready: %s %s', this.bridge.name, reason, data);
+                    SipdLogger.activity(dtag)('%s not ready for %s: %s %s', this.bridge.name, queue, reason, data);
                 } else {
-                    SipdLogger.activity(dtag)('%s not ready: %s', this.bridge.name, reason);
+                    SipdLogger.activity(dtag)('%s not ready for %S: %s', this.bridge.name, queue, reason);
                 }
             }
             return false;
