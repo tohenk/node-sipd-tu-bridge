@@ -98,6 +98,10 @@ class SipdBridge {
         this.singleSession = this.options.singleSession !== undefined ? this.options.singleSession : true;
         /** @type {boolean} */
         this.stopSessionEarly = this.options.stopSessionEarly !== undefined ? this.options.stopSessionEarly : true;
+        if (this.options.accepts) {
+            /** @type {string|string[]} */
+            this.accepts = this.options.accepts;
+        }
         this.loginfo = {
             tag: this.name,
             onError: () => SipdLogger.logger('error', this.loginfo),
