@@ -741,7 +741,7 @@ class SipdBridgeConsumer extends SipdConsumer
             }
             return false;
         } else {
-            SipdLogger.activity(dtag)('%s ready: can handle %s', this.bridge.name, queue);
+            debug('%s is ready: can handle %s', this.bridge.name, queue);
             return true;
         }
     }
