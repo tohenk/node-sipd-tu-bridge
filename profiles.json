@@ -3,9 +3,9 @@
     "profiles": {
         "fast": {
             "timeout": 5000,
-            "wait": 2000,
-            "delay": 500,
-            "opdelay": 500,
+            "wait": 1000,
+            "delay": 250,
+            "opdelay": 100,
             "animdelay": 1000
         },
         "normal": {
