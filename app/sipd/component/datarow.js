@@ -148,6 +148,15 @@ class SipdComponentDataRow extends SipdComponent {
             [w => this.options.onrow(el), w => w.getRes(0) && typeof this.options.onrow === 'function'],
         ]);
     }
+
+    /**
+     * Is data row empty?
+     *
+     * @returns {boolean}
+     */
+    isEmpty() {
+        return this._empty !== undefined;
+    }
 }
 
 module.exports = SipdComponentDataRow;

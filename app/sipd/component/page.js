@@ -123,7 +123,7 @@ class SipdComponentPage extends SipdComponent {
         const onrows = () => this._datarow.getRows();
         return this.works([
             [w => onrows()],
-            [w => this._pager.getPages(), w => w.getRes(0).length],
+            [w => this._pager.getPages(), w => !this._datarow.isEmpty()],
             [w => new Promise((resolve, reject) => {
                 let pages, pageCount = w.getRes(1);
                 if (options.states) {
@@ -143,7 +143,13 @@ class SipdComponentPage extends SipdComponent {
                 const q = new Queue(pages, page => {
                     this.parent.debug(dtag)(`Processing page ${this.options.title}: ${page} of ${pageCount}`);
                     this._pager.each(page, {states: options.states, onrows, onwork: callback})
-                        .then(() => q.next())
+                        .then(() => {
+                            if (this._datarow.isEmpty()) {
+                                reject(`Page ${page} of ${this.options.title} returns empty instead of rows!`);
+                            } else {
+                                q.next()
+                            }
+                        })
                         .catch(err => {
                             if (err instanceof SipdStopError) {
                                 q.done();
@@ -153,7 +159,7 @@ class SipdComponentPage extends SipdComponent {
                         });
                 });
                 q.once('done', () => resolve());
-            }), w => w.getRes(0).length && w.getRes(1)],
+            }), w => !this._datarow.isEmpty() && w.getRes(1)],
         ]);
     }
 }
