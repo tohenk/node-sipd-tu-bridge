@@ -137,6 +137,8 @@ class Configuration {
             outdir: path.join(this.workdir, Configuration.OUT_DIR),
             tmpdirname: Configuration.TMP_DIR,
             capturedirname: Configuration.CAPTURE_DIR,
+            saveQueue: true,
+            ignoreQueue: false,
         }
         for (const [k, v] of Object.entries(defaults)) {
             if (this[k] === undefined) {

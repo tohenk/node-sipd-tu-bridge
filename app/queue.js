@@ -29,6 +29,7 @@ const EventEmitter = require('events');
 const SipdNotifier = require('./notifier');
 const SipdLogger = require('./sipd/logger');
 const SipdUtil = require('./sipd/util');
+const debug = require('debug')('sipd:queue');
 const { SipdRetryError, SipdCleanAndRetryError } = require('./sipd');
 const { glob } = require('glob');
 
@@ -156,35 +157,19 @@ class SipdDequeue extends EventEmitter {
     /**
      * Process queue by handing queue to consumer.
      */
-    async processQueue() {
+    processQueue() {
         if (this.consumers) {
             try {
                 if (this.queues.length) {
-                    let i = 0;
-                    while (true) {
-                        if (i >= this.queues.length) {
-                            break;
+                    for (const consumer of this.consumers) {
+                        if (consumer.queue) {
+                            continue;
                         }
-                        const queue = this.queues[i];
-                        // query idle consumer
-                        const consumers = this.consumers.filter(consumer => !consumer.queue && consumer.isAccepted(queue));
-                        if (consumers.length) {
-                            const pickedConsumers = consumers
-                                .filter(consumer => consumer.priority === consumers[0].priority);
-                            if (pickedConsumers.length) {
-                                const idx = pickedConsumers.length > 1 ? Math.floor(Math.random() * pickedConsumers.length) : 0;
-                                const consumer = pickedConsumers[idx];
-                                // move queue to processing
-                                this.queues.splice(i, 1);
-                                this.processing.push(queue);
-                                // hand the queue to consumer
-                                queue.maxretry = this.retry;
-                                consumer.consume(queue);
-                                await new Promise(resolve => setTimeout(resolve, 50));
-                                continue;
-                            }
+                        const queues = this.queues.filter(a => consumer.isAccepted(a));
+                        if (queues.length) {
+                            const pickedConsumers = this.consumers.filter(a => !a.queue && a.isSimilar(consumer));
+                            this.consumeQueue(queues[0], pickedConsumers);
                         }
-                        i++;
                     }
                 }
                 this.checkTimedout();
@@ -193,6 +178,27 @@ class SipdDequeue extends EventEmitter {
                 console.error(err);
             }
         }
+    }
+
+    /**
+     * Consume queue by moving from queue to processing.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {SipdConsumer[]} consumers Consumers
+     * @returns {boolean}
+     */
+    consumeQueue(queue, consumers) {
+        if (queue && consumers.length) {
+            const idx = consumers.length > 1 ? Math.floor(Math.random() * consumers.length) : 0;
+            const consumer = consumers[idx];
+            this.queues.splice(this.queues.indexOf(queue), 1);
+            this.processing.push(queue);
+            queue.maxretry = this.retry;
+            debug('Queue', queue.toString(), 'is handled by', consumer.constructor.name);
+            consumer.consume(queue);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -281,7 +287,9 @@ class SipdDequeue extends EventEmitter {
         }
         this.queues.push(queue);
         this.emit('queue', queue);
-        process.nextTick(() => this.processQueue());
+        if (this.consumers) {
+            process.nextTick(() => this.processQueue());
+        }
         return {status: 'queued', id: queue.id};
     }
 
@@ -395,15 +403,21 @@ class SipdDequeue extends EventEmitter {
 
     /**
      * Load queue from file.
+     *
+     * @param {boolean} clean Clean queue after load
      */
-    loadQueue() {
+    loadQueue(clean = true) {
         const filename = path.join(process.cwd(), 'queue', 'saved.queue');
         if (fs.existsSync(filename) && typeof this.createQueue === 'function') {
             const savedQueues = JSON.parse(fs.readFileSync(filename));
             if (savedQueues) {
-                savedQueues.forEach(queue => this.createQueue(queue));
+                for (const queue of savedQueues) {
+                    this.createQueue(queue);
+                }
             }
-            fs.unlinkSync(filename);
+            if (clean) {
+                fs.unlinkSync(filename);
+            }
         }
     }
 
@@ -439,13 +453,13 @@ class SipdDequeue extends EventEmitter {
      */
     buildInfo(info) {
         const result = {};
-        Object.keys(info).forEach(k => {
+        for (const k of Object.keys(info)) {
             let v = info[k];
             if (typeof v === 'function') {
                 v = v();
             }
             result[k] = v;
-        });
+        }
         return result;
     }
 }
@@ -464,7 +478,12 @@ class SipdConsumer extends EventEmitter
      */
     constructor(priority) {
         super();
+        /** @type {number} */
         this.priority = priority;
+        /** @type {string|string[]|null} */
+        this.accepts;
+        /** @type {?SipdQueue} */
+        this.queue;
         this.initialize();
     }
 
@@ -481,6 +500,9 @@ class SipdConsumer extends EventEmitter
      * @returns {boolean}
      */
     canAccept(queue) {
+        if (SipdQueue.hasPendingQueue({type: SipdQueue.QUEUE_CLEAN, info: null})) {
+            return false;
+        }
         return true;
     }
 
@@ -505,6 +527,30 @@ class SipdConsumer extends EventEmitter
             res = true;
         }
         return res ? this.canAccept(queue) : false;
+    }
+
+    /**
+     * Check if consumer can handle queue as handled by other consumer?
+     *
+     * @param {SipdConsumer} consumer Referenced consumer
+     * @returns {boolean}
+     */
+    isSimilar(consumer) {
+        if (this.constructor.name !== consumer.constructor.name) {
+            return false;
+        }
+        if (this.priority !== consumer.priority) {
+            return false;
+        }
+        if (this.bridge) {
+            if (!consumer.bridge) {
+                return false;
+            }
+            if (this.bridge.year !== consumer.bridge.year) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -571,8 +617,8 @@ class SipdConsumer extends EventEmitter
                 SipdLogger.activity(dtag)('Got an error while processing queue: %s!', err);
             }
         }
+        queue.consumer = this;
         this.queue = queue;
-        this.queue.consumer = this;
         doit();
     }
 
@@ -657,7 +703,7 @@ class SipdBridgeConsumer extends SipdConsumer
      */
     canAccept(queue) {
         let reason, data;
-        if (SipdQueue.hasPendingQueue({type: SipdQueue.QUEUE_CLEAN, info: null})) {
+        if (!super.canAccept(queue)) {
             reason = 'cleaning in progress';
         }
         if (!reason && !this.bridge.isOperational()) {
@@ -667,28 +713,31 @@ class SipdBridgeConsumer extends SipdConsumer
             reason = 'processing queue';
             data = this.bridge.queue;
         }
-        if (!reason && this.bridge.accepts && (
-            (Array.isArray(this.bridge.accepts) && !this.bridge.accepts.includes(queue.type)) ||
-            this.bridge.accepts !== queue.type
-        )) {
-            reason = 'only accepts';
-            data = this.bridge.accepts;
+        if (!reason && this.bridge.accepts) {
+            let accept = true;
+            if (Array.isArray(this.bridge.accepts)) {
+                if (!this.bridge.accepts.includes(queue.type)) {
+                    accept = false;
+                }
+            } else {
+                if (this.bridge.accepts != queue.type) {
+                    accept = false;
+                }
+            }
+            if (!accept) {
+                reason = 'only accepts';
+                data = this.bridge.accepts;
+            }
         }
         if (!reason && this.bridge.year != queue?.data.year) {
             reason = 'only for';
             data = this.bridge.year;
         }
         if (reason) {
-            const ctime = new Date().getTime();
-            const xtime = this._time || ctime;
-            const dtime = ctime - xtime;
-            if (dtime % 100 === 0) {
-                this._time = ctime;
-                if (data) {
-                    SipdLogger.activity(dtag)('%s not ready for %s: %s %s', this.bridge.name, queue, reason, data);
-                } else {
-                    SipdLogger.activity(dtag)('%s not ready for %S: %s', this.bridge.name, queue, reason);
-                }
+            if (data) {
+                debug('%s is not ready for %s: %s %s', this.bridge.name, queue, reason, data);
+            } else {
+                debug('%s is not ready for %S: %s', this.bridge.name, queue, reason);
             }
             return false;
         } else {
@@ -822,6 +871,17 @@ class SipdQueue
      * Constructor.
      */
     constructor() {
+        /** @type {?SipdConsumer} */
+        this.consumer;
+        /** @type {?string} */
+        this.info;
+        /** @type {?boolean} */
+        this.readonly;
+        /** @type {?boolean} */
+        this.retry;
+        /** @type {?number} */
+        this.maxretry;
+        /** @type {string} */
         this.status = SipdQueue.STATUS_NEW;
     }
 

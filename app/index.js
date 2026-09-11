@@ -176,7 +176,7 @@ class App {
             .on('queue-done', q => this.handleNotify(q))
             .on('queue-error', q => this.handleNotify(q))
         ;
-        if (Cmd.get('queue')) {
+        if (Cmd.get('queue') && this.config.saveQueue) {
             const f = () => {
                 console.log('Please wait, saving queues...');
                 this.dequeue.saveQueue();
@@ -309,15 +309,9 @@ class App {
         }
         http.listen(port, () => {
             console.log('Application ready on port %s...', port);
-            const selfTests = [];
-            this.bridges.forEach(bridge => {
-                selfTests.push(w => bridge.selfTest());
-            });
+            const selfTests = this.bridges.map(bridge => [s => bridge.selfTest()]);
             Work.works(selfTests)
                 .then(() => {
-                    if (Cmd.get('queue')) {
-                        this.dequeue.loadQueue();
-                    }
                     if (Cmd.get('noop')) {
                         console.log('Bridge ready, queuing only...');
                     } else {
@@ -498,9 +492,12 @@ class App {
             this.ready = this.readyCount() === this.bridges.length;
             if (this.ready) {
                 clearInterval(interval);
-                console.log('Readiness checking is done...');
+                console.log('Readiness check is done...');
                 if (Cmd.get('clean')) {
                     this.createCleanQueue();
+                }
+                if (Cmd.get('queue')) {
+                    this.dequeue.loadQueue(this.config.saveQueue);
                 }
                 if (this.payload) {
                     const queue = SipdCmd.get(this.payload.command)
@@ -520,21 +517,25 @@ class App {
                 }
             }
         }, 1000);
-        console.log('Readiness checking has been started...');
+        console.log('Readiness check has been started...');
     }
 
     /**
      * Register queue consumers.
      */
     registerConsumers() {
-        const { SipdBridgeConsumer, SipdCallbackConsumer, SipdCleanerConsumer } = SipdQueue.CONSUMERS;
+        const { SipdBridgeConsumer, SipdCallbackConsumer, SipdCleanerConsumer, SipdBlackholeConsumer } = SipdQueue.CONSUMERS;
         const consumers = [
             new SipdCleanerConsumer(this.PRIO_FIRST),
             new SipdCallbackConsumer(this.PRIO_FIRST),
         ];
-        this.bridges.forEach(bridge => {
-            consumers.push(new SipdBridgeConsumer(bridge, bridge.accepts ? this.PRIO_ABOVE : this.PRIO_NORMAL));
-        });
+        if (Cmd.get('queue') && this.config.ignoreQueue) {
+            consumers.push(new SipdBlackholeConsumer(this.PRIO_NORMAL));
+        } else {
+            for (const bridge of this.bridges) {
+                consumers.push(new SipdBridgeConsumer(bridge, bridge.accepts ? this.PRIO_ABOVE : this.PRIO_NORMAL));
+            }
+        }
         this.dequeue.setConsumer(consumers);
     }
 
@@ -617,13 +618,7 @@ class App {
      * @returns {number}
      */
     readyCount() {
-        let readyCnt = 0;
-        this.bridges.forEach(b => {
-            if (b.isOperational()) {
-                readyCnt++;
-            }
-        });
-        return readyCnt;
+        return this.bridges.reduce((a, b) => a += b.isOperational() ? 1 : 0, 0);
     }
 
     /**
