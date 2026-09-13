@@ -25,6 +25,7 @@
 const Queue = require('@ntlab/work/queue');
 const SipdComponent = require('.');
 const { SipdTimer } = require('..');
+const { SipdOperationError } = require('../error');
 const { By, WebElement } = require('selenium-webdriver');
 
 const dtag = 'datarow';
@@ -88,7 +89,7 @@ class SipdComponentDataRow extends SipdComponent {
     findEmpty() {
         const selector = this.options.emptySelector ?? './/div[@class="container-no-data-access-modal"]';
         return this.works([
-            [w => Promise.reject('Wrapper is required!'), w => !this._wrapper],
+            [w => Promise.reject(SipdOperationError.create('Wrapper is required')), w => !this._wrapper],
             [w => this._wrapper.findElements(By.xpath(selector))],
             [w => Promise.resolve(this._empty = w.res[0]), w => w.getRes(1).length],
             [w => Promise.resolve(delete this._empty), w => !w.getRes(1).length],
@@ -103,7 +104,7 @@ class SipdComponentDataRow extends SipdComponent {
     findRows() {
         const selector = this.options.tableSelector ?? './/div[contains(@class,"css-table-responsive")]';
         return this.works([
-            [w => Promise.reject('Wrapper is required!'), w => !this._wrapper],
+            [w => Promise.reject(SipdOperationError.create('Wrapper is required')), w => !this._wrapper],
             [w => this._wrapper.findElements(By.xpath(selector))],
             [w => Promise.resolve(this._rows = w.res[0]), w => w.getRes(1).length],
             [w => Promise.resolve(delete this._rows), w => !w.getRes(1).length],

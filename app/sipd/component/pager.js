@@ -24,6 +24,7 @@
 
 const Queue = require('@ntlab/work/queue');
 const SipdComponent = require('.');
+const { SipdError, SipdOperationError } = require('../../sipd/error');
 const { By, WebElement } = require('selenium-webdriver');
 
 const dtag = 'pager';
@@ -56,7 +57,7 @@ class SipdComponentPager extends SipdComponent {
     setupPagination() {
         const selector = this.options.paginationSelector ?? './/div[@class="container-pagination-table-list"]';
         return this.works([
-            [w => Promise.reject('Wrapper is required!'), w => !this._wrapper],
+            [w => Promise.reject(SipdOperationError.create('Wrapper is required')), w => !this._wrapper],
             [w => this._wrapper.findElements(By.xpath(selector))],
             [w => Promise.resolve(this._pager = w.res[0]), w => w.getRes(1).length],
             [w => Promise.resolve(delete this._pager), w => !w.getRes(1).length],
@@ -85,7 +86,7 @@ class SipdComponentPager extends SipdComponent {
             .map(s => `contains(@class,"${s}")`)
             .join(' or ');
         return this.works([
-            [w => Promise.reject('Pager is not initialized!'), w => !this._pager],
+            [w => Promise.reject(SipdOperationError.create('Pager is not initialized')), w => !this._pager],
             [w => this._pager.findElements(By.xpath(`.//ul[@class="${this.PAGINATION_CLASS}"]/li[not (${skipped})]/a`))],
             [w => new Promise((resolve, reject) => {
                 const q = new Queue(w.getRes(1), el => {
@@ -112,7 +113,7 @@ class SipdComponentPager extends SipdComponent {
      */
     getPage() {
         return this.works([
-            [w => Promise.reject('Pager is not initialized!'), w => !this._pager],
+            [w => Promise.reject(SipdOperationError.create('Pager is not initialized')), w => !this._pager],
             [w => this._pager.findElements(By.xpath(`.//ul[@class="${this.PAGINATION_CLASS}"]/li[@class="selected"]`))],
             [w => w.getRes(1)[0].getAttribute('innerText'), w => w.getRes(1).length],
             [w => Promise.resolve(parseInt(w.getRes(2))), w => w.getRes(1).length],
@@ -198,10 +199,10 @@ class SipdComponentPager extends SipdComponent {
             onwork = options.onwork;
         }
         if (typeof onrows !== 'function') {
-            throw new Error('Each page requires onrows handler!');
+            throw SipdError.create('Each page requires onrows handler');
         }
         if (typeof onwork !== 'function') {
-            throw new Error('Each page requires onwork handler!');
+            throw SipdError.create('Each page requires onwork handler');
         }
         return this.works([
             // get current page

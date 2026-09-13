@@ -23,6 +23,7 @@
  */
 
 const crypto = require('crypto');
+const { SipdError } = require('./error');
 
 /**
  * Encryption handler.
@@ -84,7 +85,7 @@ class SipdEncryptable {
                 decoded += decipher.final('utf8');
                 return decoded;
             } else {
-                throw new Error('Encryption requires ENC_KEY environment to be set!');
+                throw SipdError.create('Encryption requires ENC_KEY environment to be set');
             }
         }
         return s;

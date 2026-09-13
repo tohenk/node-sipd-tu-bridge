@@ -27,7 +27,8 @@ const SipdComponent = require('.');
 const SipdComponentDataRow = require('./datarow');
 const SipdComponentFilter = require('./filter');
 const SipdComponentPager = require('./pager');
-const { Sipd, SipdStopError } = require('..');
+const { Sipd } = require('..');
+const { SipdOperationError, SipdStopError } = require('../error');
 const { By } = require('selenium-webdriver');
 
 const dtag = 'page';
@@ -61,7 +62,7 @@ class SipdComponentPage extends SipdComponent {
         delete this.options.wrapper;
         const selector = this.options.selector ?? '//h1[contains(@class,"card-title") and text()="%TITLE%"]/../../..';
         return this.works([
-            [w => Promise.reject('Page title not specified!'), w => !this.options.title],
+            [w => Promise.reject(SipdOperationError.create('Page title not specified')), w => !this.options.title],
             [w => this.parent.findElement(By.xpath(selector.replace(/%TITLE%/, this.options.title)))],
             [w => Promise.resolve(this.options.wrapper = w.res)],
             [w => Promise.resolve(this._filter.enabled = this.options.filter ? true : false)],
@@ -103,7 +104,7 @@ class SipdComponentPage extends SipdComponent {
         if (this._filter.enabled) {
             return this._filter.apply(value, key);
         } else {
-            return Promise.reject('Page filtering is not enabled!');
+            return Promise.reject(SipdOperationError.create('Page filtering for %title% is not enabled', {title: this.options.title}));
         }
     }
 
@@ -145,7 +146,8 @@ class SipdComponentPage extends SipdComponent {
                     this._pager.each(page, {states: options.states, onrows, onwork: callback})
                         .then(() => {
                             if (this._datarow.isEmpty()) {
-                                reject(`Page ${page} of ${this.options.title} returns empty instead of rows!`);
+                                reject(SipdOperationError.create('Page %page% of %title% returns empty instead of rows',
+                                    {title: this.options.title, page}));
                             } else {
                                 q.next()
                             }

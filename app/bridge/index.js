@@ -29,7 +29,7 @@ const SipdQueue = require('../queue');
 const SipdSession = require('../session');
 const SipdLpjSession = require('../session/lpj');
 const SipdSppSession = require('../session/spp');
-const { SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
+const { SipdError, SipdOperationError, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd/error');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { SipdLockManager, SipdUserLock } = require('./lock');
 const { error } = require('selenium-webdriver');
@@ -123,7 +123,7 @@ class SipdBridge {
     addHandler(handlerClass) {
         const handler = new handlerClass(this);
         if (!handler instanceof SipdBridgeHandler) {
-            throw new Error('Bridge handler must be instance of SipdBridgeHandler!');
+            throw SipdError.create('Bridge handler must be instance of SipdBridgeHandler');
         }
         for (const m of Object.getOwnPropertyNames(handler.constructor.prototype)) {
             if (m.startsWith('_') || ['constructor', 'initialize'].includes(m)) {
@@ -355,9 +355,9 @@ class SipdBridge {
                 .then(res => resolve(res))
                 .catch(err => {
                     if (err instanceof error.WebDriverError && err.message.includes('net::ERR_CONNECTION_TIMED_OUT')) {
-                        err = SipdRetryError.from(err);
+                        err = SipdRetryError.create(err);
                     } else if (err instanceof error.SessionNotCreatedError) {
-                        err = SipdCleanAndRetryError.from(err);
+                        err = SipdCleanAndRetryError.create(err);
                     } else {
                         const prefix = this.loginfo.actor && this.loginfo.action ?
                             `${this.loginfo.actor} (${this.loginfo.action}):` : null;
@@ -392,9 +392,9 @@ class SipdBridge {
     checkRole(queue) {
         return this.works([
             [m => Promise.resolve(queue.getMappedData('info.role'))],
-            [m => Promise.reject('Invalid queue, no role specified!'), m => !m.getRes(0)],
+            [m => Promise.reject(SipdOperationError.create('Invalid queue, no role specified')), m => !m.getRes(0)],
             [m => Promise.resolve(this.switchRole(m.getRes(0), queue.getMappedData('info.unit')))],
-            [m => Promise.reject(`Role not found ${m.getRes(0)}!`), m => !m.getRes(2)],
+            [m => Promise.reject(SipdOperationError.create('Role not found %role%', {role: m.getRes(0)})), m => !m.getRes(2)],
         ]);
     }
 
@@ -408,7 +408,7 @@ class SipdBridge {
         return this.works([
             [w => this.lock.release(this.lock.lock)],
             [w => Promise.resolve(this.getUser(role))],
-            [w => Promise.reject(`Role not found: ${role}!`), w => !w.getRes(1)],
+            [w => Promise.reject(SipdOperationError.create('Role not found: %role%', {role})), w => !w.getRes(1)],
             [w => new Promise((resolve, reject) => {
                 const user = w.getRes(1);
                 let title = user.role ?? this.getRoleTitle(role);
@@ -433,7 +433,7 @@ class SipdBridge {
                     }[title];
                     resolve(session);
                 } else {
-                    reject(`Unable to create session for ${user.username}!`);
+                    reject(SipdOperationError.create('Unable to create session for %user%', {user: user.username}));
                 }
             })],
             [w => this.lock.acquire(w.getRes(1).username)],

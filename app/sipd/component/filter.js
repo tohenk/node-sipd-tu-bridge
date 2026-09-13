@@ -25,6 +25,7 @@
 const Queue = require('@ntlab/work/queue');
 const SipdComponent = require('.');
 const SipdUtil = require('../util');
+const { SipdOperationError } = require('../../sipd/error');
 const { By } = require('selenium-webdriver');
 
 const dtag = 'filter';
@@ -62,7 +63,7 @@ class SipdComponentFilter extends SipdComponent {
     setupFiltering(data) {
         this.data = data;
         return this.works([
-            [w => Promise.reject('Wrapper is required!'), w => !this._wrapper],
+            [w => Promise.reject(SipdOperationError.create('Wrapper is required')), w => !this._wrapper],
             [w => this._wrapper.findElement(data.toggler), w => data.toggler],
             [w => Promise.resolve(this._toggler = w.res), w => data.toggler],
             [w => this._wrapper.findElement(data.filter), w => data.filter],
@@ -100,16 +101,16 @@ class SipdComponentFilter extends SipdComponent {
      */
     apply(value, key = null) {
         return this.works([
-            [w => Promise.reject('Filter component is not initialized!'), w => !this._filter],
+            [w => Promise.reject(SipdOperationError.create('Filter component is not initialized')), w => !this._filter],
             [w => this._toggler.getAttribute('aria-expanded'), w => this._toggler],
             [w => this.parent.clickExpanded(this._toggler), w => this._toggler && w.getRes(1) === 'false'],
             [w => this._choices.click(), w => this._choices && key],
             [w => this._choices.findElements(By.xpath(`./../*/*/button/span/p[text()="${key}"]/../..`)), w => this._choices && key],
-            [w => Promise.reject(`No filter key found for ${key}!`), w => this._choices && key && !w.getRes(4).length],
+            [w => Promise.reject(SipdOperationError.create('No filter key found for %key%', {key})), w => this._choices && key && !w.getRes(4).length],
             [w => w.getRes(4)[0].click(), w => this._choices && key && w.getRes(4).length],
             [w => new Promise((resolve, reject) => {
                 if (Array.isArray(this._filter) && !Array.isArray(value)) {
-                    return reject('Filter value must be an array!');
+                    return reject(SipdOperationError.create('Filter value must be an array'));
                 }
                 const selectors = Array.isArray(this._filter) ? this.data.input : [this.data.input];
                 const searches = Array.isArray(this._filter) ? this._filter : [this._filter];

@@ -26,6 +26,7 @@ const SipdQueue = require('../queue');
 const SipdRekananSession = require('./rekanan');
 const SipdSppActivitySelector = require('./activity/spp');
 const SipdUtil = require('../sipd/util');
+const { SipdOperationError } = require('../sipd/error');
 const { SipdQuerySpp } = require('./query/spp');
 const { By } = require('selenium-webdriver');
 
@@ -76,7 +77,7 @@ class SipdSppSession extends SipdRekananSession {
     checkSpp(queue, options = null) {
         options = options || {};
         return this.works([
-            [w => Promise.reject('SPP is not created yet!'), w => options.exist && !queue.SPP],
+            [w => Promise.reject(SipdOperationError.create('SPP is not created yet')), w => options.exist && !queue.SPP],
             [w => this.querySpp(queue, {navigates: ['Pengeluaran', 'SPP', 'LS'], ...options})],
         ]);
     }
@@ -152,7 +153,7 @@ class SipdSppSession extends SipdRekananSession {
      */
     checkSpm(queue) {
         return this.works([
-            [w => Promise.reject('SPP is not created yet!'), w => !queue.SPP],
+            [w => Promise.reject(SipdOperationError.create('SPP is not created yet')), w => !queue.SPP],
             [w => this.querySpm(queue, {navigates: ['Pengeluaran', 'SPM', 'Pembuatan']})],
         ]);
     }
@@ -210,7 +211,7 @@ class SipdSppSession extends SipdRekananSession {
      */
     checkSp2d(queue) {
         return this.works([
-            [w => Promise.reject('SPM is not created yet!'), w => !queue.SPM],
+            [w => Promise.reject(SipdOperationError.create('SPM is not created yet')), w => !queue.SPM],
             [w => this.querySp2d(queue, {navigates: ['Pengeluaran', 'SP2D', 'Pencairan']})],
         ]);
     }

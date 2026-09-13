@@ -28,6 +28,7 @@ const io = require('socket.io-client');
 const SipdLogger = require('./sipd/logger');
 const SipdUtil = require('./sipd/util');
 const { SipdTimer } = require('./sipd');
+const { SipdError } = require('./sipd/error');
 
 const dtag = 'solver';
 
@@ -263,7 +264,7 @@ class SocketSolver extends Solver {
             }
             return io(this.url, options);
         } else {
-            throw new Error('Unable to create socket client without url!');
+            throw SipdError.create('Unable to create socket client without url');
         }
     }
 

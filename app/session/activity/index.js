@@ -25,6 +25,7 @@
 const Queue = require('@ntlab/work/queue');
 const SipdUtil = require('../../sipd/util');
 const { Sipd } = require('../../sipd');
+const { SipdOperationError } = require('../../sipd/error');
 const { By } = require('selenium-webdriver');
 
 const dtag = 'activity';
@@ -88,8 +89,10 @@ class SipdActivitySelector {
                 });
                 q.once('done', () => resolve());
             })],
-            [w => Promise.reject(`Unable to fill activity ${value}!`), w => !fulfilled],
-            [w => this.parent.sleep(this.parent.opdelay), w => fulfilled],
+            [w => Promise.reject(SipdOperationError.create('Unable to fill activity %activity%', {activity: value})),
+                w => !fulfilled],
+            [w => this.parent.sleep(this.parent.opdelay),
+                w => fulfilled],
         ]);
     }
 }

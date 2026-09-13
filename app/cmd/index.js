@@ -25,6 +25,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Socket } = require('socket.io');
+const { SipdError } = require('../sipd/error');
 
 /**
  * Sipd command handler.
@@ -129,7 +130,7 @@ class SipdCmd {
      */
     static register(mode = null, name = null, dirname = null, recursive = null) {
         if (this.app === undefined) {
-            throw new Error('Application is not set!');
+            throw SipdError.create('Application is not set');
         }
         if (this.dir === undefined) {
             this.dir = __dirname;

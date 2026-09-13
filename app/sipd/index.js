@@ -22,11 +22,11 @@
  * SOFTWARE.
  */
 
-const util = require('util');
 const Queue = require('@ntlab/work/queue');
 const WebRobot = require('@ntlab/webrobot');
 const SipdLogger = require('./logger');
 const SipdUtil = require('./util');
+const { SipdError, SipdOperationError, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdAbortError } = require('./error');
 const { By, error, WebElement } = require('selenium-webdriver');
 
 const dtag = 'core';
@@ -140,7 +140,7 @@ class Sipd extends WebRobot {
                 [w => this.doPostLogin(), w => username],
             ])
             .then(() => resolve())
-            .catch(err => reject(SipdRetryError.from(err)));
+            .catch(err => reject(SipdRetryError.create(err)));
         });
     }
 
@@ -197,6 +197,7 @@ class Sipd extends WebRobot {
      */
     doSubmitLogin(username, password) {
         return new Promise((resolve, reject) => {
+            const r = (e, s) => (e = (e instanceof Error ? e.message : e).toLowerCase(), e.includes(SipdError._(s)));
             const f = () => {
                 this.formSubmit(
                     By.xpath(this.LOGIN_FORM),
@@ -205,7 +206,7 @@ class Sipd extends WebRobot {
                         {
                             target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'),
                             value: this.year,
-                            onfill: (el, value) => this.reactSelect(el, value, 'Budgeting year is not available!')
+                            onfill: (el, value) => this.reactSelect(el, value, 'Budgeting %value% is not available')
                         },
                         {target: By.id('ed_username'), value: username},
                         {target: By.id('ed_password'), value: password},
@@ -214,13 +215,13 @@ class Sipd extends WebRobot {
                         spinner: true,
                         prefillCallback: () => this.waitCaptcha(),
                         retry: 3,
-                        isretryable: err => typeof err === 'string' && err.includes('Gagal memproses permintaan'),
+                        isretryable: err => r(err, 'gagal memproses permintaan'),
                     }
                 )
                 .then(() => resolve())
                 .catch(err => {
                     // retry on invalid captcha
-                    if (typeof err === 'string' && err.toLowerCase().includes('invalid captcha')) {
+                    if (r(err, 'invalid captcha')) {
                         setTimeout(f, this.loopdelay);
                     } else {
                         reject(err);
@@ -253,9 +254,10 @@ class Sipd extends WebRobot {
                 w => !w.getRes(0).length && !w.getRes(2).length],
             [w => this.getText(w.getRes(5)),
                 w => !w.getRes(0).length && !w.getRes(2).length],
-            [w => Promise.reject(`User ${username} does not have role ${role}, but has ${w.getRes(6).join(', ')}!`),
+            [w => Promise.reject(SipdOperationError.create('User %username% does not have role %role%, but has %roles%',
+                {username, role, roles: w.getRes(6).join(', ')})),
                 w => !w.getRes(0).length && !w.getRes(2).length],
-            [w => Promise.reject(`User ${username} is not found!`),
+            [w => Promise.reject(SipdOperationError.create('User %username% is not found', {username})),
                 w => w.getRes(0).length],
         ]);
     }
@@ -384,7 +386,7 @@ class Sipd extends WebRobot {
                     [w => this.getLastMessage()],
                     [w => Promise.resolve(this.debug(dtag)('Form submit return', w.getRes(4))), w => w.getRes(4)],
                     [w => Promise.resolve(w.getRes(1)), w => success(w.getRes(4))],
-                    [w => Promise.reject(errmsg(w.getRes(4))), w => !w.getRes(6)],
+                    [w => Promise.reject(SipdOperationError.create(errmsg(w.getRes(4)))), w => !w.getRes(6)],
                 ])
                 .then(res => resolve(res))
                 .catch(err => {
@@ -553,7 +555,7 @@ class Sipd extends WebRobot {
                 if (handles.length) {
                     resolve(handles[0]);
                 } else {
-                    reject('No opened window');
+                    reject(SipdOperationError.create('No opened window'));
                 }
             }), w => w.getRes(1)],
             [w => this.driver.switchTo().window(w.getRes(7)), w => w.getRes(1)],
@@ -571,7 +573,8 @@ class Sipd extends WebRobot {
         return this.works([
             [w => this.waitForPresence(By.xpath('//div[@id="cf-error-details"]/header/h1'), {timeout: this.delay})],
             [w => this.getText([By.xpath('.//span[@class="inline-block"]'), By.xpath('.//span[@class="code-label"]')], w.getRes(0)), w => w.getRes(0)],
-            [w => Promise.reject(`Cloudflare: ${w.getRes(1)[0]} (${w.getRes(1)[1]})`), w => w.getRes(0)],
+            [w => Promise.reject(SipdOperationError.create('Cloudflare: %status% (%message%)',
+                {status: w.getRes(1)[0], message: w.getRes(1)[1]})), w => w.getRes(0)],
         ]);
     }
 
@@ -583,7 +586,7 @@ class Sipd extends WebRobot {
     isInMaintenance() {
         return this.works([
             [w => this.waitForPresence(By.xpath('//h1[contains(@class,"css-n-ca-jf-qawac") and text()="Maintenance"]'), {timeout: this.delay})],
-            [w => Promise.reject('SIPD Penatausahaan is in maintenance!'), w => w.getRes(0)],
+            [w => Promise.reject(SipdOperationError.create('SIPD Penatausahaan is in maintenance')), w => w.getRes(0)],
         ]);
     }
 
@@ -596,12 +599,12 @@ class Sipd extends WebRobot {
      */
     isContinueable(err, secured = true) {
         return this.works([
-            [w => Promise.reject('Window has been closed!'),
+            [w => Promise.reject(SipdOperationError.create('Window has been closed')),
                 w => err && (err instanceof error.NoSuchWindowError || err instanceof error.NoSuchSessionError)],
             [w => this.isWafError()],
             [w => this.isInMaintenance()],
             [w => this.isLoggedIn(false), w => secured],
-            [w => Promise.reject('Not logged in!'), w => secured && !w.getRes(3)],
+            [w => Promise.reject(SipdOperationError.create('Not logged in')), w => secured && !w.getRes(3)],
         ]);
     }
 
@@ -637,7 +640,7 @@ class Sipd extends WebRobot {
                     }
                 }
                 if (error) {
-                    return reject(`SIPD Penatausahaan is experiencing problem: ${error}!`);
+                    return reject(SipdOperationError.create('SIPD Penatausahaan is experiencing problem: %error%', {error}));
                 }
                 resolve();
             }), w => w.getRes(0).length],
@@ -729,7 +732,8 @@ class Sipd extends WebRobot {
             [w => el.getAttribute('aria-controls')],
             [w => this.findElement(By.id(w.getRes(1)))],
             [w => w.getRes(2).findElements(By.xpath(`.//*[contains(.,"${value}")]`))],
-            [w => Promise.reject(new SipdAnnouncedError(util.format(message ? message : 'Select choice %s is unavailable!', value))), w => w.getRes(3).length === 0],
+            [w => Promise.reject(SipdOperationError.create(message ? message : 'Select choice %value% is unavailable', {value})),
+                w => w.getRes(3).length === 0],
             [w => w.getRes(3)[0].click(), w => w.getRes(3).length],
         ]);
     }
@@ -822,7 +826,7 @@ class Sipd extends WebRobot {
                     }
                     if (restart) {
                         if (count > restartCount) {
-                            reject('Too many retry while opening SIPD Penatausahaan!');
+                            reject(SipdOperationError.create('Too many retry while opening SIPD Penatausahaan'));
                         } else {
                             setTimeout(f, this.delay);
                         }
@@ -992,7 +996,8 @@ class Sipd extends WebRobot {
             }), w => w.getRes(3) === true],
             [w => Promise.resolve(options.sres = this.truncate(options.sres)),
                 w => typeof options.sres === 'string'],
-            [w => Promise.reject(`Expecting ${target} to be ${options.presence ? 'present' : 'gone'}, but got login form instead!`),
+            [w => Promise.reject(SipdOperationError.create('Expecting %target% to be %state%, but got login form instead',
+                {target, state: options.presence ? SipdError._('present') : SipdError._('gone')})),
                 w => res && options.secured && !w.getRes(1)],
             [w => Promise.resolve(res)],
         ]);
@@ -1076,8 +1081,10 @@ class Sipd extends WebRobot {
                             [w => this.findMenu(parent, root, menu, level, n + 1, logged), w => !w.getRes(0)],
                             [w => Promise.resolve(w.getRes(0) || w.getRes(1))],
                             [w => this.isLoggedIn(false), w => !w.getRes(2)],
-                            [w => Promise.reject(`Unable to find menu ${menu}!`), w => !w.getRes(2) && w.getRes(3)],
-                            [w => Promise.reject(`Unable to find menu ${menu}, session logged-out!`), w => !w.getRes(2)],
+                            [w => Promise.reject(SipdOperationError.create('Unable to find menu %menu%', {menu})),
+                                w => !w.getRes(2) && w.getRes(3)],
+                            [w => Promise.reject(SipdOperationError.create('Unable to find menu %menu%, session logged-out', {menu})),
+                                w => !w.getRes(2)],
                         ])
                         .then(state => {
                             res = state.el;
@@ -1162,7 +1169,7 @@ class Sipd extends WebRobot {
                         f();
                     }), w => w.getRes(0).length],
                     [w => this.isLoggedIn(false), w => w.getRes(0).length === 0],
-                    [w => Promise.reject(`Unable to find sub page ${nav}, session logged-out!`), w => w.getRes(0).length === 0 && !w.getRes(3)],
+                    [w => Promise.reject(SipdOperationError.create('Unable to find sub page %page%, session logged-out', {page: nav})), w => w.getRes(0).length === 0 && !w.getRes(3)],
                 ])
                 .then(() => q.next())
                 .catch(err => reject(err));
@@ -1364,121 +1371,7 @@ class SipdTimer
     }
 }
 
-/**
- * Base error.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdError extends Error {
-
-    toString() {
-        return this.message;
-    }
-
-    [util.inspect.custom](depth, options, inspect) {
-        return this.toString();
-    }
-
-    static getErrorClass() {
-        return this;
-    }
-
-    /**
-     * Create new error.
-     *
-     * @param {Error|string} ref Error reference or message
-     * @returns {SipdError}
-     */
-    static from(ref) {
-        const error = this.getErrorClass();
-        const err = new error(ref instanceof Error ? ref.message : ref);
-        if (ref instanceof Error && ref.cause) {
-            err.cause = ref.cause;
-        }
-        return err;
-    }
-}
-
-/**
- * An error to indicate a message is need to be announced to caller.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdAnnouncedError extends SipdError {
-
-    static getErrorClass() {
-        return this;
-    }
-}
-
-/**
- * An error to indicate a restart operation.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdRestartError extends SipdError {
-
-    static getErrorClass() {
-        return this;
-    }
-}
-
-/**
- * An error to indicate a retry operation.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdRetryError extends SipdError {
-
-    static getErrorClass() {
-        return this;
-    }
-}
-
-/**
- * An error to indicate a clean and retry operation.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdCleanAndRetryError extends SipdRetryError {
-
-    static getErrorClass() {
-        return this;
-    }
-}
-
-/**
- * An error to indicate a stop operation when iterating data rows.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdStopError extends SipdError {
-
-    static getErrorClass() {
-        return this;
-    }
-}
-
-/**
- * An error to indicate an operation is aborted.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdAbortError extends SipdError {
-
-    static getErrorClass() {
-        return this;
-    }
-}
-
 module.exports = {
     Sipd,
     SipdTimer,
-    SipdError,
-    SipdAnnouncedError,
-    SipdRestartError,
-    SipdRetryError,
-    SipdCleanAndRetryError,
-    SipdStopError,
-    SipdAbortError
 }

@@ -25,6 +25,7 @@
 const fs = require('fs');
 const path = require('path');
 const Logger = require('@ntlab/ntlib/logger');
+const { SipdError } = require('./error');
 
 /**
  * SIPD logger.
@@ -42,7 +43,7 @@ class SipdLogger {
      */
     static logger(tag, options) {
         if (this.factory === undefined) {
-            throw new Error('Logger is not created yet, make sure create() is called first!');
+            throw SipdError.create('Logger is not created yet, make sure create() is called first');
         }
         return this.factory(tag, options || {});
     }

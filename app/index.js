@@ -40,6 +40,7 @@ const SipdUtil = require('./sipd/util');
 const Queue = require('@ntlab/work/queue');
 const Work = require('@ntlab/work/work');
 const { SipdBridge } = require('./bridge');
+const { SipdError } = require('./sipd/error');
 const { Socket } = require('socket.io');
 
 const dtag = 'app';
@@ -163,10 +164,10 @@ class App {
          */
         this.dequeue.setMaps = queue => {
             if (!queue.mode) {
-                throw new Error('Unable to set maps on queue without mode!');
+                throw SipdError.create('Unable to set maps on queue without mode');
             }
             if (this.config.maps[queue.mode] === undefined) {
-                throw new Error(`Queue map ${queue.mode} is not loaded!`);
+                throw SipdError.create('Queue map %mode% is not loaded', {mode: queue.mode});
             }
             queue.maps = this.config.maps[queue.mode];
             queue.info = queue.getMappedData('info.title');
@@ -297,7 +298,7 @@ class App {
                         }
                     }
                     SipdLogger.activity(dtag)('Client %s is using invalid authorization', socket.id);
-                    next(new Error('Invalid authorization'));
+                    next(SipdError.create('Invalid authorization'));
                 });
             }
             if (this.ui) {
@@ -511,7 +512,7 @@ class App {
                 }
             } else {
                 if (now - this.startTime > readinessTimeout) {
-                    throw new Error(util.format('Bridge is not ready within %d seconds timeout!', readinessTimeout / 1000));
+                    throw SipdError.create('Bridge is not ready within %seconds%s timeout!', {secods: readinessTimeout / 1000});
                 }
             }
         }, 1000);

@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-const { Sipd } = require('..');
+const { Sipd, SipdError } = require('..');
 const { error } = require('selenium-webdriver');
 
 /**
@@ -97,7 +97,8 @@ class SipdComponent {
                                 if (res) {
                                     reject(err);
                                 } else {
-                                    const e = new Error(`Session has been logged-out while setup ${SipdComponent.getName(this.constructor.name)}!`);
+                                    const e = SipdError.create('Session has been logged-out while setup %name%!',
+                                        {name: SipdComponent.getName(this.constructor.name)});
                                     e.cause = err;
                                     reject(e);
                                 }

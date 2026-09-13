@@ -24,7 +24,8 @@
 
 const Work = require('@ntlab/work/work');
 const SipdLogger = require('../sipd/logger');
-const { SipdTimer, SipdAbortError } = require('../sipd');
+const { SipdTimer } = require('../sipd');
+const { SipdError, SipdAbortError } = require('../sipd/error');
 
 const dtag = 'lock';
 
@@ -89,7 +90,7 @@ class SipdUserLock {
         this.user = user;
         const store = new storeClass(this);
         if (!store instanceof SipdLockStore) {
-            throw new Error('Lock storage must be instance of SipdLockStore!');
+            throw SipdError.create('Lock storage must be instance of SipdLockStore');
         }
         /** @type {SipdLockStore} */
         this.store = store;
@@ -339,7 +340,7 @@ class SipdLockStoreRedis extends SipdLockStore {
         this.getRedis = async () => {
             if (this.redis === undefined) {
                 if (!SipdLockStoreRedis._con) {
-                    throw new Error('Redis connection string is not set!');
+                    throw SipdError.create('Redis connection string is not set');
                 }
                 this._ready = false;
                 const { createClient } = require('redis');

@@ -29,6 +29,7 @@ const SipdQueue = require('../queue');
 const SipdRekananSession = require('./rekanan');
 const SipdLpjReader = require('./reader/lpj');
 const SipdTbpReader = require('./reader/tbp');
+const { SipdOperationError } = require('../sipd/error');
 const { SipdQueryBase } = require('./query');
 const { SipdQueryNpd } = require('./query/npd');
 const { SipdQueryTbp } = require('./query/tbp');
@@ -163,7 +164,7 @@ class SipdLpjSession extends SipdRekananSession {
     setujuiNpd(queue, status = 'Baru') {
         const allowChange = this.isEditable(queue);
         return this.works([
-            [w => Promise.reject('NPD is not created yet!'), w => !queue.NPD],
+            [w => Promise.reject(SipdOperationError.create('NPD is not created yet')), w => !queue.NPD],
             [w => this.checkNpd(queue)],
             [w => this.executeAction(queue, 'Persetujuan', status), w => allowChange],
             [w => this.fillForm(queue, 'setuju-npd',
@@ -184,7 +185,7 @@ class SipdLpjSession extends SipdRekananSession {
     validasiNpd(queue, status = 'Persetujuan') {
         const allowChange = this.isEditable(queue);
         return this.works([
-            [w => Promise.reject('NPD is not created yet!'), w => !queue.NPD],
+            [w => Promise.reject(SipdOperationError.create('NPD is not created yet')), w => !queue.NPD],
             [w => this.checkNpd(queue)],
             [w => this.executeAction(queue, 'Validasi', status), w => allowChange],
             [w => this.fillForm(queue, 'validasi-npd',

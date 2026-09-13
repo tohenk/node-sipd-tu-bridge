@@ -30,7 +30,7 @@ const SipdNotifier = require('./notifier');
 const SipdLogger = require('./sipd/logger');
 const SipdUtil = require('./sipd/util');
 const debug = require('debug')('sipd:queue');
-const { SipdRetryError, SipdCleanAndRetryError } = require('./sipd');
+const { SipdError, SipdOperationError, SipdRetryError, SipdCleanAndRetryError } = require('./sipd/error');
 const { glob } = require('glob');
 
 const dtag = 'queue';
@@ -850,7 +850,7 @@ class SipdBlackholeConsumer extends SipdConsumer
      * @returns {Promise<any>}
      */
     doConsume(queue) {
-        return Promise.reject('ignored!');
+        return Promise.reject(SipdOperationError.create('ignored'));
     }
 }
 
@@ -1420,7 +1420,7 @@ class SipdQueue
      */
     static addQueue(queue) {
         if (!dequeue) {
-            throw new Error('No dequeue instance has been created!');
+            throw SipdError.create('No dequeue instance has been created');
         }
         return dequeue.add(queue);
     }

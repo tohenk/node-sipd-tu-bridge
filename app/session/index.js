@@ -30,6 +30,7 @@ const SipdQueue = require('../queue');
 const SipdUtil = require('../sipd/util');
 const Util = require('@ntlab/ntlib/util');
 const { Sipd } = require('../sipd');
+const { SipdError, SipdOperationError } = require('../sipd/error');
 const { SipdQueryBase } = require('./query');
 const { SipdReader } = require('./reader');
 const { SipdVoterPegawai } = require('./query/pegawai');
@@ -177,7 +178,7 @@ class SipdSession {
     getAfektasi(key, id) {
         key = key.toLowerCase();
         if (this[key] === undefined || !this[key] instanceof SipdAfektasiFactory) {
-            throw new Error(`Account charges ${key} is not registered!`);
+            throw SipdError.create('Account charges %key% is not registered', {key});
         }
         return this[key].get(id);
     }
@@ -486,7 +487,7 @@ class SipdSession {
                 [w => Promise.resolve(store[values[0]] = values[1]), w => w.getRes(1).includes(values[2].toLowerCase())],
             ]);
         } else {
-            return Promise.reject('State requires three parameters (column, value, css)!');
+            return Promise.reject(SipdOperationError.create('State requires three parameters (column, value, css)'));
         }
     }
 
@@ -502,7 +503,7 @@ class SipdSession {
             [w => el.click()],
             [w => el.getAttribute('aria-controls')],
             [w => this.sipd.findElements(By.xpath(`//*[@id="${w.getRes(1)}"]/div[contains(text(),"${value}")]`))],
-            [w => Promise.reject(`Combobox value ${value} not available!`), w => w.getRes(2).length === 0],
+            [w => Promise.reject(SipdOperationError.create('Combobox value %value% not available', {value})), w => w.getRes(2).length === 0],
             [w => w.getRes(2)[0].click(), w => w.getRes(2).length],
         ]);
     }
@@ -531,7 +532,8 @@ class SipdSession {
      */
     fillDatePicker(el, value) {
         return this.works([
-            [w => Promise.reject(`Date "${value}" is not valid!`), w => value instanceof Date && isNaN(value)],
+            [w => Promise.reject(SipdOperationError.create('Date %value% is not valid', {value})),
+                w => value instanceof Date && isNaN(value)],
             [w => this.sipd.clickWait(el)],
             [w => el.getAttribute('readonly')],
             [w => this.flatpickrGet()],
@@ -539,7 +541,9 @@ class SipdSession {
             [w => el.sendKeys(Key.TAB), w => w.getRes(2)],
             [w => el.getAttribute('value')],
             [w => Promise.resolve(SipdUtil.getDate(w.getRes(6)))],
-            [w => Promise.reject(`Date ${w.getRes(7)} is not expected of ${value}!`), w => SipdUtil.dateSerial(value) != SipdUtil.dateSerial(w.getRes(7))],
+            [w => Promise.reject(SipdOperationError.create('Date %value% is not expected of %expected%',
+                {expected: value, value: w.getRes(7)})),
+                w => SipdUtil.dateSerial(value) != SipdUtil.dateSerial(w.getRes(7))],
         ]);
     }
 
@@ -552,7 +556,8 @@ class SipdSession {
      */
     fillDatePicker2(el, value) {
         return this.works([
-            [w => Promise.reject(`Date "${value}" is not valid!`), w => value instanceof Date && isNaN(value)],
+            [w => Promise.reject(SipdOperationError.create('Date %value% is not valid', {value})),
+                w => value instanceof Date && isNaN(value)],
             [w => this.sipd.driver.executeScript(
                 function(el, date) {
                     if (el._flatpickr) {
@@ -561,7 +566,9 @@ class SipdSession {
                     }
                 }, el, value)],
             [w => Promise.resolve(SipdUtil.getDate(w.getRes(1)))],
-            [w => Promise.reject(`Date ${w.getRes(2)} is not expected of ${value}!`), w => SipdUtil.dateSerial(value) != SipdUtil.dateSerial(w.getRes(2))],
+            [w => Promise.reject(SipdOperationError.create('Date %value% is not expected of %expected%',
+                {expected: value, value: w.getRes(2)})),
+                w => SipdUtil.dateSerial(value) != SipdUtil.dateSerial(w.getRes(2))],
         ]);
     }
 
@@ -641,9 +648,11 @@ class SipdSession {
             [w => this.sipd.sleep(this.sipd.opdelay)],
             [w => this.sipd.findElements(By.xpath('//div[@class="css-kw-3t-2fa3"]/div/div/div[@class="col-span-7"]/div/div[1]/div/span[1]'))],
             [w => this.fillAccount(w.getRes(2), value, afektasi)],
-            [w => Promise.reject(`Unable to allocate ${SipdUtil.fmtCurr(value)} to ${afektasi.keg}-${afektasi.rek}, available ${SipdUtil.fmtCurr(afektasi.sisa)}!`),
+            [w => Promise.reject(SipdOperationError.create('Unable to allocate %value% to %account%, available %available%',
+                {value: SipdUtil.fmtCurr(value), available: SipdUtil.fmtCurr(afektasi.sisa), account: [afektasi.keg, afektasi.rek].join('-')})),
                 w => w.getRes(3) === 0],
-            [w => Promise.reject(`Unable to allocate ${SipdUtil.fmtCurr(value)} to ${afektasi.keg}-${afektasi.rek}, account unavailable!`),
+            [w => Promise.reject(SipdOperationError.create('Unable to allocate %value% to %account%, account unavailable',
+                {value: SipdUtil.fmtCurr(value), account: [afektasi.keg, afektasi.rek].join('-')})),
                 w => w.getRes(3) === false],
         ]);
     }
@@ -819,7 +828,7 @@ class SipdSession {
             });
             q.once('done', () => {
                 if (!picked) {
-                    reject(`Unable to fill date ${date}!`);
+                    reject(SipdOperationError.create('Unable to fill date %date%', {date}));
                 } else {
                     resolve();
                 }
@@ -876,7 +885,7 @@ class SipdSession {
             // fall back to non mapped value if undefined
             if (value === undefined) {
                 if (f.flags.includes('*')) {
-                    throw new Error(`Form ${name}: ${key} value is mandatory`);
+                    throw SipdError.create('Form %name%: %key% value is mandatory', {name, key});
                 }
                 value = maps[k];
             }
@@ -998,9 +1007,9 @@ class SipdSession {
                                 if (afektasi.isValid()) {
                                     return this.fillAfektasi(el, value, afektasi);
                                 }
-                                return Promise.reject('Unable to fill allocation with invalid metadata!');
+                                return Promise.reject(SipdOperationError.create('Unable to fill allocation with invalid metadata'));
                             } else {
-                                return Promise.reject('Unable to fill allocation without metadata!');
+                                return Promise.reject(SipdOperationError.create('Unable to fill allocation without metadata'));
                             }
                         }
                         break;
@@ -1029,7 +1038,7 @@ class SipdSession {
                                 case 'click':
                                     return el.click();
                             }
-                            throw new Error(`Invalid DO action: ${value}!`)
+                            throw SipdError.create('Invalid DO action: %value%', {value})
                         }
                         break;
                 }
@@ -1097,7 +1106,7 @@ class SipdSession {
                 data.afterfill = el => this.works([
                     [w => this.sipd.isStale(el)],
                     [w => this.getError(el), w => !w.getRes(0)],
-                    [w => Promise.reject(w.getRes(1)), w => !w.getRes(0) && w.getRes(1)],
+                    [w => Promise.reject(SipdOperationError.create(w.getRes(1))), w => !w.getRes(0) && w.getRes(1)],
                     [w => Promise.resolve(), w => w.getRes(0) || !w.getRes(1)],
                 ]);
                 if (this.options.clearUsingKey) {
@@ -1230,14 +1239,14 @@ class SipdSession {
                 value = Buffer.from(value.data);
             }
             if (!Buffer.isBuffer(value)) {
-                return reject('Value for file upload must be buffer!');
+                return reject(SipdOperationError.create('Value for file upload must be buffer'));
             }
             let storedFile = this.genFilename(tmpdirname, `${queue.id}.${ext}`);
             let storedSize = value.byteLength;
             let maxSizeByte, saved = false, optimize = false;
             const done = () => {
                 if (maxSizeByte && storedSize > maxSizeByte) {
-                    reject(`File size is larger than ${maxSize}!`);
+                    reject(SipdOperationError.create('File size is larger than %size%', {size: maxSize}));
                 } else {
                     if (!saved) {
                         this.saveFile(storedFile, value);
@@ -1246,7 +1255,7 @@ class SipdSession {
                         queue.filesize = storedSize;
                         resolve(storedFile);
                     } else {
-                        reject(`File not found ${storedFile}!`);
+                        reject(SipdOperationError.create('File not found %file%', {file: storedFile}));
                     }
                 }
             }
@@ -1296,9 +1305,9 @@ class SipdSession {
                             msg = stderr.toString().trim();
                         }
                         if (msg) {
-                            reject(`Unable to optimize PDF: ${msg}!`);
+                            reject(SipdOperationError.create('Unable to optimize PDF: %error%', {error: msg}));
                         } else {
-                            reject(`An error occured while optimizing PDF!`);
+                            reject(SipdOperationError.create('An error occured while optimizing PDF'));
                         }
                     }
                 });
@@ -1374,11 +1383,11 @@ class SipdAfektasi {
      */
     set(key, value) {
         if (!key) {
-            throw new Error('Key is required!');
+            throw SipdError.create('Key is required');
         }
         key = key.toLowerCase();
         if (!Object.keys(this.keys).includes(key)) {
-            throw new Error(`Unknown key ${key}!`);
+            throw SipdError.create('Unknown key %key%!', {key});
         }
         this[key] = value;
         return this;
