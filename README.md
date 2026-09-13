@@ -42,7 +42,7 @@ There are 3 running modes which can be set using command line argument or define
 
 * `util`
 
-  Serves `util:captcha` to download captcha images and `util:noop` to test user roles.
+  Serves `util:captcha` to download captcha images.
 
 ## Data Mapping
 

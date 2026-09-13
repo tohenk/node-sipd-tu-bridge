@@ -47,8 +47,7 @@ class SipdBridgeUtil extends SipdBridgeHandler {
             const q = new Queue(sequences, async (seq) => {
                 const res = await sess.captchaImage();
                 if (res) {
-                    this.bridge.getSessions()[0]
-                        .saveCaptcha(res);
+                    sess.saveCaptcha(res);
                 }
                 await sess.reloadCaptcha();
                 q.next();
@@ -64,34 +63,31 @@ class SipdBridgeUtil extends SipdBridgeHandler {
      * @returns {Promise<any>}
      */
     fetchCaptcha(queue) {
-        const sess = this.bridge.getSessions()[0];
-        if (sess) {
-            const count = queue.data.count || 100;
-            const oldOnState = this.bridge.onState;
-            this.bridge.onState = s => {
-                if (sess.state().captcha && !this._captcha) {
-                    this._captcha = true;
-                    const f = () => {
-                        this._captcha = false;
-                    }
-                    this._getCaptchas(sess, count)
-                        .then(() => f())
-                        .catch(() => f());
+        const sess = this.bridge.getSession('captcha');
+        const count = queue.data.count || 100;
+        const oldOnState = this.bridge.onState;
+        this.bridge.onState = s => {
+            if (sess.state().captcha && !this._captcha) {
+                this._captcha = true;
+                const f = () => {
+                    this._captcha = false;
                 }
-                if (typeof oldOnState === 'function') {
-                    oldOnState(s);
-                }
+                this._getCaptchas(sess, count)
+                    .then(() => f())
+                    .catch(() => f());
             }
-            return this.bridge.do([
-                [w => sess.login()],
-            ], (w, err) => {
-                return [
-                    [e => this.bridge.end(queue, this.bridge.autoClose)],
-                ];
-            });
-        } else {
-            return Promise.reject('No roles defined!');
+            if (typeof oldOnState === 'function') {
+                oldOnState(s);
+            }
         }
+        return this.bridge.do([
+            [w => sess.login()],
+            [w => sess.waitCaptcha()],
+        ], {
+            callback: (w, err) => ([
+                [e => this.bridge.end(queue, this.bridge.autoClose)],
+            ])
+        });
     }
 }
 

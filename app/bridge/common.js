@@ -34,27 +34,6 @@ const { SipdBridgeHandler } = require('.');
 class SipdBridgeCommon extends SipdBridgeHandler {
 
     /**
-     * Perform noop.
-     *
-     * @param {SipdQueue} queue Queue
-     * @returns {Promise<any>}
-     */
-    noop(queue) {
-        const sess = this.bridge.getSessions()[0];
-        if (sess) {
-            return this.bridge.do([
-                [w => sess.login()],
-            ], (w, err) => {
-                return [
-                    [e => this.bridge.end(queue, this.bridge.autoClose)],
-                ];
-            });
-        } else {
-            return Promise.reject('No roles defined!');
-        }
-    }
-
-    /**
      * Get captcha image.
      *
      * @returns {Promise<{[key: string]: string}>}

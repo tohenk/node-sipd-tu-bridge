@@ -136,8 +136,8 @@ class Sipd extends WebRobot {
                 [w => this.doPreLogin()],
                 [w => this.logout(), w => force],
                 [w => this.isLoggedIn(), w => !force],
-                [w => this.doLogin(username, password, role), w => force || !w.getRes(2)],
-                [w => this.doPostLogin()],
+                [w => this.doLogin(username, password, role), w => username && (force || !w.getRes(2))],
+                [w => this.doPostLogin(), w => username],
             ])
             .then(() => resolve())
             .catch(err => reject(SipdRetryError.from(err)));

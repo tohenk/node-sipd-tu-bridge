@@ -44,10 +44,11 @@ class SipdBridgeRekanan extends SipdBridgeHandler {
         return this.bridge.processQueue({
             queue,
             works: [
-                ['bp', w => this.bridge.doAs(SipdRole.BP, SipdRekananSession)],
+                ['bp', w => this.bridge.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
                 ['bp-rekanan', w => w.bp.listRekanan(queue)],
             ],
+            session: SipdRekananSession,
         });
     }
 }

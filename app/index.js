@@ -459,8 +459,6 @@ class App {
             case 'captcha':
                 data.count = Cmd.get('count') ? parseInt(Cmd.get('count')) : 10;
                 break;
-            case 'noop':
-                break;
             case 'rekanan':
                 if (args.length) {
                     const queue = SipdQueue.createWithMap(this.config.maps[Configuration.BRIDGE_UTIL]);
@@ -475,7 +473,7 @@ class App {
                 }
                 break;
             default:
-                error = 'Supported utility: captcha, noop, rekanan!';
+                error = 'Supported utility: captcha, rekanan!';
                 break;
         }
         return [false, `util:${command}`, data, opts, error];

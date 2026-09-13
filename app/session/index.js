@@ -46,7 +46,7 @@ const dtag = 'session';
  */
 class SipdSession {
 
-    fn = ['stop', 'sleep', 'captchaImage', 'solveCaptcha', 'reloadCaptcha']
+    fn = ['stop', 'sleep', 'waitCaptcha', 'captchaImage', 'solveCaptcha', 'reloadCaptcha']
 
     /**
      * Constructor.
@@ -400,7 +400,7 @@ class SipdSession {
     login() {
         return this.works([
             [w => this.start()],
-            [w => this.sipd.login(this.cred.username, this.cred.password, [this.cred.role, this.cred.idx])],
+            [w => this.sipd.login(this.cred?.username, this.cred?.password, [this.cred?.role, this.cred?.idx])],
         ]);
     }
 

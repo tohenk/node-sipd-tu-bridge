@@ -128,9 +128,6 @@ class SipdDequeue extends EventEmitter {
             case SipdQueue.QUEUE_CAPTCHA:
                 queue = SipdQueue.createCaptchaQueue(data.data);
                 break;
-            case SipdQueue.QUEUE_NOOP:
-                queue = SipdQueue.createNoopQueue(data.data);
-                break;
             case SipdQueue.QUEUE_CLEAN:
                 queue = SipdQueue.createCleanQueue(data.data);
                 break;
@@ -691,7 +688,6 @@ class SipdBridgeConsumer extends SipdConsumer
             SipdQueue.QUEUE_LPJ_LIST,
             SipdQueue.QUEUE_REKANAN,
             SipdQueue.QUEUE_CAPTCHA,
-            SipdQueue.QUEUE_NOOP,
         ];
     }
 
@@ -772,8 +768,6 @@ class SipdBridgeConsumer extends SipdConsumer
                 return this.bridge.queryRekanan(queue);
             case SipdQueue.QUEUE_CAPTCHA:
                 return this.bridge.fetchCaptcha(queue);
-            case SipdQueue.QUEUE_NOOP:
-                return this.bridge.noop(queue);
         }
     }
 }
@@ -1397,16 +1391,6 @@ class SipdQueue
     }
 
     /**
-     * Create NOOP queue.
-     *
-     * @param {object} data Queue data
-     * @returns {SipdQueue}
-     */
-    static createNoopQueue(data) {
-        return this.create(SipdQueue.QUEUE_NOOP, data);
-    }
-
-    /**
      * Create CLEAN queue.
      *
      * @param {object} data Queue data
@@ -1515,7 +1499,6 @@ class SipdQueue
             [this.QUEUE_REKANAN]: 'em-',
             [this.QUEUE_CALLBACK]: '',
             [this.QUEUE_CAPTCHA]: '',
-            [this.QUEUE_NOOP]: '',
             [this.QUEUE_CLEAN]: '',
         }
     }
@@ -1528,7 +1511,6 @@ class SipdQueue
     static get QUEUE_REKANAN() { return 'rekanan' }
     static get QUEUE_CALLBACK() { return 'callback' }
     static get QUEUE_CAPTCHA() { return 'captcha' }
-    static get QUEUE_NOOP() { return 'noop' }
     static get QUEUE_CLEAN() { return 'clean' }
 
     static get STATUS_NEW() { return 'new' }

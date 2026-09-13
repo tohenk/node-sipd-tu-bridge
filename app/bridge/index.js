@@ -31,7 +31,7 @@ const SipdLpjSession = require('../session/lpj');
 const SipdSppSession = require('../session/spp');
 const { SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
-const { SipdLockManager } = require('./lock');
+const { SipdLockManager, SipdUserLock } = require('./lock');
 const { error } = require('selenium-webdriver');
 
 /**
@@ -66,6 +66,10 @@ const { error } = require('selenium-webdriver');
  */
 
 /**
+ * @typedef {[number, Function]} WorkHeartbeat
+ */
+
+/**
  * Sipd bridge base class.
  *
  * @author Toha <tohenk@yahoo.com>
@@ -92,10 +96,12 @@ class SipdBridge {
         this.options = options;
         /** @type {number} */
         this.state = this.STATE_NONE;
+        /** @type {SipdSessionLock} */
+        this.lock = new SipdSessionLock(this, {
+            enabled: this.options.singleSession !== undefined ? this.options.singleSession : true,
+        });
         /** @type {boolean} */
         this.autoClose = this.options.autoClose !== undefined ? this.options.autoClose : true;
-        /** @type {boolean} */
-        this.singleSession = this.options.singleSession !== undefined ? this.options.singleSession : true;
         /** @type {boolean} */
         this.stopSessionEarly = this.options.stopSessionEarly !== undefined ? this.options.stopSessionEarly : true;
         if (this.options.accepts) {
@@ -153,6 +159,7 @@ class SipdBridge {
             role = Object.keys(rs.roles)[0];
         }
         if (role) {
+            this.lock.setSessionFactory(null);
             return this.works([
                 ['role', s => Promise.resolve(this.switchRole(role))],
                 ['bp', s => this.doAs(SipdRole.BP)],
@@ -395,12 +402,11 @@ class SipdBridge {
      * Do the operation as requested role and returns the session.
      *
      * @param {string} role User role
-     * @param {typeof SipdSession} sessionFactory Session factory
      * @returns {Promise<SipdSession>}
      */
-    doAs(role, sessionFactory = null) {
+    doAs(role) {
         return this.works([
-            [w => this.lock.release(this.lockId), w => this.singleSession && this.lock],
+            [w => this.lock.release(this.lock.lock)],
             [w => Promise.resolve(this.getUser(role))],
             [w => Promise.reject(`Role not found: ${role}!`), w => !w.getRes(1)],
             [w => new Promise((resolve, reject) => {
@@ -412,7 +418,7 @@ class SipdBridge {
                     idx = parseInt(title.substr(p + 1).trim()) - 1;
                     title = title.substr(0, p);
                 }
-                const session = this.getSession(user.username, idx, sessionFactory);
+                const session = this.getSession(user.username, idx, this.lock.sessionFactory);
                 if (session) {
                     session.cred = {username: user.username, password: user.password, role: title, idx};
                     this.loginfo.role = role;
@@ -430,10 +436,7 @@ class SipdBridge {
                     reject(`Unable to create session for ${user.username}!`);
                 }
             })],
-            [w => Promise.resolve(this.lock = SipdLockManager.get(w.getRes(1).username)),
-                w => this.singleSession && this.lockId],
-            [w => this.lock.acquire(this.lockId),
-                w => this.singleSession && this.lock],
+            [w => this.lock.acquire(w.getRes(1).username)],
             [w => new Promise((resolve, reject) => {
                 const session = w.getRes(3);
                 const sessions = this.getSessions()
@@ -453,10 +456,15 @@ class SipdBridge {
      * Perform works.
      *
      * @param {array} works The works array
-     * @param {WorkFinishedCallback} callback Finished callback
+     * @param {object} options Options or finished callback
+     * @param {WorkFinishedCallback} options.callback Finished callback
+     * @param {WorkHeartbeat} options.heartbeat Heartbeat data
      * @returns {Promise<any>}
      */
-    do(works, callback = null) {
+    do(works, options = {}) {
+        if (typeof options === 'function') {
+            options = {callback: options};
+        }
         const _works = [
             [w => Promise.resolve(this.clearLoginfo())]
         ];
@@ -467,15 +475,15 @@ class SipdBridge {
             _works.push(works);
         }
         return this.works(_works, {
-            heartbeat: [6e4, () => this.lock && this.lock.update(this.lockId)],
+            heartbeat: options.heartbeat,
             done: (w, err) => {
                 if (err instanceof SipdAnnouncedError && err._queue) {
                     const queue = err._queue;
                     const callbackQueue = SipdQueue.createCallbackQueue({id: queue.getMappedData('info.id'), error: err.message}, queue.callback);
                     SipdQueue.addQueue(callbackQueue);
                 }
-                if (typeof callback === 'function') {
-                    return this.works(callback(w, err));
+                if (typeof options.callback === 'function') {
+                    return this.works(options.callback(w, err));
                 } else {
                     if (err) {
                         return Promise.reject(err);
@@ -496,8 +504,7 @@ class SipdBridge {
      */
     end(queue, stop = true) {
         const works = [
-            [m => Promise.resolve(this.lock.abort(queue.id)),
-                m => queue.status === SipdQueue.STATUS_TIMED_OUT && this.lock]
+            [m => this.lock.abort(queue.id), m => queue.status === SipdQueue.STATUS_TIMED_OUT],
         ];
         for (const session of Object.values(this.sessions)) {
             works.push(
@@ -514,16 +521,16 @@ class SipdBridge {
      * @param {object} param0 Data
      * @param {SipdQueue} param0.queue Queue
      * @param {BridgeWork[]} param0.works Works array
+     * @param {typeof SipdSession} param0.session Session factory
      * @param {Function} param0.sorter Sorter callback
      * @param {Function} param0.done Done callback
      * @param {Function} param0.onResult On result callback
      * @returns {Promise<any>}
      */
-    processQueue({queue, works, sorter, done, onResult}) {
-        if (this.singleSession) {
-            this.lockId = queue.id;
-            delete this.lock;
-        }
+    processQueue({queue, works, session, sorter, done, onResult}) {
+        this.lock
+            .setSessionFactory(session)
+            .setLock(queue.id);
         if (typeof sorter === 'function') {
             works = works.sort(sorter);
         }
@@ -545,12 +552,13 @@ class SipdBridge {
                 }
                 resolve(res ? res : false);
             })],
-        ], (w, err) => {
-            return [
-                [e => this.lock.release(this.lockId), e => this.lock],
+        ], {
+            heartbeat: [6e4, () => this.lock.refresh(queue.id)],
+            callback: (w, err) => ([
+                [e => this.lock.release(queue.id)],
                 [e => this.saveScreenshot(queue, err), e => err],
                 [e => this.end(queue, this.autoClose)],
-            ];
+            ])
         });
     }
 }
@@ -578,6 +586,108 @@ class SipdBridgeHandler {
      * Do initialization.
      */
     initialize() {
+    }
+}
+
+/**
+ * Session lock handles user session locking.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdSessionLock {
+
+    constructor(bridge, options) {
+        /** @type {SipdBridge} */
+        this.bridge = bridge;
+        /** @type {typeof SipdSession} */
+        this.sessionFactory;
+        /** @type {boolean} */
+        this.enabled = options.enabled !== undefined ? options.enabled : true;
+        /** @type {SipdUserLock} */
+        this.user;
+        /** @type {string} */
+        this.lock;
+    }
+
+    /**
+     * Set session factory.
+     *
+     * @param {typeof SipdSession} sessionFactory Session factory
+     * @returns {SipdSessionLock}
+     */
+    setSessionFactory(sessionFactory) {
+        this.sessionFactory = sessionFactory;
+        return this;
+    }
+
+    /**
+     * Set lock id.
+     *
+     * @param {string} lock Lock id
+     * @returns {SipdSessionLock}
+     */
+    setLock(lock) {
+        this.lock = lock;
+        return this;
+    }
+
+    /**
+     * Acquire and lock user session for operation.
+     *
+     * @param {string} username Username
+     * @returns {Promise<any>}
+     */
+    acquire(username) {
+        if (this.enabled && this.lock) {
+            return this.bridge.works([
+                [w => Promise.resolve(this.user = SipdLockManager.get(username))],
+                [w => this.user.acquire(this.lock), w => this.user],
+            ]);
+        } else {
+            return Promise.resolve();
+        }
+    }
+
+    /**
+     * Refresh user session lock heartbeat.
+     *
+     * @param {string} lock Lock id
+     * @returns {Promise<any>}
+     */
+    refresh(lock) {
+        if (this.enabled && this.user && this.lock === lock) {
+            return this.user.update(lock);
+        } else {
+            return Promise.resolve();
+        }
+    }
+
+    /**
+     * Abort user session lock.
+     *
+     * @param {string} lock Lock id
+     * @returns {Promise<any>}
+     */
+    abort(lock) {
+        if (this.enabled && this.user && this.lock === lock) {
+            return Promise.resolve(this.user.abort(lock));
+        } else {
+            return Promise.resolve();
+        }
+    }
+
+    /**
+     * Release user sesison lock.
+     *
+     * @param {string} lock Lock id
+     * @returns {Promise<any>}
+     */
+    release(lock) {
+        if (this.enabled && this.user && this.lock === lock) {
+            return this.user.release(lock);
+        } else {
+            return Promise.resolve();
+        }
     }
 }
 

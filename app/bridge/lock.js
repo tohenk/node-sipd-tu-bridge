@@ -398,4 +398,4 @@ class SipdLockStoreRedis extends SipdLockStore {
     }
 }
 
-module.exports = { SipdLockManager, SipdLockStore, SipdLockStoreMemory, SipdLockStoreRedis };
+module.exports = { SipdLockManager, SipdUserLock, SipdLockStore, SipdLockStoreMemory, SipdLockStoreRedis };

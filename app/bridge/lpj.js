@@ -90,27 +90,27 @@ class SipdBridgeLpj extends SipdBridgeHandler {
      * @returns {Promise<any>}
      */
     createLpj(queue) {
-        const sess = SipdLpjSession;
         const npd = this._checkOp(queue, 'npd');
         const tbp = this._checkOp(queue, 'tbp');
         return this.bridge.processQueue({
             queue,
             works: [
                 // --- PPTK ---
-                ['pptk', w => this.bridge.doAs(SipdRole.PPTK, sess), w => npd],
+                ['pptk', w => this.bridge.doAs(SipdRole.PPTK), w => npd],
                 ['pptk-login', w => w.pptk.login(), w => npd],
                 ['pptk-npd', w => w.pptk.createNpd(queue), w => npd],
                 // --- PA ---
-                ['pa', w => this.bridge.doAs(SipdRole.PA, sess), w => tbp],
+                ['pa', w => this.bridge.doAs(SipdRole.PA), w => tbp],
                 ['pa-login', w => w.pa.login(), w => tbp],
                 ['pa-setuju-npd', w => w.pa.setujuiNpd(queue), w => tbp],
                 // --- BP ---
-                ['bp', w => this.bridge.doAs(SipdRole.BP, sess), w => tbp],
+                ['bp', w => this.bridge.doAs(SipdRole.BP), w => tbp],
                 ['bp-login', w => w.bp.login(), w => tbp],
                 ['bp-validasi-npd', w => w.bp.validasiNpd(queue), w => tbp],
                 ['bp-rekanan', w => w.bp.createRekanan(queue, this.alwaysEditRekanan), w => tbp],
                 ['bp-tbp', w => w.bp.createTbp(queue), w => tbp],
             ],
+            session: SipdLpjSession,
             onResult: this._onResult,
         });
     }
@@ -122,17 +122,17 @@ class SipdBridgeLpj extends SipdBridgeHandler {
      * @returns {Promise<any>}
      */
     queryLpj(queue) {
-        const sess = SipdLpjSession;
         const npd = this._checkOp(queue, 'npd');
         const tbp = this._checkOp(queue, 'tbp');
         return this.bridge.processQueue({
             queue,
             works: [
-                ['bp', w => this.bridge.doAs(SipdRole.BP, sess)],
+                ['bp', w => this.bridge.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
                 ['bp-cek-npd', w => w.bp.checkNpd(queue), w => npd],
                 ['bp-cek-tbp', w => w.bp.checkTbp(queue), w => tbp],
             ],
+            session: SipdLpjSession,
             onResult: this._onResult,
         });
     }
@@ -144,14 +144,14 @@ class SipdBridgeLpj extends SipdBridgeHandler {
      * @returns {Promise<any>}
      */
     listLpj(queue) {
-        const sess = SipdLpjSession;
         return this.bridge.processQueue({
             queue,
             works: [
-                ['bp', w => this.bridge.doAs(SipdRole.BP, sess)],
+                ['bp', w => this.bridge.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
                 ['bp-lpj', w => w.bp.listLpj(queue)],
             ],
+            session: SipdLpjSession,
         });
     }
 }

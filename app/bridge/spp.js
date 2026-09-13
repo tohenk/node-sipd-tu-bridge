@@ -77,25 +77,25 @@ class SipdBridgeSpp extends SipdBridgeHandler {
      * @returns {Promise<any>}
      */
     createSpp(queue) {
-        const sess = SipdSppSession;
         return this.bridge.processQueue({
             queue,
             works: [
                 // --- BP ---
-                ['bp', w => this.bridge.doAs(SipdRole.BP, sess)],
+                ['bp', w => this.bridge.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
                 ['bp-rekanan', w => w.bp.createRekanan(queue, this.alwaysEditRekanan)],
                 ['bp-spp', w => w.bp.createSpp(queue)],
                 // --- PPK ---
-                ['ppk', w => this.bridge.doAs(SipdRole.PPK, sess)],
+                ['ppk', w => this.bridge.doAs(SipdRole.PPK)],
                 ['ppk-login', w => w.ppk.login()],
                 ['ppk-verif-spp', w => w.ppk.verifikasiSpp(queue)],
                 // --- PA ---
-                ['pa', w => this.bridge.doAs(SipdRole.PA, sess)],
+                ['pa', w => this.bridge.doAs(SipdRole.PA)],
                 ['pa-login', w => w.pa.login()],
                 ['pa-setuju-spm', w => w.pa.verifikasiSpm(queue)],
                 ['pa-cek-sp2d', w => w.pa.checkSp2d(queue)],
             ],
+            session: SipdSppSession,
             onResult: this._onResult,
         });
     }
@@ -133,17 +133,17 @@ class SipdBridgeSpp extends SipdBridgeHandler {
             }
             return res;
         }
-        const sess = SipdSppSession;
         return this.bridge.processQueue({
             queue,
             works: [
-                ['bp', w => this.bridge.doAs(SipdRole.BP, sess)],
+                ['bp', w => this.bridge.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
                 ['bp-cek-spp', w => w.bp.checkSpp(queue)],
                 ['bp-cek-spm', w => w.bp.checkSpm(queue)],
                 ['bp-cek-sp2d', w => w.bp.checkSp2d(queue)],
             ],
             sorter,
+            session: SipdSppSession,
             onResult: this._onResult,
         });
     }
