@@ -25,11 +25,11 @@
 const fs = require('fs');
 const path = require('path');
 const Queue = require('@ntlab/work/queue');
+const Sipd = require('../sipd');
 const SipdActivitySelector = require('./activity');
 const SipdQueue = require('../queue');
 const SipdUtil = require('../sipd/util');
 const Util = require('@ntlab/ntlib/util');
-const { Sipd } = require('../sipd');
 const { SipdError, SipdOperationError } = require('../sipd/error');
 const { SipdQueryBase } = require('./query');
 const { SipdReader } = require('./reader');

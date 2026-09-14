@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
+const Sipd = require('.');
 const SipdFn = require('./fn');
-const { Sipd } = require('.');
 const { By } = require('selenium-webdriver');
 
 /**

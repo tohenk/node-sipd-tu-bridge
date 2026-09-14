@@ -24,7 +24,7 @@
 
 const Queue = require('@ntlab/work/queue');
 const SipdComponent = require('.');
-const { SipdTimer } = require('..');
+const SipdTimer = require('../timer');
 const { SipdOperationError } = require('../error');
 const { By, WebElement } = require('selenium-webdriver');
 

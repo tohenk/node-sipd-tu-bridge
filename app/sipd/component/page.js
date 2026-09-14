@@ -23,11 +23,11 @@
  */
 
 const Queue = require('@ntlab/work/queue');
+const Sipd = require('..');
 const SipdComponent = require('.');
 const SipdComponentDataRow = require('./datarow');
 const SipdComponentFilter = require('./filter');
 const SipdComponentPager = require('./pager');
-const { Sipd } = require('..');
 const { SipdOperationError, SipdStopError } = require('../error');
 const { By } = require('selenium-webdriver');
 

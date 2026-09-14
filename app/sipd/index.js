@@ -26,6 +26,7 @@ const Queue = require('@ntlab/work/queue');
 const WebRobot = require('@ntlab/webrobot');
 const SipdLogger = require('./logger');
 const SipdUtil = require('./util');
+const SipdTimer = require('./timer');
 const { SipdError, SipdOperationError, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdAbortError } = require('./error');
 const { By, error, WebElement } = require('selenium-webdriver');
 
@@ -1319,59 +1320,4 @@ class Sipd extends WebRobot {
     }
 }
 
-/**
- * Timer check callback.
- *
- * @callback SipdTimerFunction
- * @param {SipdTimer} t Timer object
- * @returns {void}
- */
-
-/**
- * Execute callback for every second delta time.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdTimer
-{
-    constructor(options) {
-        this.options = options || {};
-        this.lastTime;
-        this.startTime = new Date().getTime();
-        this.delta = this.options.delta || 5;
-    }
-
-    /**
-     * Check if callback should be called.
-     *
-     * @param {SipdTimerFunction} callback The callback
-     * @returns {void}
-     */
-    check(callback) {
-        this.deltaTime = Math.floor((new Date().getTime() - this.startTime) / 1000);
-        if (
-            this.deltaTime > 0 &&
-            this.deltaTime % this.delta === 0 &&
-            (this.lastTime === undefined || this.lastTime < this.deltaTime)
-        ) {
-            this.lastTime = this.deltaTime;
-            if (typeof callback === 'function') {
-                callback(this);
-            }
-        }
-    }
-
-    /**
-     * Get formatted elapsed time.
-     *
-     * @returns {string}
-     */
-    get elapsedTime() {
-        return SipdUtil.formatTime(this.deltaTime);
-    }
-}
-
-module.exports = {
-    Sipd,
-    SipdTimer,
-}
+module.exports = Sipd;

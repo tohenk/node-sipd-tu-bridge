@@ -23,8 +23,8 @@
  */
 
 const Queue = require('@ntlab/work/queue');
+const Sipd = require('../../sipd');
 const SipdUtil = require('../../sipd/util');
-const { Sipd } = require('../../sipd');
 const { SipdOperationError } = require('../../sipd/error');
 const { By } = require('selenium-webdriver');
 

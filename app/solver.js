@@ -27,7 +27,7 @@ const path = require('path');
 const io = require('socket.io-client');
 const SipdLogger = require('./sipd/logger');
 const SipdUtil = require('./sipd/util');
-const { SipdTimer } = require('./sipd');
+const SipdTimer = require('./sipd/timer');
 const { SipdError } = require('./sipd/error');
 
 const dtag = 'solver';

@@ -24,7 +24,7 @@
 
 const Work = require('@ntlab/work/work');
 const SipdLogger = require('../sipd/logger');
-const { SipdTimer } = require('../sipd');
+const SipdTimer = require('../sipd/timer');
 const { SipdError, SipdAbortError } = require('../sipd/error');
 
 const dtag = 'lock';
