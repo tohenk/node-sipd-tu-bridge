@@ -62,13 +62,19 @@ class SipdDequeue extends EventEmitter {
     constructor() {
         super();
         this.time = new Date();
-        /** @type {SipdQueue[]} */
-        this.queues = [];
-        /** @type {SipdQueue[]} */
-        this.processing = [];
-        /** @type {SipdQueue[]} */
-        this.completes = [];
-        this.timeout = 10 * 6e4;
+        /** @type {SipdQueueArray} */
+        this.queues = SipdQueueArray.create({
+            callback: () => this.processQueue(),
+            check: () => this.consumers,
+        });
+        /** @type {SipdQueueArray} */
+        this.processing = SipdQueueArray.create({
+            monitor: true,
+            callback: () => this.processTimedout(),
+        });
+        /** @type {SipdQueueArray} */
+        this.completes = SipdQueueArray.create();
+        this.timeout = 5 * 6e4;
         this.retry = 3;
         /** @type {CreateQueue} */
         this.createQueue;
@@ -94,8 +100,84 @@ class SipdDequeue extends EventEmitter {
                     this.emit('queue-error', queue);
                 });
         }
-        this.processQueue();
+        this.queues.process();
         return this;
+    }
+
+    /**
+     * Process queue by handing queue to consumer.
+     *
+     * @returns {this}
+     */
+    processQueue() {
+        try {
+            if (this.consumers && this.queues.length) {
+                for (const consumer of this.consumers) {
+                    if (consumer.queue) {
+                        continue;
+                    }
+                    const queues = this.queues.filter(a => consumer.isAccepted(a));
+                    if (queues.length) {
+                        const pickedConsumers = this.consumers.filter(a => !a.queue && a.isSimilar(consumer));
+                        this.consumeQueue(queues[0], pickedConsumers);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error(err);
+        }
+        return this;
+    }
+
+    /**
+     * Process processing queues for timeout.
+     *
+     * @returns {this}
+     */
+    processTimedout() {
+        try {
+            for (const queue of this.processing) {
+                this.checkTimeout(queue);
+            }
+            this.checkOrphaned();
+        } catch (err) {
+            console.error(err);
+        }
+        return this;
+    }
+
+    /**
+     * Check orphaned queues for timeout.
+     */
+    checkOrphaned() {
+        this.consumers
+            .map(consumer => consumer.queue)
+            .filter(Boolean)
+            .forEach(queue => this.checkTimeout(queue));
+    }
+
+    /**
+     * Check queue for timeout.
+     *
+     * @param {SipdQueue} queue Queue
+     */
+    checkTimeout(queue) {
+        if (queue && queue.status === SipdQueue.STATUS_PROCESSING) {
+            const t = new Date().getTime();
+            const d = t - queue.time.getTime();
+            const timeout = queue.data && queue.data.timeout !== undefined ?
+                queue.data.timeout : this.timeout;
+            if (timeout > 0 && d > timeout) {
+                queue.setStatus(SipdQueue.STATUS_TIMED_OUT);
+                if (typeof queue.ontimeout === 'function') {
+                    queue.ontimeout()
+                        .then(() => this.endQueue(queue))
+                        .catch(() => this.endQueue(queue));
+                } else {
+                    this.endQueue(queue);
+                }
+            }
+        }
     }
 
     /**
@@ -152,32 +234,6 @@ class SipdDequeue extends EventEmitter {
     }
 
     /**
-     * Process queue by handing queue to consumer.
-     */
-    processQueue() {
-        if (this.consumers) {
-            try {
-                if (this.queues.length) {
-                    for (const consumer of this.consumers) {
-                        if (consumer.queue) {
-                            continue;
-                        }
-                        const queues = this.queues.filter(a => consumer.isAccepted(a));
-                        if (queues.length) {
-                            const pickedConsumers = this.consumers.filter(a => !a.queue && a.isSimilar(consumer));
-                            this.consumeQueue(queues[0], pickedConsumers);
-                        }
-                    }
-                }
-                this.checkTimedout();
-                this.checkOrphaned();
-            } catch (err) {
-                console.error(err);
-            }
-        }
-    }
-
-    /**
      * Consume queue by moving from queue to processing.
      *
      * @param {SipdQueue} queue Queue
@@ -188,9 +244,8 @@ class SipdDequeue extends EventEmitter {
         if (queue && consumers.length) {
             const idx = consumers.length > 1 ? Math.floor(Math.random() * consumers.length) : 0;
             const consumer = consumers[idx];
-            this.queues.splice(this.queues.indexOf(queue), 1);
-            this.processing.push(queue);
             queue.maxretry = this.retry;
+            this.queues.move(queue, this.processing);
             debug('Queue', queue.toString(), 'is handled by', consumer.constructor.name);
             consumer.consume(queue);
             return true;
@@ -199,66 +254,18 @@ class SipdDequeue extends EventEmitter {
     }
 
     /**
-     * Check processing queues for timeoout.
-     */
-    checkTimedout() {
-        for (const queue of this.processing) {
-            this.checkTimeout(queue);
-        }
-    }
-
-    /**
-     * Check orphaned queues for timeout.
-     */
-    checkOrphaned() {
-        this.consumers
-            .map(consumer => consumer.queue)
-            .filter(Boolean)
-            .forEach(queue => this.checkTimeout(queue));
-    }
-
-    /**
-     * Check queue for timeout.
-     *
-     * @param {SipdQueue} queue Queue
-     */
-    checkTimeout(queue) {
-        if (queue && queue.status === SipdQueue.STATUS_PROCESSING) {
-            const t = new Date().getTime();
-            const d = t - queue.time.getTime();
-            const timeout = queue.data && queue.data.timeout !== undefined ?
-                queue.data.timeout : this.timeout;
-            if (timeout > 0 && d > timeout) {
-                queue.setStatus(SipdQueue.STATUS_TIMED_OUT);
-                if (typeof queue.ontimeout === 'function') {
-                    queue.ontimeout()
-                        .then(() => this.endQueue(queue))
-                        .catch(() => this.endQueue(queue));
-                } else {
-                    this.endQueue(queue);
-                }
-            }
-        }
-    }
-
-    /**
      * End queue processing.
      *
      * @param {SipdQueue} queue Queue
      */
     endQueue(queue) {
-        if (this.processing.includes(queue)) {
-            this.processing.splice(this.processing.indexOf(queue), 1);
-        }
-        this.completes.push(queue);
+        this.processing.move(queue, this.completes);
         this.setLastQueue(queue);
         if (queue.consumer) {
             delete queue.consumer.queue;
             delete queue.consumer;
         }
-        if (this.queues.length || this.processing.length) {
-            process.nextTick(() => this.processQueue());
-        }
+        this.queues.process();
     }
 
     /**
@@ -282,11 +289,8 @@ class SipdDequeue extends EventEmitter {
         if (!queue.id) {
             queue.setId(SipdUtil.genId());
         }
-        this.queues.push(queue);
+        this.queues.add(queue);
         this.emit('queue', queue);
-        if (this.consumers) {
-            process.nextTick(() => this.processQueue());
-        }
         return {status: 'queued', id: queue.id};
     }
 
@@ -466,8 +470,8 @@ class SipdDequeue extends EventEmitter {
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdConsumer extends EventEmitter
-{
+class SipdConsumer extends EventEmitter {
+
     /**
      * Constructor.
      *
@@ -659,8 +663,8 @@ class SipdConsumer extends EventEmitter
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdBridgeConsumer extends SipdConsumer
-{
+class SipdBridgeConsumer extends SipdConsumer {
+
     /**
      * Constructor.
      *
@@ -777,8 +781,8 @@ class SipdBridgeConsumer extends SipdConsumer
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdCallbackConsumer extends SipdConsumer
-{
+class SipdCallbackConsumer extends SipdConsumer {
+
     /**
      * @inheritdoc
      */
@@ -803,8 +807,8 @@ class SipdCallbackConsumer extends SipdConsumer
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdCleanerConsumer extends SipdConsumer
-{
+class SipdCleanerConsumer extends SipdConsumer {
+
     /**
      * @inheritdoc
      */
@@ -834,8 +838,8 @@ class SipdCleanerConsumer extends SipdConsumer
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdBlackholeConsumer extends SipdConsumer
-{
+class SipdBlackholeConsumer extends SipdConsumer {
+
     /**
      * @inheritdoc
      */
@@ -859,8 +863,8 @@ class SipdBlackholeConsumer extends SipdConsumer
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdQueue
-{
+class SipdQueue {
+
     /**
      * Constructor.
      */
@@ -1526,6 +1530,83 @@ class SipdQueue
 
     static get DEQUEUE() { return SipdDequeue }
     static get CONSUMERS() { return {SipdBridgeConsumer, SipdCallbackConsumer, SipdCleanerConsumer, SipdBlackholeConsumer} }
+}
+
+/**
+ * Store queue in array.
+ *
+ * @extends {Array<SipdQueue>}
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdQueueArray extends Array {
+
+    /**
+     * Add queue.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {SipdQueueArray}
+     */
+    add(queue) {
+        this.push(queue);
+        this.process();
+        return this;
+    }
+
+    /**
+     * Move queue between array.
+     *
+     * @param {SipdQueue} queue Queue
+     * @param {SipdQueueArray} destination Destination array
+     * @returns {boolean}
+     */
+    move(queue, destination) {
+        const i = this.indexOf(queue);
+        if (i >= 0) {
+            this.splice(i, 1);
+            destination.add(queue);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Process queue.
+     *
+     * @returns {void}
+     */
+    process() {
+        if (!this.length || (typeof this.oncheck === 'function' && !this.oncheck())) {
+            return;
+        }
+        if (typeof this.onqueue === 'function') {
+            process.nextTick(() => this.onqueue());
+        }
+        if (this.monitor) {
+            setTimeout(() => this.process(), 1000);
+        }
+    }
+
+    /**
+     * Create queue array.
+     *
+     * @param {object} options Options
+     * @param {Function} options.callback Callback function
+     * @param {Function} options.check Check function
+     * @returns {SipdQueueArray}
+     */
+    static create(options = {}) {
+        const res = new this();
+        if (options.monitor !== undefined) {
+            res.monitor = options.monitor;
+        }
+        if (typeof options.callback === 'function') {
+            res.onqueue = options.callback;
+        }
+        if (typeof options.check === 'function') {
+            res.oncheck = options.check;
+        }
+        return res;
+    }
 }
 
 module.exports = SipdQueue;
