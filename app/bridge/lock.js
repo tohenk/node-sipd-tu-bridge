@@ -110,7 +110,8 @@ class SipdUserLock {
             const f = () => {
                 if (this.aborts.includes(lock)) {
                     this.aborts.splice(this.aborts.indexOf(lock), 1);
-                    return reject(new SipdAbortError(`Lock ${this.store.name} ${this.user}:${lock} is aborted!`));
+                    return reject(SipdAbortError.create(`Lock %store% %user%:%lock% is aborted`,
+                        {store: this.store.name, user: this.user, lock}));
                 }
                 this.store.free(lock)
                     .then(res => {
@@ -209,17 +210,16 @@ class SipdLockStore {
             await this.doRefresh();
         }
         if (clean) {
-            this.stale = 0;
+            this.stale = [];
             const time = SipdLockStore.getTime() - SipdLockManager.STALE_MS;
             while (true) {
                 if (!this.locks.length || this.locks[0].time > time) {
                     break;
                 }
-                this.locks.splice(0, 1);
-                this.stale++;
+                this.stale.push(...this.locks.splice(0, 1).map(a => a.lock));
             }
-            if (this.stale) {
-                SipdLogger.activity(dtag)(`Cleaned ${this.stale} stale ${this.name} lock(s)...`);
+            if (this.stale.length) {
+                SipdLogger.activity(dtag)(`Cleaned stale ${this.name} lock ${this.user}:${this.stale.join(', ')}...`);
             }
         }
     }
@@ -266,7 +266,7 @@ class SipdLockStore {
                 this.locks[idx].time = SipdLockStore.getTime();
             }
         }
-        if ((this.stale || idx !== 0) && typeof this.doStore === 'function') {
+        if (((Array.isArray(this.stale) && this.stale.length) || idx !== 0) && typeof this.doStore === 'function') {
             await this.doStore();
         }
         return this.getIndex(lock) === 0;
