@@ -29,6 +29,7 @@ const EventEmitter = require('events');
 const SipdNotifier = require('./notifier');
 const SipdLogger = require('./sipd/logger');
 const SipdUtil = require('./sipd/util');
+const Translator = require('@ntlab/ntlib/translator');
 const debug = require('debug')('sipd:queue');
 const { SipdError, SipdOperationError, SipdRetryError, SipdCleanAndRetryError } = require('./sipd/error');
 const { glob } = require('glob');
@@ -169,6 +170,7 @@ class SipdDequeue extends EventEmitter {
                 queue.data.timeout : this.timeout;
             if (timeout > 0 && d > timeout) {
                 queue.setStatus(SipdQueue.STATUS_TIMED_OUT);
+                queue.setResult(Translator._('Process timed out after %duration%', {duration: SipdUtil.formatTime(d)}));
                 if (typeof queue.ontimeout === 'function') {
                     queue.ontimeout()
                         .then(() => this.endQueue(queue))
