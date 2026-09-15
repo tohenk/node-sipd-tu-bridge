@@ -20,9 +20,9 @@
   ],
   "dependencies": {
     "@ntlab/ntlib": "^3.0.0",
-    "@ntlab/sipd-tu-bridge-ui": "^1.8.1",
+    "@ntlab/sipd-tu-bridge-ui": "^1.8.2",
     "@ntlab/urllib": "^1.1.0",
-    "@ntlab/webrobot": "^3.2.0",
+    "@ntlab/webrobot": "^3.3.0",
     "@ntlab/work": "^2.9.0",
     "debug": "^4.4.3",
     "glob": "^13.0.6",

@@ -126,7 +126,7 @@ class SipdComponentFilter extends SipdComponent {
                         clearUsingKey: this.parent.options.clearUsingKey,
                     }
                     this.parent.debug(dtag)(`Applying filter ${s.selector} with ${data.value}`);
-                    this.parent.fillFormValue(data)
+                    this.parent.fillInFormValue(data)
                         .then(() => q.next())
                         .catch(err => reject(err));
                 });
