@@ -30,6 +30,7 @@ const SipdUtil = require('./sipd/util');
 const Util = require('@ntlab/ntlib/util');
 const { Socket } = require('socket.io');
 const { glob } = require('glob');
+const _ = require('@ntlab/ntlib/translator');
 
 /* --- BEGIN API V2 --- */
 
@@ -158,11 +159,11 @@ class Api {
         }
         if (!app.config.security.username) {
             app.config.security.username = 'admin';
-            console.log(`Web interface username using default: ${app.config.security.username}`);
+            console.log(_('Web interface username using default: %username%', {username: app.config.security.username}));
         }
         if (!app.config.security.password) {
             app.config.security.password = SipdUtil.genId(10);
-            console.log(`Web interface password generated: ${app.config.security.password}`);
+            console.log(_('Web interface password generated: %password%', {password: app.config.security.password}));
         }
         // load application information
         const packageInfo = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json')));
@@ -316,7 +317,7 @@ class Api {
                 case 'restart':
                     if (app.config.restart && this.restarting === undefined) {
                         this.restarting = true;
-                        console.log('Application restart requested, exiting...');
+                        console.log(_('Application restart requested, exiting...'));
                         setTimeout(() => process.kill(process.pid, 'SIGINT'), 10000);
                         this.notify('restart');
                         res.success = true;
@@ -364,9 +365,9 @@ class Api {
         if (!this.sockets.includes(socket)) {
             this.sockets.push(socket);
         }
-        console.log('UI Client connected: %s', socket.id);
+        console.log(_('UI Client connected: %id%', {id: socket.id}));
         socket.on('disconnect', () => {
-            console.log('UI Client disconnected: %s', socket.id);
+            console.log(_('UI Client disconnected: %id%', {id: socket.id}));
             const idx = this.sockets.indexOf(socket);
             if (idx >= 0) {
                 this.sockets.splice(idx, 1);

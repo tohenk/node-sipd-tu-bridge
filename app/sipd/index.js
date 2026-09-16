@@ -27,9 +27,9 @@ const WebRobot = require('@ntlab/webrobot');
 const SipdLogger = require('./logger');
 const SipdUtil = require('./util');
 const SipdTimer = require('./timer');
-const Translator = require('@ntlab/ntlib/translator');
-const { SipdError, SipdOperationError, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdAbortError } = require('./error');
+const { SipdOperationError, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdAbortError } = require('./error');
 const { By, error, WebElement } = require('selenium-webdriver');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'core';
 
@@ -199,7 +199,7 @@ class Sipd extends WebRobot {
      */
     doSubmitLogin(username, password) {
         return new Promise((resolve, reject) => {
-            const r = (e, s) => (e = (e instanceof Error ? e.message : e).toLowerCase(), e.includes(Translator._(s)));
+            const r = (e, s) => (e = (e instanceof Error ? e.message : e).toLowerCase(), e.includes(_(s)));
             const f = () => {
                 this.formSubmit(
                     By.xpath(this.LOGIN_FORM),
@@ -999,7 +999,7 @@ class Sipd extends WebRobot {
             [w => Promise.resolve(options.sres = this.truncate(options.sres)),
                 w => typeof options.sres === 'string'],
             [w => Promise.reject(SipdOperationError.create('Expecting %target% to be %state%, but got login form instead',
-                {target, state: options.presence ? Translator._('present') : Translator._('gone')})),
+                {target, state: _(options.presence ? 'present' : 'gone')})),
                 w => res && options.secured && !w.getRes(1)],
             [w => Promise.resolve(res)],
         ]);

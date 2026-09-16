@@ -23,6 +23,7 @@
  */
 
 const SipdCmd = require('.');
+const _ = require('@ntlab/ntlib/translator');
 
 /**
  * Handle enable client notification.
@@ -36,7 +37,7 @@ class SipdCmdNotify extends SipdCmd {
         if (socket) {
             if (!this.parent.sockets.includes(socket)) {
                 this.parent.sockets.push(socket);
-                console.log('Client notification enabled: %s', socket.id);
+                console.log(_('Client notification enabled: %id%', {id: socket.id}));
             }
         }
     }

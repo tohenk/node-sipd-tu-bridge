@@ -24,7 +24,7 @@
 
 const Queue = require('@ntlab/work/queue');
 const SipdPage = require('../../sipd/component/page');
-const { SipdAnnouncedError, SipdRestartError, SipdStopError } = require('../../sipd/error');
+const { SipdRestartError, SipdStopError, SipdOperationError } = require('../../sipd/error');
 const { SipdQuery, SipdColumnQuery } = require('../../sipd/query');
 const { By, WebElement } = require('selenium-webdriver');
 
@@ -372,7 +372,8 @@ class SipdQueryBase extends SipdQuery {
                                 .then(() => resolve())
                                 .catch(err => reject(err));
                         } else {
-                            reject(new SipdAnnouncedError(`${this.options.title}: ${this.queryState.expectedValue} not found!`));
+                            reject(SipdOperationError.create('%title%: %value% not found',
+                                {title: this.options.title, value: this.queryState.expectedValue}));
                         }
                         break;
                     case SipdQueryBase.MODE_ITERATE:

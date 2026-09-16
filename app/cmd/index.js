@@ -26,6 +26,7 @@ const fs = require('fs');
 const path = require('path');
 const { Socket } = require('socket.io');
 const { SipdError } = require('../sipd/error');
+const _ = require('@ntlab/ntlib/translator');
 
 /**
  * Sipd command handler.
@@ -158,9 +159,9 @@ class SipdCmd {
                             CmdInstance.mode = mode;
                         }
                         this.commands.push(CmdInstance);
-                        console.log(`Command ${cmdname} registered`);
+                        console.log(_('Command %cmdname% registered', {cmdname}));
                     } else {
-                        console.error(`Command ${cmdname} already registered!`);
+                        console.error(_('Command %cmdname% already registered', {cmdname}));
                     }
                 }
             }

@@ -23,6 +23,7 @@
  */
 
 const SipdCmd = require('.');
+const _ = require('@ntlab/ntlib/translator');
 
 /**
  * Handle client disconnection.
@@ -34,7 +35,7 @@ class SipdCmdDisconnect extends SipdCmd {
     consume(payload) {
         const { socket } = payload;
         if (socket) {
-            console.log('Client disconnected: %s', socket.id);
+            console.log(_('Client disconnected: %id%', {id: socket.id}));
             const idx = this.parent.sockets.indexOf(socket);
             if (idx >= 0) {
                 this.parent.sockets.splice(idx, 1);

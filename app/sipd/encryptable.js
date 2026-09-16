@@ -24,6 +24,7 @@
 
 const crypto = require('crypto');
 const { SipdError } = require('./error');
+const _ = require('@ntlab/ntlib/translator');
 
 /**
  * Encryption handler.
@@ -43,7 +44,7 @@ class SipdEncryptable {
             if (buff.length === this.ENC_KEYLEN) {
                 return crypto.createSecretKey(buff);
             } else {
-                console.error(`Secret key size must to be ${this.ENC_KEYLEN}!`);
+                console.error(_('Secret key size must to be %size%', {size: this.ENC_KEYLEN}));
             }
         }
     }

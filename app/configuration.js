@@ -28,6 +28,8 @@ const path = require('path');
 const Cmd = require('@ntlab/ntlib/cmd');
 const SipdLogger = require('./sipd/logger');
 const { SipdRoleSwitcher } = require('./sipd/role');
+const { Translator } = require('@ntlab/ntlib/translator');
+const _ = require('@ntlab/ntlib/translator');
 
 Cmd.addBool('help', 'h', 'Show program usage').setAccessible(false);
 Cmd.addVar('mode', 'm', 'Set bridge mode, spp, lpj, or util', 'bridge-mode');
@@ -78,8 +80,11 @@ class Configuration {
                 this[prop] = Cmd.get(cmd);
             }
         }
+        if (this.lang) {
+            Translator.TranslatorMessage.langFile = path.join(rootDir, 'langs', `messages.${this.lang}.json`);
+        }
         if (fs.existsSync(filename)) {
-            console.log('Configuration loaded from %s', filename);
+            console.log(_('Configuration loaded from %filename%', {filename}));
         }
         if (!this.workdir) {
             this.workdir = rootDir;
@@ -117,7 +122,7 @@ class Configuration {
             filename = path.join(this.workdir, 'mappings', mapping);
             if (fs.existsSync(filename)) {
                 this.maps[mode] = JSON.parse(fs.readFileSync(filename));
-                console.log('Maps loaded from %s', filename);
+                console.log(_('Maps loaded from %filename%', {filename}));
             }
         }
         // set roles directory
@@ -148,7 +153,7 @@ class Configuration {
         if (this.redis) {
             const { SipdLockManager, SipdLockStoreRedis } = require('./bridge/lock');
             SipdLockManager.store = SipdLockStoreRedis.setConnection(this.redis);
-            console.log('Redis connection', this.redis);
+            console.log(_('Redis connection %con%', {con: this.redis}));
         }
         this.initialized = true;
     }
@@ -166,7 +171,7 @@ class Configuration {
             this.pubkey = crypto.createPublicKey(fs.readFileSync(this.pubkey));
         }
         if (!this.privkey || !this.pubkey) {
-            console.log('Generating end-to-end encryption key');
+            console.log(_('Generating end-to-end encryption key'));
             const key = crypto.generateKeyPairSync('rsa', {modulusLength: 2048});
             /** @type {crypto.KeyObject} */
             this.privkey = key.privateKey;
@@ -187,7 +192,7 @@ class Configuration {
             profile = Cmd.get('profile');
         }
         if (profile && this.profiles[profile]) {
-            console.log('Using profile %s', profile);
+            console.log(_('Using profile %profile%', {profile}));
             const keys = ['timeout', 'wait', 'delay', 'opdelay', 'animdelay'];
             for (const key in this.profiles[profile]) {
                 if (!keys.includes(key)) {

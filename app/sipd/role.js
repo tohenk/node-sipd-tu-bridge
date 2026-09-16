@@ -26,6 +26,7 @@ const fs = require('fs');
 const path = require('path');
 const SipdEncryptable = require('./encryptable');
 const SipdUtil = require('./util');
+const _ = require('@ntlab/ntlib/translator');
 
 /**
  * Role switcher.
@@ -89,10 +90,10 @@ class SipdRoleSwitcher {
                 if (this.users[uid]) {
                     rr.set(roleId, this.users[uid]);
                 } else {
-                    console.error(`User ${uid} is not found!`);
+                    console.error(_('User %uid% is not found', {uid}));
                 }
             } else {
-                console.error(`Unprocessed user data ${uid}!`);
+                console.error(_('Unprocessed user data %uid%', {uid}));
             }
         }
         return this;

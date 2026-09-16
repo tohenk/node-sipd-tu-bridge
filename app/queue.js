@@ -29,10 +29,10 @@ const EventEmitter = require('events');
 const SipdNotifier = require('./notifier');
 const SipdLogger = require('./sipd/logger');
 const SipdUtil = require('./sipd/util');
-const Translator = require('@ntlab/ntlib/translator');
 const debug = require('debug')('sipd:queue');
 const { SipdError, SipdOperationError, SipdRetryError, SipdCleanAndRetryError } = require('./sipd/error');
 const { glob } = require('glob');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'queue';
 
@@ -172,7 +172,7 @@ class SipdDequeue extends EventEmitter {
                 queue.data.timeout : this.timeout;
             if (timeout > 0 && d > timeout) {
                 queue.setStatus(SipdQueue.STATUS_TIMED_OUT);
-                queue.setResult(Translator._('Process timed out after %duration%', {duration: SipdUtil.formatTime(d / 1000)}));
+                queue.setResult(_('Process timed out after %duration%', {duration: SipdUtil.formatTime(d / 1000)}));
                 if (typeof queue.ontimeout === 'function') {
                     queue.ontimeout()
                         .then(() => this.endQueue(queue))
@@ -403,7 +403,7 @@ class SipdDequeue extends EventEmitter {
                 .sort((a, b) => b.mtime?.getTime() - a.mtime?.getTime());
             for (const file of files) {
                 try {
-                    console.log(`Loading queue log from ${file.fullpath()}...`);
+                    console.log(_('Loading queue log from %filename%...', {filename: file.fullpath()}));
                     const logs = JSON.parse(fs.readFileSync(file.fullpath()));
                     if (Array.isArray(logs)) {
                         this.completes.push(...logs
@@ -1250,7 +1250,7 @@ class SipdQueue {
                     if (stat && stat.isDirectory()) {
                         const filename = path.join(dest, `${this.filename}.json`);
                         fs.writeFileSync(filename, JSON.stringify(result));
-                        console.log(`Result saved to ${filename}...`);
+                        console.log(_('Result saved to %filename%...', {filename}));
                     }
                 }
                 if (queue) {
@@ -1518,7 +1518,7 @@ class SipdQueue {
             }
             if (this.notices[type] === undefined) {
                 this.notices[type] = true;
-                console.warn(`Queue metadata ${type} is not defined, add metadata in QUEUE_METADATA first!`);
+                console.warn(_('Queue metadata %type% is not defined, add metadata in QUEUE_METADATA first', {type}));
             }
         }
         return false;

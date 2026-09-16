@@ -1387,7 +1387,7 @@ class SipdAfektasi {
         }
         key = key.toLowerCase();
         if (!Object.keys(this.keys).includes(key)) {
-            throw SipdError.create('Unknown key %key%!', {key});
+            throw SipdError.create('Unknown key %key%', {key});
         }
         this[key] = value;
         return this;

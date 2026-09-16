@@ -98,7 +98,7 @@ class SipdComponent {
                                 if (res) {
                                     reject(err);
                                 } else {
-                                    const e = SipdOperationError.create('Session has been logged-out while setup %name%!',
+                                    const e = SipdOperationError.create('Session has been logged-out while setup %name%',
                                         {name: SipdComponent.getName(this.constructor.name)});
                                     e.cause = err;
                                     reject(e);

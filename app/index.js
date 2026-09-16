@@ -23,7 +23,6 @@
  */
 
 const path = require('path');
-const util = require('util');
 const Cmd = require('@ntlab/ntlib/cmd');
 const Api = require('./api');
 const CaptchaSolver = require('./solver');
@@ -42,6 +41,7 @@ const Work = require('@ntlab/work/work');
 const { SipdBridge } = require('./bridge');
 const { SipdError } = require('./sipd/error');
 const { Socket } = require('socket.io');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'app';
 
@@ -150,10 +150,10 @@ class App {
                     queue.id = data.id;
                 }
                 if (SipdQueue.hasPendingQueue(queue)) {
-                    res = {message: `A queue for ${queue.id} is already exist or being processed!`};
+                    res = {message: _('A queue for %id% is already exist or being processed', {id: queue.id})};
                 }
                 if (res === undefined) {
-                    console.log(`📦 ${queue.type.toUpperCase()}: ${queue.info ?? '\u2014'}`);
+                    console.log(_('📦 %queue%: %info%', {queue: queue.type.toUpperCase(), info: queue.info ?? '\u2014'}));
                     res = SipdQueue.addQueue(queue);
                 }
             }
@@ -179,7 +179,7 @@ class App {
         ;
         if (Cmd.get('queue') && this.config.saveQueue) {
             const f = () => {
-                console.log('Please wait, saving queues...');
+                console.log(_('Please wait, saving queues...'));
                 this.dequeue.saveQueue();
                 this.dequeue.saveLogs();
                 process.exit();
@@ -239,7 +239,7 @@ class App {
                 }
             }
             this.bridges.push(bridge);
-            console.log('Sipd bridge created: %s', name);
+            console.log(_('Sipd bridge created: %name%', {name}));
         }
     }
 
@@ -253,7 +253,7 @@ class App {
                 this.api = new Api(this);
                 this.ui = factory(this.api);
             } catch (err) {
-                console.error(`Web interface not available: ${this.config.ui}!`);
+                console.error(_('Web interface not available: %ui%', {ui: this.config.ui}));
                 if (err instanceof Error) {
                     console.error(err.stack);
                 } else {
@@ -309,22 +309,22 @@ class App {
             }
         }
         http.listen(port, () => {
-            console.log('Application ready on port %s...', port);
+            console.log(_('Application ready on port %port%...', {port}));
             const selfTests = this.bridges.map(bridge => [s => bridge.selfTest()]);
             Work.works(selfTests)
                 .then(() => {
                     if (Cmd.get('noop')) {
-                        console.log('Bridge ready, queuing only...');
+                        console.log(_('Bridge ready, queuing only...'));
                     } else {
-                        console.log('Queue processing is ready...');
+                        console.log(_('Queue processing is ready...'));
                         this.registerConsumers();
                     }
                 })
                 .catch(err => {
                     if (err) {
-                        console.error('Self test reaches an error: %s!', err);
+                        console.error(_('Self test reaches an error: %err%', {err}));
                     } else {
-                        console.error('Self test reaches an error!');
+                        console.error(_('Self test reaches an error'));
                     }
                 });
             this.checkReadiness();
@@ -491,7 +491,7 @@ class App {
             this.ready = this.readyCount() === this.bridges.length;
             if (this.ready) {
                 clearInterval(interval);
-                console.log('Readiness check is done...');
+                console.log(_('Readiness check is done...'));
                 const f = () => {
                     if (Cmd.get('clean')) {
                         this.createCleanQueue();
@@ -519,11 +519,11 @@ class App {
                 }
             } else {
                 if (now - this.startTime > readinessTimeout) {
-                    throw SipdError.create('Bridge is not ready within %seconds%s timeout!', {secods: readinessTimeout / 1000});
+                    throw SipdError.create('Bridge is not ready within %seconds%s timeout', {secods: readinessTimeout / 1000});
                 }
             }
         }, 1000);
-        console.log('Readiness check has been started...');
+        console.log(_('Readiness check has been started...'));
     }
 
     /**
@@ -551,7 +551,7 @@ class App {
      * @param {Socket} socket Client socket
      */
     handleConnection(socket) {
-        console.log('Client connected: %s', socket.id);
+        console.log(_('Client connected: %id%', {id: socket.id}));
         SipdCmd.handle(socket);
     }
 
@@ -599,7 +599,7 @@ class App {
                         })
                         .catch(err => {
                             delete bridge.captchaSolving;
-                            console.error(`An error occured while solving captcha: ${err}!`);
+                            console.error(_('An error occured while solving captcha: %err%', {err}));
                         });
                     }
                 }
