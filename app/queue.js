@@ -406,7 +406,9 @@ class SipdDequeue extends EventEmitter {
                     console.log(`Loading queue log from ${file.fullpath()}...`);
                     const logs = JSON.parse(fs.readFileSync(file.fullpath()));
                     if (Array.isArray(logs)) {
-                        this.completes.push(...logs.map(a => SipdQueue.fromLog(a)));
+                        this.completes.push(...logs
+                            .map(a => SipdQueue.fromLog(a))
+                            .filter(a => SipdUtil.dateSerial(a.getTime()) == dt));
                     }
                 } catch (err) {
                 }
@@ -1009,6 +1011,19 @@ class SipdQueue {
     }
 
     /**
+     * Get queue time.
+     *
+     * @returns {Date|undefined}
+     */
+    getTime() {
+        let res = this.time;
+        if (typeof res === 'string') {
+            res = new Date(res);
+        }
+        return res;
+    }
+
+    /**
      * Get queue type.
      *
      * @returns {string}
@@ -1265,9 +1280,7 @@ class SipdQueue {
             if (queue.time === undefined) {
                 return -1;
             } else {
-                const a = typeof this.time === 'string' ? new Date(this.time) : this.time;
-                const b = typeof queue.time === 'string' ? new Date(queue.time) : queue.time;
-                return a - b;
+                return this.getTime() - queue.getTime();
             }
         }
     }
