@@ -403,6 +403,7 @@ class ApiBridge {
     constructor(app, bridge) {
         this.name = bridge.name;
         this.year = bridge.year;
+        this.accepts = bridge.accepts;
         /** @type {ActivityFunction} */
         this.getLogs = async (seq) => {
             return ApiFn.getLogs(bridge.name, seq);
