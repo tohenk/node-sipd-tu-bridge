@@ -492,23 +492,30 @@ class App {
             if (this.ready) {
                 clearInterval(interval);
                 console.log('Readiness check is done...');
-                if (Cmd.get('clean')) {
-                    this.createCleanQueue();
+                const f = () => {
+                    if (Cmd.get('clean')) {
+                        this.createCleanQueue();
+                    }
+                    if (Cmd.get('queue')) {
+                        this.dequeue.loadQueue(this.config.saveQueue);
+                    }
+                    if (this.payload) {
+                        const queue = SipdCmd.get(this.payload.command)
+                            .consume(this.payload.params || {});
+                        const closeOnCompleteOrError = q => {
+                            if (q.id === queue.id && (this.config.autoClose === undefined || this.config.autoClose)) {
+                                setTimeout(() => process.exit(), 5000);
+                            }
+                        }
+                        this.dequeue
+                            .on('queue-done', closeOnCompleteOrError)
+                            .on('queue-error', closeOnCompleteOrError);
+                    }
                 }
                 if (Cmd.get('queue')) {
-                    this.dequeue.loadQueue(this.config.saveQueue);
-                }
-                if (this.payload) {
-                    const queue = SipdCmd.get(this.payload.command)
-                        .consume(this.payload.params || {});
-                    const closeOnCompleteOrError = q => {
-                        if (q.id === queue.id && (this.config.autoClose === undefined || this.config.autoClose)) {
-                            setTimeout(() => process.exit(), 5000);
-                        }
-                    }
-                    this.dequeue
-                        .on('queue-done', closeOnCompleteOrError)
-                        .on('queue-error', closeOnCompleteOrError);
+                    this.dequeue.loadLogs(f);
+                } else {
+                    f();
                 }
             } else {
                 if (now - this.startTime > readinessTimeout) {

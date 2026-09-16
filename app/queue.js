@@ -79,6 +79,8 @@ class SipdDequeue extends EventEmitter {
         this.retry = 3;
         /** @type {CreateQueue} */
         this.createQueue;
+        /** @type {string} */
+        this.queueDir = path.join(process.cwd(), 'queue');
     }
 
     /**
@@ -170,7 +172,7 @@ class SipdDequeue extends EventEmitter {
                 queue.data.timeout : this.timeout;
             if (timeout > 0 && d > timeout) {
                 queue.setStatus(SipdQueue.STATUS_TIMED_OUT);
-                queue.setResult(Translator._('Process timed out after %duration%', {duration: SipdUtil.formatTime(d)}));
+                queue.setResult(Translator._('Process timed out after %duration%', {duration: SipdUtil.formatTime(d / 1000)}));
                 if (typeof queue.ontimeout === 'function') {
                     queue.ontimeout()
                         .then(() => this.endQueue(queue))
@@ -384,18 +386,51 @@ class SipdDequeue extends EventEmitter {
     }
 
     /**
+     * Load saved queue logs.
+     *
+     * @param {Function} callback A callback when loading is done
+     * @returns {Promise<undefined>}
+     */
+    async loadLogs(callback = null) {
+        if (fs.existsSync(this.queueDir)) {
+            const dt = SipdUtil.dateSerial(new Date());
+            const files = (await glob(path.join(this.queueDir, '*.log'), {
+                    stat: true,
+                    withFileTypes: true,
+                    windowsPathsNoEscape: true,
+                }))
+                .filter(a => SipdUtil.dateSerial(a.mtime) == dt)
+                .sort((a, b) => b.mtime?.getTime() - a.mtime?.getTime());
+            for (const file of files) {
+                try {
+                    console.log(`Loading queue log from ${file.fullpath()}...`);
+                    const logs = JSON.parse(fs.readFileSync(file.fullpath()));
+                    if (Array.isArray(logs)) {
+                        this.completes.push(...logs.map(a => SipdQueue.fromLog(a)));
+                    }
+                } catch (err) {
+                }
+            }
+            if (typeof callback === 'function') {
+                callback();
+            }
+        }
+    }
+
+    /**
      * Save queue logs to file.
+     *
+     * @returns {void}
      */
     saveLogs() {
         const logs = this.getLogs(SipdQueue.LOG_RAW | SipdQueue.LOG_AS_LOG);
         if (logs.length) {
-            const queueDir = path.join(process.cwd(), 'queue');
-            if (!fs.existsSync(queueDir)) {
-                fs.mkdirSync(queueDir, {recursive: true});
+            if (!fs.existsSync(this.queueDir)) {
+                fs.mkdirSync(this.queueDir, {recursive: true});
             }
             let filename, seq = 0;
             while (true) {
-                filename = path.join(queueDir, `queue${++seq}.log`);
+                filename = path.join(this.queueDir, `queue${++seq}.log`);
                 if (!fs.existsSync(filename)) {
                     break;
                 }
@@ -408,9 +443,10 @@ class SipdDequeue extends EventEmitter {
      * Load queue from file.
      *
      * @param {boolean} clean Clean queue after load
+     * @returns {void}
      */
     loadQueue(clean = true) {
-        const filename = path.join(process.cwd(), 'queue', 'saved.queue');
+        const filename = path.join(this.queueDir, 'saved.queue');
         if (fs.existsSync(filename) && typeof this.createQueue === 'function') {
             const savedQueues = JSON.parse(fs.readFileSync(filename));
             if (savedQueues) {
@@ -426,6 +462,8 @@ class SipdDequeue extends EventEmitter {
 
     /**
      * Save unprocessed queue to file.
+     *
+     * @returns {void}
      */
     saveQueue() {
         const queues = this.queues.filter(queue => queue.isSaveable());
@@ -439,11 +477,10 @@ class SipdDequeue extends EventEmitter {
                 }
                 return res;
             });
-            const queueDir = path.join(process.cwd(), 'queue');
-            if (!fs.existsSync(queueDir)) {
-                fs.mkdirSync(queueDir, {recursive: true});
+            if (!fs.existsSync(this.queueDir)) {
+                fs.mkdirSync(this.queueDir, {recursive: true});
             }
-            const filename = path.join(queueDir, 'saved.queue');
+            const filename = path.join(this.queueDir, 'saved.queue');
             fs.writeFileSync(filename, JSON.stringify(savedQueues, null, 2));
         }
     }
@@ -1228,7 +1265,9 @@ class SipdQueue {
             if (queue.time === undefined) {
                 return -1;
             } else {
-                return this.time - queue.time;
+                const a = typeof this.time === 'string' ? new Date(this.time) : this.time;
+                const b = typeof queue.time === 'string' ? new Date(queue.time) : queue.time;
+                return a - b;
             }
         }
     }
@@ -1249,7 +1288,7 @@ class SipdQueue {
      * @returns {boolean}
      */
     isSaveable() {
-        return this.isFlagged('e') && [SipdQueue.STATUS_NEW].includes(this.status);
+        return this.isFlagged('e') && [SipdQueue.STATUS_NEW].includes(this.status) && !this.isSaved;
     }
 
     /**
@@ -1488,6 +1527,24 @@ class SipdQueue {
             }
             return [callback, token];
         }
+    }
+
+    /**
+     * Create queue from queue log data.
+     *
+     * @param {object} log Queue logged data
+     * @returns {SipdQueue}
+     */
+    static fromLog(log) {
+        const res = new this();
+        res.isSaved = true;
+        for (const k of ['id', 'type', ['name', 'info'], 'time', 'status', 'result']) {
+            const value = log[Array.isArray(k) ? k[0] : k]; 
+            if (value !== undefined) {
+                res[Array.isArray(k) ? k[1] : k] = value;
+            }
+        }
+        return res;
     }
 
     static get QUEUE_METADATA() {
