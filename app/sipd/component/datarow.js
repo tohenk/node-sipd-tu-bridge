@@ -159,7 +159,7 @@ class SipdComponentDataRow extends SipdComponent {
      * @returns {boolean}
      */
     isEmpty() {
-        return this._empty !== undefined;
+        return !this._rows && this._empty !== undefined;
     }
 }
 
