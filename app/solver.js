@@ -29,6 +29,7 @@ const SipdLogger = require('./sipd/logger');
 const SipdUtil = require('./sipd/util');
 const SipdTimer = require('./sipd/timer');
 const { SipdError } = require('./sipd/error');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'solver';
 
@@ -65,7 +66,8 @@ class Solver {
         let solver;
         for (const SolverClass of [MockSolver, CliSolver, SocketSolver]) {
             if (SolverClass.canHandle(config)) {
-                SipdLogger.activity(dtag)(`Captcha solver is handled by ${SolverClass.name}...`);
+                SipdLogger.activity(dtag)(_('Captcha solver is handled by %solver%...',
+                    {solver: SolverClass.name}));
                 solver = new SolverClass(config);
                 break;
             }
@@ -221,11 +223,13 @@ class SocketSolver extends Solver {
         this.ns
             .on('connect', () => {
                 this.ready = true;
-                SipdLogger.activity(dtag)(`Connected to SocketSolver at ${this.url}...`);
+                SipdLogger.activity(dtag)(_('Connected to SocketSolver at %url%...',
+                    {url: this.url}));
             })
             .on('disconnect', () => {
                 this.ready = false;
-                SipdLogger.activity(dtag)(`Disonnected from SocketSolver at ${this.url}...`);
+                SipdLogger.activity(dtag)(_('Disonnected from SocketSolver at %url%...',
+                    {url: this.url}));
             });
         this.initializeEvent();
     }
@@ -301,7 +305,8 @@ class SocketSolver extends Solver {
                 if (this.ready) {
                     resolve();
                 } else {
-                    timer.check(t => SipdLogger.activity(dtag)(`Still waiting socket ${this.url} to be ready after ${t.elapsedTime}...`));
+                    timer.check(t => SipdLogger.activity(dtag)(_('Still waiting socket %url% to be ready after %duration%...',
+                        {url: this.url, duration: t.elapsedTime})));
                     setTimeout(f, 100);
                 }
             }

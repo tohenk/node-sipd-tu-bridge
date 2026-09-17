@@ -27,6 +27,7 @@ const Sipd = require('../../sipd');
 const SipdUtil = require('../../sipd/util');
 const { SipdOperationError } = require('../../sipd/error');
 const { By } = require('selenium-webdriver');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'activity';
 
@@ -78,7 +79,8 @@ class SipdActivitySelector {
                         [x => Promise.resolve(itemText = x.getRes(1))],
                     ])
                     .then(() => {
-                        this.parent.debug(dtag)(`Fill activity: ${itemText}, done = ${fulfilled ? 'yes' : 'no'}`);
+                        this.parent.debug(dtag)(_('Fill activity: %itemText%, done = %done%',
+                            {itemText, done: _(fulfilled ? 'yes' : 'no')}));
                         if (fulfilled) {
                             q.done();
                         } else {

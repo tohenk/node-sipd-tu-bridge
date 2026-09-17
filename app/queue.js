@@ -623,7 +623,8 @@ class SipdConsumer extends EventEmitter {
             const f = () => {
                 queue.retryCount = (queue.retryCount !== undefined ? queue.retryCount : 0) + 1;
                 if (err instanceof SipdRetryError && queue.retry && queue.retryCount <= queue.maxretry) {
-                    SipdLogger.activity(dtag)('Retrying %s (%d)...', queue.toString(), queue.retryCount);
+                    SipdLogger.activity(dtag)(_('Retrying %queue% (%count%)...',
+                        {queue: queue.toString(), count: queue.retryCount}));
                     if (typeof queue.onretry === 'function') {
                         queue.onretry()
                             .then(() => doit())
@@ -656,7 +657,7 @@ class SipdConsumer extends EventEmitter {
                     .catch(err => retry(err));
             }
             catch (err) {
-                SipdLogger.activity(dtag)('Got an error while processing queue: %s!', err);
+                SipdLogger.activity(dtag)(_('Got an error while processing queue: %err%', {err}));
             }
         }
         queue.consumer = this;
@@ -681,9 +682,9 @@ class SipdConsumer extends EventEmitter {
                     }
                 }
                 if (entries.length) {
-                    SipdLogger.activity(dtag)('Cleaned directory %s...', dir);
+                    SipdLogger.activity(dtag)(_('Cleaned directory %dir%...', {dir}));
                 } else {
-                    SipdLogger.activity(dtag)('Skip cleaning empty directory %s...', dir);
+                    SipdLogger.activity(dtag)(_('Skip cleaning empty directory %dir%...', {dir}));
                 }
                 if (typeof callback === 'function') {
                     callback(entries);
@@ -717,7 +718,8 @@ class SipdBridgeConsumer extends SipdConsumer {
         /** @type {import('./bridge').SipdBridge} */
         this.bridge = bridge;
         this.on('pre-queue', queue => {
-            SipdLogger.activity(dtag)('%s is handling queue %s', this.bridge.name, queue);
+            SipdLogger.activity(dtag)(_('%bridge% is handling queue %queue%',
+                {bridge: this.bridge.name, queue: queue.toString()}));
         });
     }
 
@@ -977,7 +979,8 @@ class SipdQueue {
     setStatus(status) {
         if (this.status !== status) {
             this.status = status;
-            SipdLogger.activity(dtag)('Queue %s %s', this.toString(), this.getStatusText());
+            SipdLogger.activity(dtag)(_('Queue %queue% %status%',
+                {queue: this.toString(), status: _(this.getStatusText())}));
         }
         return this;
     }
@@ -991,7 +994,8 @@ class SipdQueue {
     setResult(result) {
         if (this.result !== result) {
             this.result = result;
-            SipdLogger.activity(dtag)('Queue %s result: %s', this.toString(), SipdUtil.toStr(result));
+            SipdLogger.activity(dtag)(_('Queue %queue% result: %result%',
+                {queue: this.toString(), result: SipdUtil.toStr(result)}));
         }
         return this;
     }

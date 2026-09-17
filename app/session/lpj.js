@@ -35,6 +35,7 @@ const { SipdQueryNpd } = require('./query/npd');
 const { SipdQueryTbp } = require('./query/tbp');
 const { SipdQueryLpj } = require('./query/lpj');
 const { By } = require('selenium-webdriver');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'lpjsession';
 
@@ -96,7 +97,7 @@ class SipdLpjSession extends SipdRekananSession {
                                     .catch(err => {
                                         this.sipd.isContinueable()
                                             .then(() => {
-                                                this.debug(dtag)(`TBP error: ${err}!`);
+                                                this.debug(dtag)(_('TBP error: %err%', {err}));
                                                 q.next();
                                             })
                                             .catch(err => q.done());

@@ -27,6 +27,7 @@ const SipdComponent = require('.');
 const SipdUtil = require('../util');
 const { SipdOperationError } = require('../../sipd/error');
 const { By } = require('selenium-webdriver');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'filter';
 
@@ -125,7 +126,8 @@ class SipdComponentFilter extends SipdComponent {
                         value: typeof s.value === 'function' ? s.value() : SipdUtil.escapeTerm(s.value),
                         clearUsingKey: this.parent.options.clearUsingKey,
                     }
-                    this.parent.debug(dtag)(`Applying filter ${s.selector} with ${data.value}`);
+                    this.parent.debug(dtag)(_('Applying filter %filter% with %value%',
+                        {filter: s.selector, value: data.value}));
                     this.parent.fillInFormValue(data)
                         .then(() => q.next())
                         .catch(err => reject(err));

@@ -44,7 +44,7 @@ class SipdEncryptable {
             if (buff.length === this.ENC_KEYLEN) {
                 return crypto.createSecretKey(buff);
             } else {
-                console.error(_('Secret key size must to be %size%', {size: this.ENC_KEYLEN}));
+                console.error(_('Secret key size must be %size%', {size: this.ENC_KEYLEN}));
             }
         }
     }

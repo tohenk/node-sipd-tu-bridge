@@ -37,6 +37,7 @@ const { SipdVoterPegawai } = require('./query/pegawai');
 const { SipdVoterRekanan } = require('./query/rekanan');
 const { SipdVoterNpd } = require('./query/npd');
 const { By, Key, WebElement } = require('selenium-webdriver');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'session';
 
@@ -374,7 +375,11 @@ class SipdSession {
             const cmd = `${this.options.startup}`.replace(/%BRIDGE%/g, this.bridge.name);
             const exec = require('child_process').exec;
             exec(cmd, (err, stdout, stderr) => {
-                this.debug(dtag)('Startup', cmd, err ? `failed with ${err}` : 'completed');
+                if (err) {
+                    this.debug(dtag)(_('Startup %cmd% failed with %err%', {cmd, err}));
+                } else {
+                    this.debug(dtag)(_('Startup %cmd% completed', {cmd}));
+                }
                 resolve(err);
             });
         });
@@ -817,10 +822,10 @@ class SipdSession {
                 ])
                 .then(() => {
                     if (picked) {
-                        this.debug(dtag)('Picked day', dayel);
+                        this.debug(dtag)(_('Picked day %element%', {element: dayel}));
                         q.done();
                     } else {
-                        this.debug(dtag)('Skipped day', dayel);
+                        this.debug(dtag)(_('Skipped day %element%', {element: dayel}));
                         q.next();
                     }
                 })
@@ -880,7 +885,7 @@ class SipdSession {
             // don't map value on read operation
             if (!f.flags.includes('?')) {
                 value = queue.getMappedData([name, k]);
-                this.debug(dtag)(`Mapped value ${name + '->' + key} = ${trunc(value)}`);
+                this.debug(dtag)(_('Mapped value %name%->%key% = %value%', {name, key, value: trunc(value)}));
             }
             // fall back to non mapped value if undefined
             if (value === undefined) {
@@ -917,7 +922,7 @@ class SipdSession {
                             break;
                         }
                     }
-                    this.debug(dtag)(`Condition ${vcond} evaluated to ${okay ? 'true' : 'false'}`);
+                    this.debug(dtag)(_('Condition %cond% evaluated to %value%', {cond: vcond, value: okay ? 'true' : 'false'}));
                     const [vtrue, vfalse] = value.split(',');
                     value = okay ? vtrue : vfalse;
                     if (!value) {
@@ -949,7 +954,7 @@ class SipdSession {
                 } else {
                     value = v;
                 }
-                this.debug(dtag)(`Special TYPE:value ${name + '->' + key} = ${trunc(value)}`);
+                this.debug(dtag)(_('Special TYPE:value %name%->%key% = %value%', {name, key, value: trunc(value)}));
             }
             // check for safe string
             if (typeof value === 'string' && value.length) {
@@ -1063,7 +1068,7 @@ class SipdSession {
                         // add waiting
                         case '+':
                             data.done = (d, next) => {
-                                this.debug(dtag)(`Wait ${this.sipd.animdelay} ms before continuing`);
+                                this.debug(dtag)(_('Wait %delay% ms before continuing', {delay: this.sipd.animdelay}));
                                 this.sipd.sleep(this.sipd.animdelay)
                                     .then(() => next())
                                     .catch(err => {
@@ -1098,9 +1103,9 @@ class SipdSession {
                 }
                 data.prefill = (el, value) => {
                     if (isFill) {
-                        this.debug(dtag)(`Do fill ${name + '->' + key} with ${trunc(value)}`);
+                        this.debug(dtag)(_('Do fill %name%->%key% with %value%', {name, key, value: trunc(value)}));
                     } else {
-                        this.debug(dtag)(`Do read ${name + '->' + key} into ${trunc(value)}`);
+                        this.debug(dtag)(_('Do read %name%->%key% into %value%', {name, key, value: trunc(value)}));
                     }
                 }
                 data.afterfill = el => this.works([
@@ -1184,13 +1189,13 @@ class SipdSession {
                     if (this.options.waitFileUpload && queue.filesize) {
                         const multiplier = Math.ceil(queue.filesize / (100 * 1024));
                         const ms = this.sipd.delay * multiplier;
-                        this.debug(dtag)('Wait for file upload in', ms, 'ms');
+                        this.debug(dtag)(_('Wait for file upload in %delay% ms', {delay: ms}));
                         return this.sipd.sleep(ms);
                     } else {
                         return Promise.resolve();
                     }
                 },
-                onerror: message => `Form ${name} failed: ${message}!`,
+                onerror: message => _('Form %name% failed: %message%', {name, message}),
             }
         );
     }
@@ -1285,7 +1290,7 @@ class SipdSession {
                     if (!err && fs.existsSync(storedFile)) {
                         saved = true;
                         const newSize = fs.statSync(storedFile).size;
-                        this.debug(dtag)(`Optimized PDF size ${newSize}, original was ${storedSize}`);
+                        this.debug(dtag)(_('Optimized PDF size %newSize%, original was %storedSize%', {newSize, storedSize}));
                         // is optimized PDF reduced in size?
                         if (this.pdfOptimizeStrategy.toLowerCase() === 'always' || newSize < storedSize) {
                             fs.unlinkSync(tmpfile);

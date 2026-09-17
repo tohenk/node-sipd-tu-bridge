@@ -30,6 +30,7 @@ const SipdComponentFilter = require('./filter');
 const SipdComponentPager = require('./pager');
 const { SipdOperationError, SipdStopError } = require('../error');
 const { By } = require('selenium-webdriver');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'page';
 
@@ -142,7 +143,8 @@ class SipdComponentPage extends SipdComponent {
                     pages = Array.from({length: pageCount}, (x, i) => i + 1);
                 }
                 const q = new Queue(pages, page => {
-                    this.parent.debug(dtag)(`Processing page ${this.options.title}: ${page} of ${pageCount}`);
+                    this.parent.debug(dtag)(_('Processing page %title%: %page% of %pageCount%',
+                        {title: this.options.title, page, pageCount}));
                     this._pager.each(page, {states: options.states, onrows, onwork: callback})
                         .then(() => {
                             if (this._datarow.isEmpty()) {

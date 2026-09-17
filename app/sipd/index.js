@@ -386,7 +386,7 @@ class Sipd extends WebRobot {
                     [w => this.waitSpinner(w.getRes(1), typeof options.spinner === 'string' ? options.spinner : null), w => options.spinner],
                     [w => this.sleep(this.opdelay)],
                     [w => this.getLastMessage()],
-                    [w => Promise.resolve(this.debug(dtag)('Form submit return', w.getRes(4))), w => w.getRes(4)],
+                    [w => Promise.resolve(this.debug(dtag)(_('Form submit return %message%', {message: w.getRes(4)}))), w => w.getRes(4)],
                     [w => Promise.resolve(w.getRes(1)), w => success(w.getRes(4))],
                     [w => Promise.reject(SipdOperationError.create(errmsg(w.getRes(4)))), w => !w.getRes(6)],
                 ])
@@ -399,7 +399,7 @@ class Sipd extends WebRobot {
                     if (retry === 0 || !retryable) {
                         reject(err);
                     } else {
-                        this.debug(dtag)('Retrying form submit in %d ms...', this.wait);
+                        this.debug(dtag)(_('Retrying form submit in %delay% ms...', {delay: this.wait}));
                         setTimeout(f, this.wait);
                     }
                 });
@@ -428,7 +428,7 @@ class Sipd extends WebRobot {
      */
     waitSolvedCaptcha(container) {
         return this.works([
-            [w => Promise.resolve(this.debug(dtag)('Awaiting captcha to be solved...'))],
+            [w => Promise.resolve(this.debug(dtag)(_('Awaiting captcha to be solved...')))],
             [w => Promise.resolve(this.setState({captcha: true}))],
             [w => new Promise((resolve, reject) => {
                 const f = () => {
@@ -504,7 +504,7 @@ class Sipd extends WebRobot {
             [w => this.findElements(By.xpath(this.CAPTCHA_CONTAINER))],
             [w => w.getRes(0)[0].findElements(By.xpath('.//input[@data-index]')), w => w.getRes(0).length],
             [w => Promise.resolve(w.getRes(1).length === code.length), w => w.getRes(0).length],
-            [w => Promise.resolve(this.debug(dtag)(`Solving captcha using ${code}...`)),
+            [w => Promise.resolve(this.debug(dtag)(_('Solving captcha using %code%...', {code}))),
                 w => w.getRes(2)],
             [w => new Promise((resolve, reject) => {
                 const q = new Queue(w.getRes(1), el => {
@@ -635,10 +635,10 @@ class Sipd extends WebRobot {
                 let error;
                 /** @type {string[]} */
                 const messages = w.getRes(0);
-                for (const msg of messages) {
-                    this.debug(dtag)('Message:', msg);
-                    if (error === undefined && msg.match(/(gagal|failed)/)) {
-                        error = msg;
+                for (const message of messages) {
+                    this.debug(dtag)(_('Message: %message%', {message}));
+                    if (error === undefined && message.match(/(gagal|failed)/)) {
+                        error = message;
                     }
                 }
                 if (error) {
@@ -664,7 +664,8 @@ class Sipd extends WebRobot {
                 ])
                 .then(res => {
                     if (res) {
-                        timer.check(t => this.debug(dtag)(`Still waiting status dismissing after ${t.elapsedTime}...`));
+                        timer.check(t => this.debug(dtag)(_('Still waiting status dismissing after %duration%...',
+                            {duration: t.elapsedTime})));
                         setTimeout(f, this.loopdelay);
                     } else {
                         resolve();
@@ -914,8 +915,9 @@ class Sipd extends WebRobot {
         }
         const target = this.getTargetForDisplay(data);
         return new Promise((resolve, reject) => {
-            const log = `${options.presence ? 'Wait for present' : 'Wait for gone'} ${target}`;
-            this.debug(dtag)(log, 'in', options.timeout > 0 ? options.timeout : '∞', 'ms');
+            const state = _(options.presence ? 'present' : 'gone');
+            this.debug(dtag)(_('Wait for %state% %target% in %time% ms',
+                {state, target, time: options.timeout > 0 ? options.timeout : '∞'}));
             options.t = Date.now();
             const f = () => {
                 this.works([
@@ -935,13 +937,15 @@ class Sipd extends WebRobot {
                     if (result) {
                         setTimeout(f, this.loopdelay);
                     } else {
-                        this.debug(dtag)(log, 'resolved with', options.sres ?? options.res, 'in', delta, 'ms');
+                        this.debug(dtag)(_('Wait for %state% %target% resolved with %res% in %duration% ms',
+                            {state, target, res: options.sres ?? options.res, duration: delta}));
                         resolve(options.res);
                     }
                 })
                 .catch(err => {
                     if (err instanceof error.StaleElementReferenceError) {
-                        this.debug(dtag)(log, 'is now stale');
+                        this.debug(dtag)(_('Wait for %state% %target% is now stale',
+                            {state, target}));
                         resolve(options.res);
                     } else {
                         reject(err);
@@ -1031,10 +1035,12 @@ class Sipd extends WebRobot {
      */
     getObservedChildren({target, options}) {
         if (options.observed && options.classname) {
+            const state = _(options.presence ? 'present' : 'gone');
             return this.works([
                 [w => this.driver.executeScript('return getObservedChildren()')],
                 [w => Promise.resolve(w.getRes(0).state && w.getRes(0).state[options.classname])],
-                [w => Promise.resolve(this.debug(dtag)(options.presence ? 'Wait for present' : 'Wait for gone', target, 'is now fulfilled')), w => w.getRes(1)],
+                [w => Promise.resolve(this.debug(dtag)(_('Wait for %state% %target% is now fulfilled', {state, target}))),
+                    w => w.getRes(1)],
                 [w => Promise.resolve(w.getRes(1) ? false : undefined)],
             ]);
         } else {
@@ -1137,7 +1143,7 @@ class Sipd extends WebRobot {
             [w => Promise.resolve(res = {el: w.getRes(1)}), w => w.getRes(0).length],
             [w => w.getRes(1).click(), w => w.getRes(0).length && w.getRes(4).indexOf('false') >= 0],
             [w => Promise.resolve(res.clicked = true), w => w.getRes(0).length && w.getRes(4).indexOf('false') >= 0],
-            [w => Promise.resolve(this.debug(dtag)(`Menu level ${level} ${selector}`)), w => res && logged],
+            [w => Promise.resolve(this.debug(dtag)(_('Menu level %level% %selector%', {level, selector}))), w => res && logged],
             [w => Promise.resolve(res)],
         ]);
     }
@@ -1177,7 +1183,7 @@ class Sipd extends WebRobot {
                 .catch(err => reject(err));
             });
             q.once('done', () => {
-                this.debug(dtag)(`Done navigating to sub page ${subs.join('->')}`)
+                this.debug(dtag)(_('Done navigating to sub page %subpage%', {subpage: subs.join('->')}));
                 resolve();
             });
         });

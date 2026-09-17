@@ -27,6 +27,7 @@ const SipdPage = require('../../sipd/component/page');
 const { SipdRestartError, SipdStopError, SipdOperationError } = require('../../sipd/error');
 const { SipdQuery, SipdColumnQuery } = require('../../sipd/query');
 const { By, WebElement } = require('selenium-webdriver');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'query';
 
@@ -243,9 +244,11 @@ class SipdQueryBase extends SipdQuery {
         return new Promise((resolve, reject) => {
             const [state, rowstate, res] = this.queryState.check(values);
             if (res.status !== undefined) {
-                this.parent.debug(dtag)('Row state:', rowstate, `<${res.status}>`, ...state.info);
+                this.parent.debug(dtag)(_('Row state: %rowstate% <%status%> %info%',
+                    {rowstate, status: res.status, info: state.info.join(' ')}));
             } else {
-                this.parent.debug(dtag)('Row state:', rowstate, ...state.info);
+                this.parent.debug(dtag)(_('Row state: %rowstate% %info%',
+                    {rowstate, info: state.info.join(' ')}));
             }
             resolve(state.okay ? res : undefined);
         });

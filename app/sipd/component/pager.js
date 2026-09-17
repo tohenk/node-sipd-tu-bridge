@@ -26,6 +26,7 @@ const Queue = require('@ntlab/work/queue');
 const SipdComponent = require('.');
 const { SipdError, SipdOperationError } = require('../../sipd/error');
 const { By, WebElement } = require('selenium-webdriver');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'pager';
 
@@ -152,7 +153,8 @@ class SipdComponentPager extends SipdComponent {
                     }
                 });
                 if (idx) {
-                    this.parent.debug(dtag)(`Using page ${pages[idx].page} to navigate to page ${page}`);
+                    this.parent.debug(dtag)(_('Using page %label% to navigate to page %page%',
+                        {label: pages[idx].page, page}));
                 }
                 return pages[idx]?.el;
             }

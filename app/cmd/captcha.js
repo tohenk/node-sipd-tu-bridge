@@ -23,6 +23,7 @@
  */
 
 const SipdCmd = require('.');
+const _ = require('@ntlab/ntlib/translator');
 
 /**
  * Handle captcha challenge input.
@@ -47,7 +48,7 @@ class SipdCmdCaptcha extends SipdCmd {
                     return {
                         ref: data.id,
                         name: data.name,
-                        message: captcha ? 'Captcha code successfully applied' : 'Captcha is not required'
+                        message: _(captcha ? 'Captcha code successfully applied' : 'Captcha is not required'),
                     }
                 } else {
                     return new Promise((resolve, reject) => {
@@ -57,7 +58,7 @@ class SipdCmdCaptcha extends SipdCmd {
                                 .then(res => resolve({ref: data.id, name: data.name, img: res}))
                                 .catch(err => reject(Object.assign({ref: data.id}, this.createError(err))));
                         } else {
-                            reject(Object.assign({ref: data.id}, this.createError('No captcha required!')));
+                            reject(Object.assign({ref: data.id}, this.createError(_('No captcha required'))));
                         }
                     });
                 }

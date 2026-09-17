@@ -26,6 +26,7 @@ const Work = require('@ntlab/work/work');
 const SipdLogger = require('../sipd/logger');
 const SipdTimer = require('../sipd/timer');
 const { SipdError, SipdAbortError } = require('../sipd/error');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'lock';
 
@@ -116,10 +117,12 @@ class SipdUserLock {
                 this.store.free(lock)
                     .then(res => {
                         if (res) {
-                            SipdLogger.activity(dtag)(`Lock ${this.store.name} ${this.user}:${lock} is acquired...`);
+                            SipdLogger.activity(dtag)(_('Lock %store% %user%:%lock% is acquired...',
+                                {store: this.store.name, user: this.user, lock}));
                             resolve();
                         } else {
-                            timer.check(t => SipdLogger.activity(dtag)(`Lock ${this.store.name} ${this.user}:${lock} is still held after ${t.elapsedTime}...`));
+                            timer.check(t => SipdLogger.activity(dtag)(_('Lock %store% %user%:%lock% is still held after %duration%...',
+                                {store: this.store.name, user: this.user, lock, duration: t.elapsedTime})));
                             setTimeout(f, 100);
                         }
                     })
@@ -137,7 +140,8 @@ class SipdUserLock {
      */
     update(lock) {
         return this.store.tick(lock, res => res &&
-            SipdLogger.activity(dtag)(`Lock ${this.store.name} ${this.user}:${lock} is updated...`));
+            SipdLogger.activity(dtag)(_('Lock %store% %user%:%lock% is updated...',
+                {store: this.store.name, user: this.user, lock})));
     }
 
     /**
@@ -149,8 +153,8 @@ class SipdUserLock {
     release(lock) {
         return Work.works([
             [w => this.store.prune(lock)],
-            [w => Promise.resolve(SipdLogger.activity(dtag)(`Lock ${this.store.name} ${this.user}:${lock} is released...`)),
-                w => w.getRes(0)],
+            [w => Promise.resolve(SipdLogger.activity(dtag)(_('Lock %store% %user%:%lock% is released...',
+                {store: this.store.name, user: this.user, lock}))), w => w.getRes(0)],
             [w => Promise.resolve(w.getRes(0))],
         ]);
     }
@@ -219,7 +223,8 @@ class SipdLockStore {
                 this.stale.push(...this.locks.splice(0, 1).map(a => a.lock));
             }
             if (this.stale.length) {
-                SipdLogger.activity(dtag)(`Cleaned stale ${this.name} lock ${this.user}:${this.stale.join(', ')}...`);
+                SipdLogger.activity(dtag)(_('Cleaned stale %store% lock %user%:%lock%...',
+                    {store: this.name, user: this.user, lock: this.stale.join(', ')}));
             }
         }
     }
@@ -362,7 +367,8 @@ class SipdLockStoreRedis extends SipdLockStore {
                     if (this._ready) {
                         resolve();
                     } else {
-                        timer.check(t => SipdLogger.activity(dtag)(`Still waiting Redis connection to be ready after ${t.elapsedTime}...`));
+                        timer.check(t => SipdLogger.activity(dtag)(_('Still waiting Redis connection to be ready after %duration%...',
+                            {duration: t.elapsedTime})));
                         setTimeout(f, 1000);
                     }
                 }

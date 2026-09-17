@@ -297,7 +297,8 @@ class App {
                             return next();
                         }
                     }
-                    SipdLogger.activity(dtag)('Client %s is using invalid authorization', socket.id);
+                    SipdLogger.activity(dtag)(_('Client %id% is using invalid authorization',
+                        {id: socket.id}));
                     next(SipdError.create('Invalid authorization'));
                 });
             }

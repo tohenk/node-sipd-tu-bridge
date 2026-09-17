@@ -27,6 +27,7 @@ const SipdComponent = require('.');
 const SipdTimer = require('../timer');
 const { SipdOperationError } = require('../error');
 const { By, WebElement } = require('selenium-webdriver');
+const _ = require('@ntlab/ntlib/translator');
 
 const dtag = 'datarow';
 
@@ -66,12 +67,14 @@ class SipdComponentDataRow extends SipdComponent {
                     if (res) {
                         this.parent.getHtml(res)
                             .then(html => {
-                                this.parent.debug(dtag)(`Data row ${this._title} result is ${this.parent.truncate(html)}`);
+                                this.parent.debug(dtag)(_('Data row %title% result is %result%',
+                                    {title: this._title, result: this.parent.truncate(html)}));
                                 resolve();
                             })
                             .catch(err => reject(err));
                     } else {
-                        timer.check(t => this.parent.debug(dtag)(`Still waiting data row ${this._title} result after ${t.elapsedTime}...`));
+                        timer.check(t => this.parent.debug(dtag)(_('Still waiting data row %title% result after %duration%...',
+                            {title: this._title, duration: t.elapsedTime})));
                         setTimeout(f, this.parent.loopdelay);
                     }
                 })
