@@ -75,7 +75,7 @@ class SipdComponentDataRow extends SipdComponent {
                     } else {
                         timer.check(t => this.parent.debug(dtag)(_('Still waiting data row %title% result after %duration%...',
                             {title: this._title, duration: t.elapsedTime})));
-                        setTimeout(f, this.parent.loopdelay);
+                        setTimeout(() => f(), this.parent.loopdelay);
                     }
                 })
                 .catch(err => reject(err));

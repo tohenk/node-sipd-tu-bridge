@@ -307,7 +307,7 @@ class SocketSolver extends Solver {
                 } else {
                     timer.check(t => SipdLogger.activity(dtag)(_('Still waiting socket %url% to be ready after %duration%...',
                         {url: this.url, duration: t.elapsedTime})));
-                    setTimeout(f, 100);
+                    setTimeout(() => f(), 100);
                 }
             }
             f();

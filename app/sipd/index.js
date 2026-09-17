@@ -224,7 +224,7 @@ class Sipd extends WebRobot {
                 .catch(err => {
                     // retry on invalid captcha
                     if (r(err, 'invalid captcha')) {
-                        setTimeout(f, this.loopdelay);
+                        setTimeout(() => f(), this.loopdelay);
                     } else {
                         reject(err);
                     }
@@ -400,7 +400,7 @@ class Sipd extends WebRobot {
                         reject(err);
                     } else {
                         this.debug(dtag)(_('Retrying form submit in %delay% ms...', {delay: this.wait}));
-                        setTimeout(f, this.wait);
+                        setTimeout(() => f(), this.wait);
                     }
                 });
             }
@@ -455,7 +455,7 @@ class Sipd extends WebRobot {
                         if (res) {
                             resolve();
                         } else {
-                            setTimeout(f, this.loopdelay);
+                            setTimeout(() => f(), this.loopdelay);
                         }
                     })
                     .catch(err => reject(err));
@@ -481,7 +481,7 @@ class Sipd extends WebRobot {
                             if (elements.length) {
                                 resolve(elements[0]);
                             } else {
-                                setTimeout(f, this.loopdelay);
+                                setTimeout(() => f(), this.loopdelay);
                             }
                         })
                         .catch(err => reject(err));
@@ -666,7 +666,7 @@ class Sipd extends WebRobot {
                     if (res) {
                         timer.check(t => this.debug(dtag)(_('Still waiting status dismissing after %duration%...',
                             {duration: t.elapsedTime})));
-                        setTimeout(f, this.loopdelay);
+                        setTimeout(() => f(), this.loopdelay);
                     } else {
                         resolve();
                     }
@@ -792,7 +792,7 @@ class Sipd extends WebRobot {
                     if (res === state) {
                         resolve();
                     } else {
-                        setTimeout(f, this.loopdelay);
+                        setTimeout(() => f(), this.loopdelay);
                     }
                 })
                 .catch(err => reject(err));
@@ -831,7 +831,7 @@ class Sipd extends WebRobot {
                         if (count > restartCount) {
                             reject(SipdOperationError.create('Too many retry while opening SIPD Penatausahaan'));
                         } else {
-                            setTimeout(f, this.delay);
+                            setTimeout(() => f(), this.delay);
                         }
                     } else {
                         resolve();
@@ -935,7 +935,7 @@ class Sipd extends WebRobot {
                         result = true;
                     }
                     if (result) {
-                        setTimeout(f, this.loopdelay);
+                        setTimeout(() => f(), this.loopdelay);
                     } else {
                         this.debug(dtag)(_('Wait for %state% %target% resolved with %res% in %duration% ms',
                             {state, target, res: options.sres ?? options.res, duration: delta}));
@@ -1167,7 +1167,7 @@ class Sipd extends WebRobot {
                             el.getAttribute('disabled')
                                 .then(res => {
                                     if (res) {
-                                        setTimeout(f, this.loopdelay);
+                                        setTimeout(() => f(), this.loopdelay);
                                     } else {
                                         resolve();
                                     }

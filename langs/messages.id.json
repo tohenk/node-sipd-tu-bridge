@@ -42,7 +42,7 @@
   ["%bridge% is handling queue %queue%", "%bridge% menangani antrian %queue%"],
   ["Queue %queue% %status%", "Antrian %queue% %status%"],
   ["Queue %queue% result: %result%", "Hasil antrian %queue%: %result%"],
-  ["Captcha solver is handled by %solver%...", "Pemecah captcha solver ditangani oleh %solver%..."],
+  ["Captcha solver is handled by %solver%...", "Pemecah captcha ditangani oleh %solver%..."],
   ["Connected to SocketSolver at %url%...", "Terhubung ke SocketSolver pada %url%..."],
   ["Disonnected from SocketSolver at %url%...", "Terputus dari SocketSolver pada %url%..."],
   ["Still waiting socket %url% to be ready after %duration%...", "Masih menunggu kesiapan socket %url% setelah %duration%..."],

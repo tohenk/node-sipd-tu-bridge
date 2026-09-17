@@ -123,7 +123,7 @@ class SipdUserLock {
                         } else {
                             timer.check(t => SipdLogger.activity(dtag)(_('Lock %store% %user%:%lock% is still held after %duration%...',
                                 {store: this.store.name, user: this.user, lock, duration: t.elapsedTime})));
-                            setTimeout(f, 100);
+                            setTimeout(() => f(), 100);
                         }
                     })
                     .catch(err => reject(err));
@@ -369,7 +369,7 @@ class SipdLockStoreRedis extends SipdLockStore {
                     } else {
                         timer.check(t => SipdLogger.activity(dtag)(_('Still waiting Redis connection to be ready after %duration%...',
                             {duration: t.elapsedTime})));
-                        setTimeout(f, 1000);
+                        setTimeout(() => f(), 1000);
                     }
                 }
                 f();

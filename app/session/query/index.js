@@ -413,7 +413,7 @@ class SipdQueryBase extends SipdQuery {
                                     return resolve();
                                 }
                             }
-                            setTimeout(f, 0);
+                            setTimeout(() => f(), 0);
                         } else {
                             reject(err);
                         }

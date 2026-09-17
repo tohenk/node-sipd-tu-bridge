@@ -355,7 +355,7 @@ class SipdSession {
                 if (this.ready()) {
                     resolve();
                 } else {
-                    setTimeout(f, 100);
+                    setTimeout(() => f(), 100);
                 }
             }
             f();
@@ -735,7 +735,7 @@ class SipdSession {
                     if (chars.length) {
                         const x = chars.shift();
                         input.sendKeys(x)
-                            .then(() => setTimeout(f, this.sipd.typedelay))
+                            .then(() => setTimeout(() => f(), this.sipd.typedelay))
                             .catch(err => reject(err));
                     } else {
                         resolve(true);
