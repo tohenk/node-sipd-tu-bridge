@@ -400,15 +400,16 @@ class SipdDequeue extends EventEmitter {
                     windowsPathsNoEscape: true,
                 }))
                 .filter(a => SipdUtil.dateSerial(a.mtime) == dt)
-                .sort((a, b) => b.mtime?.getTime() - a.mtime?.getTime());
+                .sort((a, b) => a.mtime?.getTime() - b.mtime?.getTime());
             for (const file of files) {
                 try {
                     console.log(_('Loading queue log from %filename%...', {filename: file.fullpath()}));
                     const logs = JSON.parse(fs.readFileSync(file.fullpath()));
                     if (Array.isArray(logs)) {
+                        const ids = this.completes.map(a => a.id);
                         this.completes.push(...logs
                             .map(a => SipdQueue.fromLog(a))
-                            .filter(a => SipdUtil.dateSerial(a.getTime()) == dt));
+                            .filter(a => !ids.includes(a.id) && SipdUtil.dateSerial(a.getTime()) == dt));
                     }
                 } catch (err) {
                 }
@@ -1314,7 +1315,7 @@ class SipdQueue {
      * @returns {boolean}
      */
     isLoggable() {
-        return this.isFlagged('e') && ![SipdQueue.STATUS_NEW, SipdQueue.STATUS_PROCESSING].includes(this.status);
+        return this.isFlagged('e') && ![SipdQueue.STATUS_NEW, SipdQueue.STATUS_PROCESSING].includes(this.status) && !this.isSaved;
     }
 
     /**
