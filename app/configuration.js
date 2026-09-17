@@ -81,7 +81,7 @@ class Configuration {
             }
         }
         if (this.lang) {
-            Translator.TranslatorMessage.langFile = path.join(rootDir, 'langs', `messages.${this.lang}.json`);
+            Translator.addLang(path.join(rootDir, 'langs', `messages.${this.lang}.json`));
         }
         if (fs.existsSync(filename)) {
             console.log(_('Configuration loaded from %filename%', {filename}));
