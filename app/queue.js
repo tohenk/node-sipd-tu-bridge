@@ -166,8 +166,12 @@ class SipdDequeue extends EventEmitter {
      */
     checkTimeout(queue) {
         if (queue && queue.status === SipdQueue.STATUS_PROCESSING) {
+            // Queue has been processed but not started yet, just leave
+            if (queue.started === null) {
+                return;
+            }
             const t = new Date().getTime();
-            const d = t - queue.time.getTime();
+            const d = t - (queue.started instanceof Date ? queue.started : queue.time).getTime();
             const timeout = queue.data && queue.data.timeout !== undefined ?
                 queue.data.timeout : this.timeout;
             if (timeout > 0 && d > timeout) {
@@ -622,6 +626,9 @@ class SipdConsumer extends EventEmitter {
         }
         const retry = err => {
             const f = () => {
+                if (queue.started !== undefined) {
+                    delete queue.started;
+                }
                 queue.retryCount = (queue.retryCount !== undefined ? queue.retryCount : 0) + 1;
                 if (err instanceof SipdRetryError && queue.retry && queue.retryCount <= queue.maxretry) {
                     SipdLogger.activity(dtag)(_('Retrying %queue% (%count%)...',
@@ -799,8 +806,16 @@ class SipdBridgeConsumer extends SipdConsumer {
     doConsume(queue) {
         this.bridge.queue = queue;
         queue.bridge = this.bridge;
+        queue.started = null;
         queue.onretry = () => this.bridge.end(queue);
         queue.ontimeout = () => this.bridge.end(queue);
+        queue.onlock = () => {
+            if (!queue.started) {
+                queue.started = new Date();
+                SipdLogger.activity(dtag)(_('Queue %queue% is marked as started',
+                    {queue: queue.toString()}));
+            }
+        }
         switch (queue.type) {
             case SipdQueue.QUEUE_SPP:
                 return this.bridge.createSpp(queue);
@@ -919,6 +934,8 @@ class SipdQueue {
         this.info;
         /** @type {?boolean} */
         this.readonly;
+        /** @type {?boolean} */
+        this.started;
         /** @type {?boolean} */
         this.retry;
         /** @type {?number} */

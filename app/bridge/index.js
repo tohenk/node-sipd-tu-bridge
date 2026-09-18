@@ -166,7 +166,7 @@ class SipdBridge {
                 ['done', s => Promise.resolve(f())],
                 ['cleanup', s => s.bp.stop()],
             ], {
-                done: (s, err) => {
+                onDone: (s, err) => {
                     return Promise.resolve(this.purgeSession(s.bp.id));
                 }
             });
@@ -476,7 +476,7 @@ class SipdBridge {
         }
         return this.works(_works, {
             heartbeat: options.heartbeat,
-            done: (w, err) => {
+            onDone: (w, err) => {
                 if (err instanceof SipdAnnouncedError && err._queue) {
                     const queue = err._queue;
                     const callbackQueue = SipdQueue.createCallbackQueue({id: queue.getMappedData('info.id'), error: err.message}, queue.callback);
@@ -530,6 +530,7 @@ class SipdBridge {
     processQueue({queue, works, session, sorter, done, onResult}) {
         this.lock
             .setSessionFactory(session)
+            .setQueue(queue)
             .setLock(queue.id);
         if (typeof sorter === 'function') {
             works = works.sort(sorter);
@@ -605,6 +606,8 @@ class SipdSessionLock {
         this.enabled = options.enabled !== undefined ? options.enabled : true;
         /** @type {SipdUserLock} */
         this.user;
+        /** @type {SipdQueue} */
+        this.queue;
         /** @type {string} */
         this.lock;
     }
@@ -617,6 +620,17 @@ class SipdSessionLock {
      */
     setSessionFactory(sessionFactory) {
         this.sessionFactory = sessionFactory;
+        return this;
+    }
+
+    /**
+     * Set current queue.
+     *
+     * @param {SipdQueue} queue Queue
+     * @returns {SipdSessionLock}
+     */
+    setQueue(queue) {
+        this.queue = queue;
         return this;
     }
 
@@ -642,7 +656,18 @@ class SipdSessionLock {
             return this.bridge.works([
                 [w => Promise.resolve(this.user = SipdLockManager.get(username))],
                 [w => this.user.acquire(this.lock), w => this.user],
-            ]);
+            ], {
+                onDone: (w, err) => {
+                    if (!err && this.queue && typeof this.queue.onlock === 'function') {
+                        this.queue.onlock();
+                    }
+                    if (err) {
+                        return Promise.reject(err);
+                    } else {
+                        return Promise.resolve();
+                    }
+                }
+            });
         } else {
             return Promise.resolve();
         }

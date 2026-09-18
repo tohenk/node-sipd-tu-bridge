@@ -40,6 +40,7 @@
   ["Cleaned directory %dir%...", "Membersihkan direktori %dir%..."],
   ["Skip cleaning empty directory %dir%...", "Melewati pembersihan direktori %dir%..."],
   ["%bridge% is handling queue %queue%", "%bridge% menangani antrian %queue%"],
+  ["Queue %queue% is marked as started", "Antrian %queue% ditandai sudah dimulai"],
   ["Queue %queue% %status%", "Antrian %queue% %status%"],
   ["Queue %queue% result: %result%", "Hasil antrian %queue%: %result%"],
   ["Captcha solver is handled by %solver%...", "Pemecah captcha ditangani oleh %solver%..."],
