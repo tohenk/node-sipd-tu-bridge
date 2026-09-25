@@ -39,8 +39,8 @@ class SipdCmdLpjList extends SipdCmd {
             type: SipdQueue.QUEUE_LPJ_LIST,
             data,
             callback: socket?.callback,
-        }, true);
-        if (outdir) {
+        });
+        if (queue && outdir) {
             queue.outdir = outdir;
         }
         return res;

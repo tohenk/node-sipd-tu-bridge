@@ -62,8 +62,8 @@ class SipdBridgeSpp extends SipdBridgeHandler {
                 res.cair = queue.CAIR;
             }
             data = {
-                queue: queue.id,
-                id: queue.getMappedData('info.id'),
+                id: queue.id,
+                ref: queue.getMappedData('info.id'),
                 ...res,
             }
         }

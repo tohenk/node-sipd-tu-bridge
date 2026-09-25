@@ -34,12 +34,12 @@ class SipdNotifier {
     /**
      * Notify result.
      *
-     * @param {string} url Url
-     * @param {string} token Bearer token
+     * @param {string} callback Callback url with optionally hash as token
      * @param {object} data Data to sent
      * @returns {Promise<any>}
      */
-    static notify(url, token, data) {
+    static notify(callback, data) {
+        const [url, token] = this.getCallback(callback);
         const headers = {};
         if (token) {
             headers.authorization = `Bearer ${token}`;
@@ -51,6 +51,24 @@ class SipdNotifier {
             dataType: 'application/json',
             data: Buffer.from(JSON.stringify(data)),
         });
+    }
+
+    /**
+     * Get callback url along with bearer token.
+     *
+     * @param {string} callback Callback url
+     * @returns {[string, ?string]}
+     */
+    static getCallback(callback) {
+        if (typeof callback === 'string') {
+            let token;
+            if (callback.includes('#')) {
+                const p = callback.indexOf('#');
+                token = callback.substr(p + 1);
+                callback = callback.substr(0, p);
+            }
+            return [callback, token];
+        }
     }
 }
 

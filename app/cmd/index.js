@@ -86,7 +86,7 @@ class SipdCmd {
      * @param {object} payload Data payload
      * @param {object} data Data values
      * @param {Socket} socket Client socket
-     * @returns {object}
+     * @returns {import('../queue').SipdQueueResult}
      */
     consume(payload) {
     }

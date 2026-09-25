@@ -33,14 +33,6 @@ class SipdError extends WebRobot.WebRobotError {
 }
 
 /**
- * An error to indicate a message is need to be announced to caller.
- *
- * @author Toha <tohenk@yahoo.com>
- */
-class SipdAnnouncedError extends SipdError {
-}
-
-/**
  * An error to indicate a restart operation.
  *
  * @author Toha <tohenk@yahoo.com>
@@ -90,7 +82,6 @@ class SipdOperationError extends SipdError {
 
 module.exports = {
     SipdError,
-    SipdAnnouncedError,
     SipdRestartError,
     SipdRetryError,
     SipdCleanAndRetryError,

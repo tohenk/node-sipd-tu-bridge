@@ -27,7 +27,7 @@ const WebRobot = require('@ntlab/webrobot');
 const SipdLogger = require('./logger');
 const SipdUtil = require('./util');
 const SipdTimer = require('./timer');
-const { SipdOperationError, SipdAnnouncedError, SipdRestartError, SipdRetryError, SipdAbortError } = require('./error');
+const { SipdOperationError, SipdRestartError, SipdRetryError, SipdAbortError } = require('./error');
 const { By, error, WebElement } = require('selenium-webdriver');
 const _ = require('@ntlab/ntlib/translator');
 
@@ -59,7 +59,6 @@ class Sipd extends WebRobot {
         this.loopdelay = this.options.loopdelay || 25;
         this.animdelay = this.options.animdelay || 1000;
         WebRobot.expectErr(error.StaleElementReferenceError);
-        WebRobot.expectErr(SipdAnnouncedError);
         WebRobot.expectErr(SipdRestartError);
         WebRobot.expectErr(SipdRetryError);
         WebRobot.expectErr(SipdAbortError);

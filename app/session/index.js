@@ -1334,7 +1334,7 @@ class SipdSession {
         const f = e => {
             const messages = (e instanceof Error ? e.message : e).split('\n');
             if (e.cause instanceof Error) {
-                messages[0] = `${messages[0]} ${e.cause.message}`;
+                messages[0] = `${messages[0]}: ${e.cause.message}`;
             }
             if (e.stack) {
                 messages.push(...e.stack.split('\n').slice(messages.length));

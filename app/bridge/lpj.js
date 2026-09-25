@@ -75,8 +75,8 @@ class SipdBridgeLpj extends SipdBridgeHandler {
                 res.tgltbp = queue.TBP_TGL;
             }
             data = {
-                queue: queue.id,
-                id: queue.getMappedData('info.id'),
+                id: queue.id,
+                ref: queue.getMappedData('info.id'),
                 ...res,
             }
         }

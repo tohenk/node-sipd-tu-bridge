@@ -39,8 +39,8 @@ class SipdCmdRekanan extends SipdCmd {
             type: SipdQueue.QUEUE_REKANAN,
             data,
             callback: socket?.callback,
-        }, true);
-        if (outdir) {
+        });
+        if (queue && outdir) {
             queue.outdir = outdir;
         }
         return res;

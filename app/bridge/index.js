@@ -25,11 +25,12 @@
 const Work = require('@ntlab/work/work');
 const Queue = require('@ntlab/work/queue');
 const SipdLogger = require('../sipd/logger');
+const SipdNotifier = require('../notifier');
 const SipdQueue = require('../queue');
 const SipdSession = require('../session');
 const SipdLpjSession = require('../session/lpj');
 const SipdSppSession = require('../session/spp');
-const { SipdError, SipdOperationError, SipdAnnouncedError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd/error');
+const { SipdError, SipdOperationError, SipdRetryError, SipdCleanAndRetryError } = require('../sipd/error');
 const { SipdRoleSwitcher, SipdRole } = require('../sipd/role');
 const { SipdLockManager, SipdUserLock } = require('./lock');
 const { error } = require('selenium-webdriver');
@@ -367,7 +368,7 @@ class SipdBridge {
                             err = `${prefix} ${err}`;
                         }
                         if (e instanceof Error && e.cause) {
-                            err = `${err} ${e.cause.toString()}`;
+                            err = `${err}: ${e.cause.toString()}`;
                         }
                     }
                     reject(err);
@@ -477,11 +478,6 @@ class SipdBridge {
         return this.works(_works, {
             heartbeat: options.heartbeat,
             onDone: (w, err) => {
-                if (err instanceof SipdAnnouncedError && err._queue) {
-                    const queue = err._queue;
-                    const callbackQueue = SipdQueue.createCallbackQueue({id: queue.getMappedData('info.id'), error: err.message}, queue.callback);
-                    SipdQueue.addQueue(callbackQueue);
-                }
                 if (typeof options.callback === 'function') {
                     return this.works(options.callback(w, err));
                 } else {
@@ -559,6 +555,11 @@ class SipdBridge {
                 [e => this.lock.release(queue.id)],
                 [e => this.saveScreenshot(queue, err), e => err],
                 [e => this.end(queue, this.autoClose)],
+                [e => SipdNotifier.notify(queue.callback, {
+                    id: queue.id,
+                    ref: queue.getMappedData('info.id'),
+                    error: err,
+                }), e => err && !(err instanceof SipdRetryError) && queue.callback],
             ])
         });
     }

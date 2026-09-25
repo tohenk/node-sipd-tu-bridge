@@ -52,7 +52,7 @@ const dtag = 'app';
  */
 class App {
 
-    VERSION = 'SIPD-BRIDGE-4.2'
+    VERSION = 'SIPD-BRIDGE-5.0'
 
     PRIO_FIRST = 10
     PRIO_ABOVE = 20
@@ -142,22 +142,19 @@ class App {
             ready: () => this.ready ? 'Yes' : 'No',
             captcha: () => this.getCaptcha(),
         });
-        this.dequeue.createQueue = (data, ret) => {
+        this.dequeue.createQueue = data => {
             let res;
             const queue = this.dequeue.createNewQueue(data);
             if (queue) {
                 if (data.id) {
                     queue.id = data.id;
                 }
-                if (SipdQueue.hasPendingQueue(queue)) {
-                    res = {message: _('A queue for %id% is already exist or being processed', {id: queue.id})};
-                }
-                if (res === undefined) {
+                res = SipdQueue.addQueue(queue);
+                if (res && res.success) {
                     console.log(_('📦 %queue%: %info%', {queue: queue.type.toUpperCase(), info: queue.info ?? '\u2014'}));
-                    res = SipdQueue.addQueue(queue);
                 }
             }
-            return ret ? [res, queue] : res;
+            return [res, queue];
         }
         /**
          * @param {SipdQueue} queue
@@ -335,10 +332,10 @@ class App {
     /**
      * Create profile directory clean queue.
      *
-     * @returns {object}
+     * @returns {import('./queue').SipdQueueResult}
      */
     createCleanQueue() {
-        return this.dequeue.createQueue({type: SipdQueue.QUEUE_CLEAN, data: {dir: this.config.profiledir}});
+        return this.dequeue.createQueue({type: SipdQueue.QUEUE_CLEAN, data: {dir: this.config.profiledir}})[0];
     }
 
     /**

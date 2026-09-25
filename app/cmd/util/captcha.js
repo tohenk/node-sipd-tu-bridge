@@ -38,7 +38,7 @@ class SipdCmdUtilCaptcha extends SipdCmd {
             mode: this.mode,
             type: SipdQueue.QUEUE_CAPTCHA,
             data,
-        });
+        })[0];
     }
 }
 

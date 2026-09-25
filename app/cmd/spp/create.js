@@ -37,21 +37,24 @@ class SipdCmdSppCreate extends SipdCmd {
         const { socket, data } = payload;
         const batch = Array.isArray(data.items);
         const items = batch ? data.items : [data];
-        let cnt = 0;
-        items.forEach(spp => {
-            const res = this.dequeue.createQueue({
+        for (const item of items) {
+            const [res] = this.dequeue.createQueue({
                 mode: this.mode,
                 type: SipdQueue.QUEUE_SPP,
-                data: spp,
+                data: item,
                 callback: socket?.callback,
             });
-            cnt++;
-            if (!batch) {
+            if (!res) {
+                continue;
+            }
+            if (batch) {
+                if (!result) {
+                    result = [];
+                }
+                result.push(res);
+            } else {
                 result = res;
             }
-        });
-        if (batch) {
-            result = {count: cnt, message: 'SPP is being queued'};
         }
         return result;
     }

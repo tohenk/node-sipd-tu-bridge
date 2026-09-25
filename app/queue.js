@@ -42,10 +42,20 @@ let dequeue;
 /**
  * Create queue.
  *
- * @callback CreateQueue
+ * @callback SipdCreateQueue
  * @param {object} data Queue data
- * @param {boolean} ret Return created queue
- * @returns {[object, SipdQueue]|object}
+ * @returns {[?SipdQueueResult, ?SipdQueue]}
+ */
+
+/**
+ * Queue result object.
+ *
+ * @typedef {object} SipdQueueResult
+ * @property {string} id Queue id
+ * @property {string} type Queue type
+ * @property {boolean} success Success state
+ * @property {string} message Message
+ * @property {?string} ref Queue reference id
  */
 
 /**
@@ -77,7 +87,7 @@ class SipdDequeue extends EventEmitter {
         this.completes = SipdQueueArray.create();
         this.timeout = 5 * 6e4;
         this.retry = 3;
-        /** @type {CreateQueue} */
+        /** @type {SipdCreateQueue} */
         this.createQueue;
         /** @type {string} */
         this.queueDir = path.join(process.cwd(), 'queue');
@@ -291,15 +301,27 @@ class SipdDequeue extends EventEmitter {
      * Add queue to process.
      *
      * @param {SipdQueue} queue Queue
-     * @returns {object}
+     * @returns {SipdQueueResult}
      */
     add(queue) {
+        let success = false, message;
         if (!queue.id) {
             queue.setId(SipdUtil.genId());
         }
-        this.queues.add(queue);
-        this.emit('queue', queue);
-        return {status: 'queued', id: queue.id};
+        if (SipdQueue.hasPendingQueue(queue)) {
+            message = _('Queue %queue% is already exist or being processed', {queue: queue.toString()});
+        } else {
+            success = true;
+            message = _('Queue %queue% successfuly queued', {queue: queue.toString()});
+            this.queues.add(queue);
+            this.emit('queue', queue);
+        }
+        const res = {id: queue.id, type: queue.type, success, message};
+        const ref = queue.getMappedData('info.id');
+        if (ref) {
+            res.ref = ref;
+        }
+        return res;
     }
 
     /**
@@ -856,8 +878,7 @@ class SipdCallbackConsumer extends SipdConsumer {
      * @returns {Promise<any>}
      */
     doConsume(queue) {
-        const [url, token] = SipdQueue.getCallback(queue.callback);
-        return SipdNotifier.notify(url, token, queue.data);
+        return SipdNotifier.notify(queue.callback, queue.data);
     }
 }
 
@@ -1247,7 +1268,7 @@ class SipdQueue {
     getInfo() {
         let info = this.info;
         if (!info && this.type === SipdQueue.QUEUE_CALLBACK) {
-            [info, ] = SipdQueue.getCallback(this.callback);
+            [info] = SipdNotifier.getCallback(this.callback);
         }
         return info;
     }
@@ -1544,24 +1565,6 @@ class SipdQueue {
             }
         }
         return false;
-    }
-
-    /**
-     * Get callback url along with bearer token.
-     *
-     * @param {string} callback Callback url
-     * @returns {string[]}
-     */
-    static getCallback(callback) {
-        if (typeof callback === 'string') {
-            let token;
-            if (callback.includes('#')) {
-                const p = callback.indexOf('#');
-                token = callback.substr(p + 1);
-                callback = callback.substr(0, p);
-            }
-            return [callback, token];
-        }
     }
 
     /**
