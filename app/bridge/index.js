@@ -333,6 +333,26 @@ class SipdBridge {
     }
 
     /**
+     * Get error message.
+     *
+     * @param {Error|string} err Error
+     * @returns {string}
+     */
+    getError(err) {
+        const prefix = this.loginfo.actor && this.loginfo.action ?
+            `${this.loginfo.actor} (${this.loginfo.action}):` : null;
+        const e = err;
+        err = e instanceof Error ? e.message : `${e}`;
+        if (prefix && !err.startsWith(prefix)) {
+            err = `${prefix} ${err}`;
+        }
+        if (e instanceof Error && e.cause) {
+            err = `${err}: ${e.cause.toString()}`;
+        }
+        return err;
+    }
+
+    /**
      * A proxy function for Work.works.
      *
      * @param {Array} w Work list
@@ -360,16 +380,7 @@ class SipdBridge {
                     } else if (err instanceof error.SessionNotCreatedError) {
                         err = SipdCleanAndRetryError.create(err);
                     } else {
-                        const prefix = this.loginfo.actor && this.loginfo.action ?
-                            `${this.loginfo.actor} (${this.loginfo.action}):` : null;
-                        const e = err;
-                        err = e instanceof Error ? e.message : `${e}`;
-                        if (prefix && !err.startsWith(prefix)) {
-                            err = `${prefix} ${err}`;
-                        }
-                        if (e instanceof Error && e.cause) {
-                            err = `${err}: ${e.cause.toString()}`;
-                        }
+                        err = this.getError(err);
                     }
                     reject(err);
                 });
@@ -558,7 +569,7 @@ class SipdBridge {
                 [e => SipdNotifier.notify(queue.callback, {
                     id: queue.id,
                     ref: queue.getMappedData('info.id'),
-                    error: err,
+                    error: this.getError(err),
                 }), e => err && !(err instanceof SipdRetryError) && queue.callback],
             ])
         });
