@@ -508,6 +508,8 @@ class App {
                         this.dequeue
                             .on('queue-done', closeOnCompleteOrError)
                             .on('queue-error', closeOnCompleteOrError);
+                    } else {
+                        this.dequeue.activatePruner();
                     }
                 }
                 if (Cmd.get('queue')) {

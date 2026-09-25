@@ -325,20 +325,6 @@ class SipdDequeue extends EventEmitter {
     }
 
     /**
-     * Pick one unprocessed queue for consumer.
-     *
-     * @param {SipdConsumer} consumer Consumer
-     * @returns {SipdQueue}
-     */
-    pick(consumer) {
-        for (const queue of this.queues) {
-            if (consumer.isAccepted(queue)) {
-                return queue;
-            }
-        }
-    }
-
-    /**
      * Get next unprocessed queue.
      *
      * @returns {SipdQueue}
@@ -391,24 +377,25 @@ class SipdDequeue extends EventEmitter {
     }
 
     /**
-     * Get processing queue logs.
+     * Get queue as logs.
      *
      * @param {number} flags Flags
      * @returns {object[]}
      */
     getLogs(flags = 0) {
-        return [...this.completes, ...this.processing, ...this.queues]
-            .sort((a, b) => a.cmp(b))
-            .filter(queue => {
-                if ((flags & SipdQueue.LOG_AS_LOG) === SipdQueue.LOG_AS_LOG) {
-                    return queue.isLoggable();
-                }
-                if ((flags & SipdQueue.LOG_AS_QUEUE) === SipdQueue.LOG_AS_QUEUE) {
-                    return queue.isSaveable();
-                }
-                return true;
-            })
-            .map(queue => queue.getLog((flags & SipdQueue.LOG_RAW) === SipdQueue.LOG_RAW));
+        return SipdQueueArray.from(this)
+            .select(flags)
+            .toLog(flags);
+    }
+
+    /**
+     * Save queue logs to file.
+     *
+     * @returns {boolean}
+     */
+    saveLogs() {
+        return SipdQueueArray.from(this)
+            .saveLog(this.queueDir);
     }
 
     /**
@@ -443,28 +430,6 @@ class SipdDequeue extends EventEmitter {
             if (typeof callback === 'function') {
                 callback();
             }
-        }
-    }
-
-    /**
-     * Save queue logs to file.
-     *
-     * @returns {void}
-     */
-    saveLogs() {
-        const logs = this.getLogs(SipdQueue.LOG_RAW | SipdQueue.LOG_AS_LOG);
-        if (logs.length) {
-            if (!fs.existsSync(this.queueDir)) {
-                fs.mkdirSync(this.queueDir, {recursive: true});
-            }
-            let filename, seq = 0;
-            while (true) {
-                filename = path.join(this.queueDir, `queue${++seq}.log`);
-                if (!fs.existsSync(filename)) {
-                    break;
-                }
-            }
-            fs.writeFileSync(filename, JSON.stringify(logs, null, 2));
         }
     }
 
@@ -511,6 +476,35 @@ class SipdDequeue extends EventEmitter {
             }
             const filename = path.join(this.queueDir, 'saved.queue');
             fs.writeFileSync(filename, JSON.stringify(savedQueues, null, 2));
+        }
+    }
+
+    /**
+     * Activate queue pruner.
+     */
+    activatePruner() {
+        try {
+            const scheduled = new Date();
+            scheduled.setTime(scheduled.getTime() + 864e5);
+            scheduled.setHours(0);
+            scheduled.setMinutes(0);
+            scheduled.setSeconds(0);
+            scheduled.setMilliseconds(0);
+            const delta = scheduled.getTime() - new Date().getTime();
+            setTimeout(() => {
+                const queues = SipdQueueArray.from(this, SipdQueue.STATUS_DONE)
+                    .select(scheduled);
+                queues.saveLog(this.queueDir);
+                for (const queue of queues) {
+                    const idx = this.completes.indexOf(queue);
+                    if (idx >= 0) {
+                        this.completes.splice(idx, 1);
+                    }
+                }
+                this.activatePruner();
+            }, delta);
+        } catch (err) {
+            console.error(err);
         }
     }
 
@@ -1684,6 +1678,78 @@ class SipdQueueArray extends Array {
     }
 
     /**
+     * Select certain queues.
+     *
+     * @param {number} flags Flags
+     * @param {number|Date} maxtime Include only queue time before max time
+     * @returns {SipdQueueArray}
+     */
+    select(flags = null, maxtime = null) {
+        if (flags instanceof Date) {
+            maxtime = flags;
+            flags = 0;
+        }
+        flags = flags || 0;
+        /** @type {SipdQueueArray} */
+        const res = new this.constructor();
+        const copies = this
+            .filter(a => {
+                if (maxtime && (!a.time || a.time >= maxtime)) {
+                    return false;
+                }
+                if ((flags & SipdQueue.LOG_AS_LOG) === SipdQueue.LOG_AS_LOG && !a.isLoggable()) {
+                    return false;
+                }
+                if ((flags & SipdQueue.LOG_AS_QUEUE) === SipdQueue.LOG_AS_QUEUE && !a.isSaveable()) {
+                    return false;
+                }
+                return true;
+            });
+        if (copies.length) {
+            res.push(...copies);
+        }
+        return res;
+    }
+
+    /**
+     * Get queue as logs.
+     *
+     * @param {number} flags Flags
+     * @returns {object[]}
+     */
+    toLog(flags = 0) {
+        return this
+            .map(a => a.getLog((flags & SipdQueue.LOG_RAW) === SipdQueue.LOG_RAW));
+    }
+
+    /**
+     * Save queue logs to file.
+     *
+     * @param {string} dir Directory
+     * @returns {boolean}
+     */
+    saveLog(dir) {
+        const logs = this
+            .select(SipdQueue.LOG_AS_LOG)
+            .toLog(SipdQueue.LOG_RAW);
+        if (logs.length) {
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, {recursive: true});
+            }
+            let filename, seq = 0;
+            while (true) {
+                filename = path.join(dir, `queue${++seq}.log`);
+                if (!fs.existsSync(filename)) {
+                    break;
+                }
+            }
+            fs.writeFileSync(filename, JSON.stringify(logs, null, 2));
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Create queue array.
      *
      * @param {object} options Options
@@ -1703,6 +1769,26 @@ class SipdQueueArray extends Array {
             res.oncheck = options.check;
         }
         return res;
+    }
+
+    /**
+     * Collect queues.
+     *
+     * @param {SipdDequeue} source Queue source
+     * @param {string|string[]} status Queue status
+     * @returns {SipdQueueArray}
+     */
+    static from(source = null, status = null) {
+        source = source instanceof SipdDequeue ? source : dequeue;
+        status = Array.isArray(status) ? status : (status ? [status] : []);
+        const res = new this();
+        res.push(
+            ...(status.length === 0 || status.includes(SipdQueue.STATUS_DONE) ? source.completes : []),
+            ...(status.length === 0 || status.includes(SipdQueue.STATUS_PROCESSING) ? source.processing : []),
+            ...(status.length === 0 || status.includes(SipdQueue.STATUS_NEW) ? source.queues : []),
+        );
+        return res
+            .sort((a, b) => a.cmp(b));
     }
 }
 
