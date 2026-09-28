@@ -813,13 +813,15 @@ class Sipd extends WebRobot {
             const f = () => {
                 let restart = false;
                 this.works([
+                    [w => Promise.reject(SipdOperationError.create('Browser session has been closed while opening SIPD Penatausahaan')),
+                        w => reload > 0 && !this.driver],
                     [w => Promise.resolve(this.tmo = setTimeout(() => this.driver.navigate().refresh(), reload * 1000)),
                         w => reload > 0],
                     [w => this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0})],
                     [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]'))],
-                    [w => w.getRes(2)[0].click(), w => w.getRes(2).length],
-                    [w => Promise.resolve(count++), w => w.getRes(2).length],
-                    [w => Promise.resolve(restart = true), w => w.getRes(2).length],
+                    [w => w.getRes(3)[0].click(), w => w.getRes(3).length],
+                    [w => Promise.resolve(count++), w => w.getRes(3).length],
+                    [w => Promise.resolve(restart = true), w => w.getRes(3).length],
                 ])
                 .then(() => {
                     if (this.tmo !== undefined) {
