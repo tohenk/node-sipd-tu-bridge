@@ -13,11 +13,11 @@
         "operasi": "OP"
     },
     "npd": {
-        "=.//label[text()='Tanggal']/../input": "TGL_NPD",
-        "=.//label[text()='Tujuan Pembayaran']/../textarea": "URAIAN",
-        "=.//button[text()='Pilih Kegiatan Disini']": "KEG:KEG",
-        "+=.//button[text()='Pilih Sub Kegiatan Disini']": "KEG:KEG",
-        "=.//p[contains(@class,'form-label') and contains(text(),'Menampilkan Daftar Belanja')]/../div[2]": "AFEKTASI:AFEKTASI",
+        "Tanggal": ["=.//label[text()='Tanggal']/../input", "TGL_NPD"],
+        "Pembayaran": ["=.//label[text()='Tujuan Pembayaran']/../textarea", "URAIAN"],
+        "Kegiatan": ["=.//button[text()='Pilih Kegiatan Disini']", "KEG:KEG"],
+        "Sub Kegiatan": ["+=.//button[text()='Pilih Sub Kegiatan Disini']", "KEG:KEG"],
+        "Afektasi": ["=.//p[contains(@class,'form-label') and contains(text(),'Menampilkan Daftar Belanja')]/../div[2]", "AFEKTASI:AFEKTASI"],
         "npd:KUOTA": 0,
         "npd:KEG": "KEG",
         "npd:REK": "REK",
@@ -27,31 +27,31 @@
         "npd:NOMINAL": "AFEKTASI"
     },
     "setuju-npd": {
-        "=.//label[text()='Tanggal']/../input": "TGL_SETUJU"
+        "Tanggal": ["=.//label[text()='Tanggal']/../input", "TGL_SETUJU"]
     },
     "validasi-npd": {
-        "=.//label[text()='Tanggal']/../input": "TGL_VALIDASI"
+        "Tanggal": ["=.//label[text()='Tanggal']/../input", "TGL_VALIDASI"]
     },
     "tbp": {
-        "+=.//button[text()='Pilih Dokumen Disini']": "NPD:NPD",
-        "=.//label[text()='Tanggal']/../input": "TGL_NPD",
-        "~=.//p[text()='Tunai']": "BAYAR=tunai?DO:CLICK",
-        "=.//label[text()='Nomor Kwitansi']/../div/div/input": "NOBUKTI",
-        "filepond": "PDF:BUKTI|50k",
-        "+=.//label[text()='Rekanan']/../div/p": "JENIS=usaha?REKANAN:USAHA|NIK,REKANAN:NAMA|NIK"
+        "NPD": ["+=.//button[text()='Pilih Dokumen Disini']", "NPD:NPD"],
+        "Tanggal": ["=.//label[text()='Tanggal']/../input", "TGL_NPD"],
+        "Tunai": ["~=.//p[text()='Tunai']", "BAYAR=tunai?DO:CLICK"],
+        "Nomor Bukti": ["=.//label[text()='Nomor Kwitansi']/../div/div/input", "NOBUKTI"],
+        "Bukti": ["filepond", "PDF:BUKTI|50k"],
+        "Rekanan": ["+=.//label[text()='Rekanan']/../div/p", "JENIS=usaha?REKANAN:USAHA|NIK,REKANAN:NAMA|NIK"]
     },
     "rekanan": {
-        "~=.//button[text()='Pilih Perusahaan']": "JENIS=usaha?DO:CLICK",
-        "~=.//p[text()='PNS']": "JENIS=pns?DO:CLICK",
-        "nama_tujuan": "NAMA",
-        "nik": "NIK",
-        "nama_perusahaan": "USAHA",
-        "npwp": "NPWP",
-        "telepon_perusahaan": "TELEPON",
-        "alamat_perusahaan": "ALAMAT",
-        "~nomor_rekening": "BANK_REK",
-        "nama_rekening": "BANK_NAMA",
-        "=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']": "BANK",
-        "cabang_bank": "BANK_CAB"
+        "Usaha": ["~=.//button[text()='Pilih Perusahaan']", "JENIS=usaha?DO:CLICK"],
+        "PNS": ["~=.//p[text()='PNS']", "JENIS=pns?DO:CLICK"],
+        "Nama": ["nama_tujuan", "NAMA"],
+        "NIK": ["nik", "NIK"],
+        "Rekanan": ["nama_perusahaan", "USAHA"],
+        "NPWP": ["npwp", "NPWP"],
+        "Telepon": ["telepon_perusahaan", "TELEPON"],
+        "Alamat": ["alamat_perusahaan", "ALAMAT"],
+        "Nomor Rekening": ["~nomor_rekening", "BANK_REK"],
+        "Nama Rekening": ["nama_rekening", "BANK_NAMA"],
+        "Nama Bank": ["=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']", "BANK"],
+        "Cabang Bank": ["cabang_bank", "BANK_CAB"]
     }
 }

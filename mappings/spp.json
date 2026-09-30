@@ -9,15 +9,15 @@
         "check": "SPP"
     },
     "spp": {
-        "=.//label[text()='Tanggal']/../input": "TGL_SPP",
-        "+=.//label[text()='Penandatangan']/../div/button": "ROLE:pptk",
-        "=.//label[text()='Tujuan Pembayaran']/../textarea": "FORMAT:%1% (%2%)|UNTUK|KODE",
-        "+=.//label[text()='Rekanan']/../div/p": "REKANAN:LEMBAGA|NIK",
-        "#nama_tujuan": "NO_KONTRAK",
-        "filepond": "PDF:BUKTI|50k",
-        "=.//p[text()='Pilih Salah Satu Kegiatan Disini']/../../button": "KEG:KEG",
-        "+=.//p/span[text()='Sub Kegiatan']/../../../button": "KEG:KEG",
-        "=.//p[contains(@class,'form-label') and text()='Belanja']/../div[2]": "AFEKTASI:AFEKTASI",
+        "Tanggal": ["=.//label[text()='Tanggal']/../input", "TGL_SPP"],
+        "PPTK": ["+=.//label[text()='Penandatangan']/../div/button", "ROLE:pptk"],
+        "Pembayaran": ["=.//label[text()='Tujuan Pembayaran']/../textarea", "FORMAT:%1% (%2%)|UNTUK|KODE"],
+        "Rekanan": ["+=.//label[text()='Rekanan']/../div/p", "REKANAN:LEMBAGA|NIK"],
+        "No Kontrak": ["#nama_tujuan", "NO_KONTRAK"],
+        "Bukti": ["filepond", "PDF:BUKTI|50k"],
+        "Kegiatan": ["=.//p[text()='Pilih Salah Satu Kegiatan Disini']/../../button", "KEG:KEG"],
+        "Sub Kegiatan": ["+=.//p/span[text()='Sub Kegiatan']/../../../button", "KEG:KEG"],
+        "Afektasi": ["=.//p[contains(@class,'form-label') and text()='Belanja']/../div[2]", "AFEKTASI:AFEKTASI"],
         "spp:KUOTA": 1,
         "spp:KEG": "KEG",
         "spp:REK": "REK",
@@ -27,19 +27,19 @@
         "spp:NOMINAL": "AFEKTASI"
     },
     "verifikasi-spp": {
-        "=.//label[text()='Tanggal']/../input": "TGL_SPP"
+        "Tanggal": ["=.//label[text()='Tanggal']/../input", "TGL_SPP"]
     },
     "rekanan": {
-        "~=.//button[text()='Pilih Perusahaan']": "DO:CLICK",
-        "nama_tujuan": "KETUA",
-        "nik": "NIK",
-        "nama_perusahaan": "LEMBAGA",
-        "npwp": "000000000000000",
-        "telepon_perusahaan": "TELEPON",
-        "alamat_perusahaan": "ALAMAT",
-        "~nomor_rekening": "BANK_REK",
-        "nama_rekening": "BANK_NAMA",
-        "=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']": "BANK",
-        "cabang_bank": "BANK_CAB"
+        "Usaha": ["~=.//button[text()='Pilih Perusahaan']", "DO:CLICK"],
+        "Nama": ["nama_tujuan", "KETUA"],
+        "NIK": ["nik", "NIK"],
+        "Rekanan": ["nama_perusahaan", "LEMBAGA"],
+        "NPWP": ["npwp", "000000000000000"],
+        "Telepon": ["telepon_perusahaan", "TELEPON"],
+        "Alamat": ["alamat_perusahaan", "ALAMAT"],
+        "Nomor Rekening": ["~nomor_rekening", "BANK_REK"],
+        "Nama Rekening": ["nama_rekening", "BANK_NAMA"],
+        "Nama Bank": ["=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']", "BANK"],
+        "Cabang Bank": ["cabang_bank", "BANK_CAB"]
     }
 }

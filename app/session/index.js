@@ -868,34 +868,38 @@ class SipdSession {
         delete queue.doCleanup;
         queue.kegSeq = 0;
         for (const k of Object.keys(maps)) {
-            const selector = [];
-            const f = this.getFormKey(k);
-            let key = f.selector, attr, vcond, vtype, data, isAfektasi = false;
+            const r = {k, v: maps[k], s: []};
+            if (Array.isArray(r.v)) {
+                r.l = r.k;
+                r.k = r.v[0];
+                r.v = r.v[1];
+            }
+            r.f = this.getFormKey(r.k);
+            let key = r.f.selector, label = r.l ? r.l : key, value, attr, vcond, vtype, data, isAfektasi = false;
             switch (true) {
-                case f.sflags.includes('#'):
+                case r.f.sflags.includes('#'):
                     attr = 'id';
                     break;
-                case f.sflags.includes('='):
+                case r.f.sflags.includes('='):
                     break;
                 default:
                     attr = 'name';
                     break;
             }
-            let value;
             // don't map value on read operation
-            if (!f.flags.includes('?')) {
-                value = queue.getMappedData([name, k]);
-                this.debug(dtag)(_('Mapped value %name%->%key% = %value%', {name, key, value: trunc(value)}));
+            if (!r.f.flags.includes('?')) {
+                value = queue.getDataValue(r.v);
+                this.debug(dtag)(_('Mapped value %name%->%label% = %value%', {name, label, value: trunc(value)}));
             }
             // fall back to non mapped value if undefined
             if (value === undefined) {
-                if (f.flags.includes('*')) {
-                    throw SipdError.create('Form %name%: %key% value is mandatory', {name, key});
+                if (r.f.flags.includes('*')) {
+                    throw SipdError.create('Form %name%: %label% value is mandatory', {name, label});
                 }
-                value = maps[k];
+                value = r.v;
             }
             // handle condition or special value
-            if (typeof value === 'string' && queue.getMap([name, k]) === value) {
+            if (typeof value === 'string' && r.v === value) {
                 // condition (?) with evaluated values separated by comma (,)
                 let okay, p = value.indexOf('?');
                 if (p > 0) {
@@ -954,7 +958,6 @@ class SipdSession {
                 } else {
                     value = v;
                 }
-                this.debug(dtag)(_('Special TYPE:value %name%->%key% = %value%', {name, key, value: trunc(value)}));
             }
             // check for safe string
             if (typeof value === 'string' && value.length) {
@@ -970,21 +973,29 @@ class SipdSession {
                 afektasi.set(key, value);
                 isAfektasi = true;
             }
-            if (!f.sflags.includes('=')) {
-                selector.push(`[@${attr}="${key}"]`);
+            if (!r.f.sflags.includes('=')) {
+                r.s.push(`[@${attr}="${key}"]`);
             }
             if (!isAfektasi) {
                 data = {
-                    target: By.xpath(f.sflags.includes('=') ? key : `.//*${selector.join('')}`),
+                    target: By.xpath(r.f.sflags.includes('=') ? key : `.//*${r.s.join('')}`),
                     value
                 }
+                if (r.l) {
+                    data.label = r.l;
+                }
                 // check form parent
-                if (f.parent) {
-                    if (f.parent.substring(0, 1) === '#') {
-                        data.parent = By.id(f.parent.substring(1));
+                if (r.f.parent) {
+                    if (r.f.parent.substring(0, 1) === '#') {
+                        data.parent = By.id(r.f.parent.substring(1));
                     } else {
-                        data.parent = By.xpath(f.parent);
+                        data.parent = By.xpath(r.f.parent);
                     }
+                }
+                if (vtype) {
+                    this.debug(dtag)(_('Resolved value %name%->%label% = %value% [%vtype%]', {name, label, value: trunc(value), vtype}));
+                } else {
+                    this.debug(dtag)(_('Resolved value %name%->%label% = %value%', {name, label, value: trunc(value)}));
                 }
             }
             // form data and handler
@@ -1047,7 +1058,7 @@ class SipdSession {
                         }
                         break;
                 }
-                for (const flag of f.flags) {
+                for (const flag of r.f.flags) {
                     switch (flag) {
                         // read operation
                         case '?':
@@ -1086,7 +1097,7 @@ class SipdSession {
                 if (!data.onfill) {
                     // date time picker
                     if (key.toLowerCase().includes('tanggal')) {
-                        data.onfill = (el, value) => this.fillDatePicker(el, SipdUtil.getDate(value, f.flags.includes('&')));
+                        data.onfill = (el, value) => this.fillDatePicker(el, SipdUtil.getDate(value, r.f.flags.includes('&')));
                     }
                     data.canfill = (tag, el, value) => {
                         return new Promise((resolve, reject) => {
@@ -1103,9 +1114,9 @@ class SipdSession {
                 }
                 data.prefill = (el, value) => {
                     if (isFill) {
-                        this.debug(dtag)(_('Do fill %name%->%key% with %value%', {name, key, value: trunc(value)}));
+                        this.debug(dtag)(_('Do fill %name%->%label% with %value%', {name, label, value: trunc(value)}));
                     } else {
-                        this.debug(dtag)(_('Do read %name%->%key% into %value%', {name, key, value: trunc(value)}));
+                        this.debug(dtag)(_('Do read %name%->%label% into %value%', {name, label, value: trunc(value)}));
                     }
                 }
                 data.afterfill = el => this.works([

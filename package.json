@@ -22,12 +22,12 @@
     "@ntlab/ntlib": "^3.1.2",
     "@ntlab/sipd-tu-bridge-ui": "^1.10.0",
     "@ntlab/urllib": "^1.1.0",
-    "@ntlab/webrobot": "^3.4.1",
+    "@ntlab/webrobot": "^3.5.0",
     "@ntlab/work": "^2.9.0",
     "debug": "^4.4.3",
     "glob": "^13.0.6",
     "redis": "^5.12.1",
-    "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4"
   }
 }

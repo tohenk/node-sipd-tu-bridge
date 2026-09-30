@@ -7,18 +7,18 @@
         "nik": "NIK"
     },
     "rekanan": {
-        "?~=.//p[text()='Perusahaan']/..": "STATE:JENIS,usaha,css-i3t0fewa",
-        "?~=.//p[text()='NON PNS']/..": "STATE:JENIS,orang,css-i3t0fewa",
-        "?~=.//p[text()='PNS']/..": "STATE:JENIS,pns,css-i3t0fewa",
-        "?nama_tujuan": "NAMA",
-        "?nik": "NIK",
-        "?nama_perusahaan": "USAHA",
-        "?npwp": "NPWP",
-        "?telepon_perusahaan": "TELEPON",
-        "?alamat_perusahaan": "ALAMAT",
-        "?nomor_rekening": "BANK_REK",
-        "?nama_rekening": "BANK_NAMA",
-        "?=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']": "BANK",
-        "?cabang_bank": "BANK_CAB"
+        "Usaha": ["?~=.//p[text()='Perusahaan']/..", "STATE:JENIS,usaha,css-i3t0fewa"],
+        "Non PNS": ["?~=.//p[text()='NON PNS']/..", "STATE:JENIS,orang,css-i3t0fewa"],
+        "PNS": ["?~=.//p[text()='PNS']/..", "STATE:JENIS,pns,css-i3t0fewa"],
+        "Nama": ["?nama_tujuan", "NAMA"],
+        "NIK": ["?nik", "NIK"],
+        "Rekanan": ["?nama_perusahaan", "USAHA"],
+        "NPWP": ["?npwp", "NPWP"],
+        "Telepon": ["?telepon_perusahaan", "TELEPON"],
+        "Alamat": ["?alamat_perusahaan", "ALAMAT"],
+        "Nomor Rekening": ["?nomor_rekening", "BANK_REK"],
+        "Nama Rekening": ["?nama_rekening", "BANK_NAMA"],
+        "Nama Bank": ["?=.//label[text()='Nama Bank']/../div/div/div/div/input[@role='combobox']", "BANK"],
+        "Cabang Bank": ["?cabang_bank", "BANK_CAB"]
     }
 }
