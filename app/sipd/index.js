@@ -207,10 +207,11 @@ class Sipd extends WebRobot {
                         {
                             target: By.xpath('.//label[text()="Tahun"]/../div/div/div/div[2]/input[@role="combobox"]'),
                             value: this.year,
-                            onfill: (el, value) => this.reactSelect(el, value, 'Budgeting %value% is not available')
+                            onfill: (el, value) => this.reactSelect(el, value, 'Budgeting %value% is not available'),
+                            label: _('Budgeting Year')
                         },
-                        {target: By.id('ed_username'), value: username},
-                        {target: By.id('ed_password'), value: password},
+                        {target: By.id('ed_username'), value: username, label: _('Username')},
+                        {target: By.id('ed_password'), value: password, label: _('Password')},
                     ],
                     {
                         spinner: true,
