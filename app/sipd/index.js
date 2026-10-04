@@ -588,7 +588,8 @@ class Sipd extends WebRobot {
     isInMaintenance() {
         return this.works([
             [w => this.waitForPresence(By.xpath('//h1[contains(@class,"css-n-ca-jf-qawac") and text()="Maintenance"]'), {timeout: this.delay})],
-            [w => Promise.reject(SipdOperationError.create('SIPD Penatausahaan is in maintenance')), w => w.getRes(0)],
+            [w => this.waitForPresence(By.xpath('//div[contains(@class,"chakra-modal__body")]/*/*[contains(text(),"Pemeliharaan")]'), {timeout: this.delay})],
+            [w => Promise.reject(SipdOperationError.create('SIPD Penatausahaan is in maintenance')), w => w.getRes(0) || w.getRes(1)],
         ]);
     }
 
