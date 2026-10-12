@@ -40,7 +40,7 @@ const dtag = 'core';
  */
 class Sipd extends WebRobot {
 
-    LOGIN_FORM = '//div[contains(@class,"auth-box")]/form'
+    LOGIN_FORM = '//div[contains(@class,"auth-box")]/div/form'
     CAPTCHA_CONTAINER = '//div[contains(@class,"css-S-k-eg4wgs")]'
 
     SPINNER_CHAKRA = 'chakra-spinner'
