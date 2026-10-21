@@ -40,12 +40,6 @@ const dtag = 'core';
  */
 class Sipd extends WebRobot {
 
-    LOGIN_FORM = '//div[contains(@class,"auth-box")]/div/form'
-    CAPTCHA_CONTAINER = '//div[contains(@class,"css-S-k-eg4wgs")]'
-
-    SPINNER_CHAKRA = 'chakra-spinner'
-    SPINNER_ANIMATE = 'animate-spin'
-
     state = {}
 
     /**
@@ -58,6 +52,7 @@ class Sipd extends WebRobot {
         this.typedelay = this.options.typedelay || 5;
         this.loopdelay = this.options.loopdelay || 25;
         this.animdelay = this.options.animdelay || 1000;
+        this.simplebarMenu = Sipd.MENU_PENATAUSAHAAN;
         WebRobot.expectErr(error.StaleElementReferenceError);
         WebRobot.expectErr(SipdRestartError);
         WebRobot.expectErr(SipdRetryError);
@@ -201,7 +196,7 @@ class Sipd extends WebRobot {
             const r = (e, s) => (e = (e instanceof Error ? e.message : e).toLowerCase(), e.includes(_(s)));
             const f = () => {
                 this.formSubmit(
-                    By.xpath(this.LOGIN_FORM),
+                    By.xpath(Sipd.LOGIN_FORM),
                     By.xpath('//button[@type="submit"]'),
                     [
                         {
@@ -273,7 +268,8 @@ class Sipd extends WebRobot {
         return this.works([
             [w => this.driver.getCurrentUrl()],
             [w => this.dismissUpdate(), w => w.getRes(0).indexOf('login') < 0],
-            [w => this.navigate('Keluar'), w => w.getRes(0).indexOf('login') < 0],
+            [w => this.clickWait(this.findElement(By.xpath('//a[contains(@class,"sn-logout")]'))),
+                w => w.getRes(0).indexOf('login') < 0],
         ]);
     }
 
@@ -415,7 +411,7 @@ class Sipd extends WebRobot {
      */
     waitCaptcha() {
         return this.works([
-            [w => this.findElements(By.xpath(this.CAPTCHA_CONTAINER))],
+            [w => this.findElements(By.xpath(Sipd.CAPTCHA_CONTAINER))],
             [w => this.waitSolvedCaptcha(w.getRes(0)[0]), w => w.getRes(0).length],
         ]);
     }
@@ -473,7 +469,7 @@ class Sipd extends WebRobot {
      */
     captchaImage() {
         return this.works([
-            [w => this.findElements(By.xpath(this.CAPTCHA_CONTAINER))],
+            [w => this.findElements(By.xpath(Sipd.CAPTCHA_CONTAINER))],
             [w => new Promise((resolve, reject) => {
                 const f = () => {
                     w.getRes(0)[0].findElements(By.xpath('.//img'))
@@ -501,7 +497,7 @@ class Sipd extends WebRobot {
     solveCaptcha(code) {
         code = SipdUtil.pickNumber(code);
         return this.works([
-            [w => this.findElements(By.xpath(this.CAPTCHA_CONTAINER))],
+            [w => this.findElements(By.xpath(Sipd.CAPTCHA_CONTAINER))],
             [w => w.getRes(0)[0].findElements(By.xpath('.//input[@data-index]')), w => w.getRes(0).length],
             [w => Promise.resolve(w.getRes(1).length === code.length), w => w.getRes(0).length],
             [w => Promise.resolve(this.debug(dtag)(_('Solving captcha using %code%...', {code}))),
@@ -528,7 +524,7 @@ class Sipd extends WebRobot {
      */
     reloadCaptcha() {
         return this.works([
-            [w => this.findElements(By.xpath(this.CAPTCHA_CONTAINER))],
+            [w => this.findElements(By.xpath(Sipd.CAPTCHA_CONTAINER))],
             [w => w.getRes(0)[0].findElements(By.xpath('.//div[@class="custom-tippy"]')), w => w.getRes(0).length],
             [w => w.getRes(1)[0].click(), w => w.getRes(0).length],
         ]);
@@ -619,7 +615,7 @@ class Sipd extends WebRobot {
     isLoggedIn(wait = true) {
         return this.works([
             [w => this.waitLoader(), w => wait],
-            [w => this.findElements(By.xpath(this.LOGIN_FORM))],
+            [w => this.findElements(By.xpath(Sipd.LOGIN_FORM))],
             [w => Promise.resolve(w.getRes(1).length > 0 ? false : true)],
         ]);
     }
@@ -885,7 +881,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     waitSpinner(el, spinner = null) {
-        return this.waitForPresence({el, data: spinner ?? this.SPINNER_ANIMATE}, {presence: false, timeout: 0});
+        return this.waitForPresence({el, data: spinner ?? Sipd.SPINNER_ANIMATE}, {presence: false, timeout: 0});
     }
 
     /**
@@ -1067,20 +1063,14 @@ class Sipd extends WebRobot {
                     restart = false;
                     let res, level = 0, length = menus.length;
                     const q = new Queue([...menus], menu => {
-                        let root, parent = res ?? this.driver, n = 3;
+                        let root, parent = res ?? this.driver;
                         const last = ++level === length;
                         switch (level) {
                             case 1:
-                                root = '//div[@class="simplebar-content"]/ul/li';
+                                root = `//nav[@class="sn-card" and @aria-label="${this.simplebarMenu}"]/ul/li`;
                                 break;
-                            case 2:
-                                root = './../div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div/div/div/div';
-                                break;
-                            case 3:
-                                root = './../../../div/div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div';
-                                break;
-                            case 4:
-                                root = './../../../../div/div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/div';
+                            default:
+                                root = './../div[@class="ReactCollapse--collapse"]/div[@class="ReactCollapse--content"]/ul/li';
                                 break;
                         }
                         const logged = !levels.includes(level);
@@ -1088,14 +1078,12 @@ class Sipd extends WebRobot {
                             levels.push(level);
                         }
                         this.works([
-                            [w => this.findMenu(parent, root, menu, level, n, logged)],
-                            [w => this.findMenu(parent, root, menu, level, n + 1, logged), w => !w.getRes(0)],
-                            [w => Promise.resolve(w.getRes(0) || w.getRes(1))],
-                            [w => this.isLoggedIn(false), w => !w.getRes(2)],
+                            [w => this.findMenu(parent, root, menu, level, logged)],
+                            [w => this.isLoggedIn(false), w => !w.getRes(0)],
                             [w => Promise.reject(SipdOperationError.create('Unable to find menu %menu%', {menu})),
-                                w => !w.getRes(2) && w.getRes(3)],
+                                w => !w.getRes(0) && w.getRes(1)],
                             [w => Promise.reject(SipdOperationError.create('Unable to find menu %menu%, session logged-out', {menu})),
-                                w => !w.getRes(2)],
+                                w => !w.getRes(0)],
                         ])
                         .then(state => {
                             res = state.el;
@@ -1128,24 +1116,18 @@ class Sipd extends WebRobot {
      * @param {string} root Root selector
      * @param {string} title Menu title 
      * @param {number} level Menu level
-     * @param {number} depth Menu depth
      * @param {boolean} logged Enable logging
      * @returns {Promise<object|undefined>}
      */
-    findMenu(parent, root, title, level, depth, logged) {
-        const dep = (s, n) => Array.from({length: n}, () => s).join('/');
-        const selector = `${root}/a/${dep('*', depth)}[text()="${title}"]`;
-        const upselector = dep('..', depth);
+    findMenu(parent, root, title, level, logged) {
+        const selector = `${root}/*/span[@class="sn-item-title" and text()="${title}"]/..`;
         let res;
         return this.works([
             [w => parent.findElements(By.xpath(selector))],
-            [w => w.getRes(0)[0].findElement(By.xpath(upselector)), w => w.getRes(0).length],
-            [w => w.getRes(0)[0].getAttribute('class'), w => w.getRes(0).length],
-            [w => w.getRes(1).getAttribute('class'), w => w.getRes(0).length],
-            [w => Promise.resolve(level > 1 ? w.getRes(2) : w.getRes(3)), w => w.getRes(0).length],
-            [w => Promise.resolve(res = {el: w.getRes(1)}), w => w.getRes(0).length],
-            [w => w.getRes(1).click(), w => w.getRes(0).length && w.getRes(4).indexOf('false') >= 0],
-            [w => Promise.resolve(res.clicked = true), w => w.getRes(0).length && w.getRes(4).indexOf('false') >= 0],
+            [w => w.getRes(0)[0].getAttribute('aria-expanded'), w => w.getRes(0).length],
+            [w => Promise.resolve(res = {el: w.getRes(0)[0]}), w => w.getRes(0).length],
+            [w => w.getRes(0)[0].click(), w => w.getRes(0).length && w.getRes(1) !== 'true'],
+            [w => this.sleep(this.opdelay), w => w.getRes(0).length && w.getRes(1) !== 'true'],
             [w => Promise.resolve(this.debug(dtag)(_('Menu level %level% %selector%', {level, selector}))), w => res && logged],
             [w => Promise.resolve(res)],
         ]);
@@ -1328,6 +1310,15 @@ class Sipd extends WebRobot {
             'Cg=='
         );
     }
+
+    static get LOGIN_FORM() { return '//div[contains(@class,"auth-box")]/div/form' }
+    static get CAPTCHA_CONTAINER() { return '//div[contains(@class,"css-S-k-eg4wgs")]' }
+    static get SPINNER_CHAKRA() { return 'chakra-spinner' }
+    static get SPINNER_ANIMATE() { return 'animate-spin' }
+    static get MENU_UTAMA() { return 'Menu Utama' }
+    static get MENU_PENATAUSAHAAN() { return 'Penatausahaan' }
+    static get MENU_LAPORAN() { return 'Laporan' }
+    static get MENU_BANTUAN() { return 'bantuan' }
 }
 
 module.exports = Sipd;
