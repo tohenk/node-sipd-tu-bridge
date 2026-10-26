@@ -151,7 +151,7 @@ class SipdComponentPage extends SipdComponent {
                         .then(() => {
                             if (this._datarow.isEmpty()) {
                                 if (this._filter.enabled && Object.keys(this._filter.applied).length) {
-                                    reject(SipdOperationError.create('Unable to find matched %title% row for %filter%',
+                                    reject(SipdOperationError.create('Unable to find matched %title% row: %filter%',
                                         {title: this._title, filter: SipdUtil.kvStr(Object.entries(this._filter.applied))}));
                                 } else {
                                     reject(SipdOperationError.create('Page %page% of %title% returns empty instead of rows',

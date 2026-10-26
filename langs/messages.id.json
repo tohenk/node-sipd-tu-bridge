@@ -160,7 +160,7 @@
   ["Session has been logged-out while setup %name%", "Sesi telah keluar ketika sedang men-setup %name%"],
   ["Page %title% title is not specified", "Judul halaman %title% belum disediakan"],
   ["Page filtering for %title% is not enabled", "Filter halaman untuk %title% tidak aktif"],
-  ["Unable to find matched %title% row for %filter%", "Tidak dapat menemukan data %title% untuk %filter%"],
+  ["Unable to find matched %title% row: %filter%", "Tidak dapat menemukan data %title%: %filter%"],
   ["Page %page% of %title% returns empty instead of rows", "Halaman %page% %title% tidak mengembalikan baris data"],
   ["Pager wrapper %title% is required", "Pembungkus pager %title% diperlukan"],
   ["Pager %title% is not initialized", "Pager %title% belum diinisialisasi"],

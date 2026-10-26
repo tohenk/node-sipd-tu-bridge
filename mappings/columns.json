@@ -6,8 +6,8 @@
         {"name": "action", "label": "Action", "type": "action", "selector": ".//button"}
     ],
     "PEGAWAI-VOTER": [
-        {"name": "nama", "label": "Nama", "col": 1, "selector": "div/div/div[2]/span[1]"},
-        {"name": "nip", "label": "NIP", "col": 1, "selector": "div/div/div[2]/span[2]", "placeholder": "nip"},
+        {"name": "nama", "label": "Nama", "col": 1, "selector": "div/span/div/span[1]"},
+        {"name": "nip", "label": "NIP", "col": 1, "selector": "div/span/div/span[2]", "placeholder": "nip"},
         {"name": "action", "label": "Action", "type": "action", "selector": ".//button"}
     ],
     "KEG-VOTER": [
