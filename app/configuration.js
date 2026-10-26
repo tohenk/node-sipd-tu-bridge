@@ -108,21 +108,33 @@ class Configuration {
                 this.profile = profiles.active;
             }
         }
-        // load form maps
+        // load mappings
         const mappings = {
-            [Configuration.BRIDGE_SPP]: 'spp.json',
-            [Configuration.BRIDGE_LPJ]: 'lpj.json',
-            [Configuration.BRIDGE_UTIL]: 'util.json',
-        }
-        this.maps = {};
-        for (const [mode, mapping] of Object.entries(mappings)) {
-            if (this.mode && this.mode !== mode) {
-                continue;
+            cmaps: {
+                '': 'columns.json'
+            },
+            maps: {
+                [Configuration.BRIDGE_SPP]: 'spp.json',
+                [Configuration.BRIDGE_LPJ]: 'lpj.json',
+                [Configuration.BRIDGE_UTIL]: 'util.json',
             }
-            filename = path.join(this.workdir, 'mappings', mapping);
-            if (fs.existsSync(filename)) {
-                this.maps[mode] = JSON.parse(fs.readFileSync(filename));
-                console.log(_('Maps loaded from %filename%', {filename}));
+        }
+        for (const [map, values] of Object.entries(mappings)) {
+            this[map] = {};
+            for (const [mode, mapping] of Object.entries(values)) {
+                if (this.mode && mode && this.mode !== mode) {
+                    continue;
+                }
+                filename = path.join(this.workdir, 'mappings', mapping);
+                if (fs.existsSync(filename)) {
+                    const data = JSON.parse(fs.readFileSync(filename));
+                    if (mode) {
+                        this[map][mode] = data;
+                    } else {
+                        this[map] = data;
+                    }
+                    console.log(_('Maps loaded from %filename%', {filename}));
+                }
             }
         }
         // set roles directory

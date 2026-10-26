@@ -24,8 +24,9 @@
 
 const Queue = require('@ntlab/work/queue');
 const SipdPage = require('../../sipd/component/page');
+const SipdUtil = require('../../sipd/util');
 const { SipdRestartError, SipdStopError, SipdOperationError } = require('../../sipd/error');
-const { SipdQuery, SipdColumnQuery } = require('../../sipd/query');
+const { SipdQuery, SipdQueryColumn } = require('../../sipd/query');
 const { By, WebElement } = require('selenium-webdriver');
 const _ = require('@ntlab/ntlib/translator');
 
@@ -38,17 +39,47 @@ const dtag = 'query';
  */
 class SipdQueryBase extends SipdQuery {
 
-    initialize() {
-        this.mode = SipdQueryBase.MODE_MATCH;
-        this.actionEnabled = false;
+    setup() {
+        /** @type {string} */
+        this.id;
+        /** @type {string} */
+        this.title;
+        /** @type {string} */
+        this.pageTitle;
+        this.mode = SipdQueryBase.MATCH;
         this.restartOnIterate = false;
         this.progressInitialValue = 'Baru';
+        this.doPreSetup();
+        this.doSetup();
+        this.doPostSetup();
+        this.doSetupColumns();
+    }
+
+    initialize() {
         this.doPreInitialize();
         this.doInitialize();
         this.doPostInitialize();
         this.doPageInitialize();
         this.doCreatePage();
         this.queryState = new SipdQueryState(this.columns, this.diffs);
+    }
+
+    doSetup() {
+    }
+
+    doPreSetup() {
+    }
+
+    doPostSetup() {
+    }
+
+    doSetupColumns() {
+        if (SipdQueryBase.cmaps === undefined && this.parent?.options?.cmaps) {
+            SipdQueryBase.cmaps = SipdColumnsMap.create(this.parent.options.cmaps);
+        }
+        if (SipdQueryBase.cmaps) {
+            this.defaultColumns = SipdQueryBase.cmaps.get(this.id);
+        }
     }
 
     doInitialize() {
@@ -65,7 +96,8 @@ class SipdQueryBase extends SipdQuery {
 
     doCreatePage() {
         this.page = new SipdPage(this.parent, {
-            title: this.options.title,
+            name: this.title || this.name,
+            title: this.options.title || this.pageTitle || this.title,
             ...this.getPageOptions(),
         });
     }
@@ -75,28 +107,44 @@ class SipdQueryBase extends SipdQuery {
     }
 
     getFilterSelector(placeholder = null) {
-        let input;
+        let input, label;
+        /**
+         * @param {string} name Column name
+         * @returns {[string, By]}
+         */
+        const f = name => {
+            let placeholder = name, title = name;
+            const col = this.columns.find(a => a.name === name);
+            if (col) {
+                if (col.label) {
+                    title = col.label;
+                }
+                if (col.placeholder) {
+                    placeholder = col.placeholder;
+                }
+            }
+            return [title, By.xpath(`//*[contains(@placeholder,"Cari ${placeholder}")]`)];
+        }
         placeholder = placeholder ?? this.placeholder;
         if (Array.isArray(placeholder)) {
-            input = placeholder.map(placeholder => By.xpath(`//*[contains(@placeholder,"Cari ${placeholder}")]`));
+            placeholder = placeholder.map(placeholder => f(placeholder));
+            label = placeholder.map(a => a[0]);
+            input = placeholder.map(a => a[1]);
         } else {
-            input = By.xpath(`//*[contains(@placeholder,"Cari ${placeholder}")]`);
+            [label, input] = f(placeholder);
         }
         return {
             input,
             submit: By.xpath('//button[text()="Cari Sekarang"]'),
             toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
+            label,
         }
-    }
-
-    isActionEnabled() {
-        return this.actionEnabled;
     }
 
     /**
      * Get column normalizer function.
      *
-     * @param {SipdColumnQuery} col The column
+     * @param {SipdQueryColumn} col The column
      * @returns {string}
      */
     getNormalizer(col) {
@@ -121,7 +169,7 @@ class SipdQueryBase extends SipdQuery {
     /**
      * Get column stringable function.
      *
-     * @param {SipdColumnQuery} col The column
+     * @param {SipdQueryColumn} col The column
      * @returns {string}
      */
     getStringable(col) {
@@ -182,7 +230,7 @@ class SipdQueryBase extends SipdQuery {
     /**
      * Get row data for data paging colums.
      *
-     * @param {SipdColumnQuery[]} columns Columns data
+     * @param {SipdQueryColumn[]} columns Columns data
      * @param {WebElement} el The Element
      * @returns {Promise<object>}
      */
@@ -192,18 +240,18 @@ class SipdQueryBase extends SipdQuery {
             const q = new Queue([...columns], col => {
                 const works = [];
                 switch (col.type) {
-                    case SipdColumnQuery.COL_ACTION:
+                    case SipdQueryColumn.COL_ACTION:
                         works.push(...[
                             [w => this.parent.findElement({el, data: col.xpath})],
                         ]);
                         break;
-                    case SipdColumnQuery.COL_ACTION_URL:
+                    case SipdQueryColumn.COL_ACTION_URL:
                         works.push(...[
                             [w => this.parent.findElement({el, data: col.xpath})],
                             [w => w.res.getAttribute('href')],
                         ]);
                         break;
-                    case SipdColumnQuery.COL_PROGRESS:
+                    case SipdQueryColumn.COL_PROGRESS:
                         works.push(...[
                             [w => this.getProgress(el, col.xpath)],
                         ]);
@@ -255,6 +303,23 @@ class SipdQueryBase extends SipdQuery {
     }
 
     /**
+     * Check for mode and optionally its sub mode.
+     *
+     * @param {number} mode Mode major to check
+     * @param {*} submode Mode minor to check
+     * @returns {boolean}
+     */
+    isMode(mode, submode = null) {
+        if ((this.mode & mode) !== mode) {
+            return false;
+        }
+        if (submode !== null && (this.mode & submode) !== submode) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Perform row data match.
      *
      * @param {WebElement} el Row element
@@ -270,7 +335,7 @@ class SipdQueryBase extends SipdQuery {
                         Object.assign(result, res);
                         result.values = values;
                         result.retval = el;
-                        if (this.isActionEnabled() && result.actionCol) {
+                        if (this.isMode(SipdQueryBase.MATCH, SipdQueryBase.MATCH_ACTION) && result.actionCol) {
                             result.clicker = values[result.actionCol.name];
                         }
                         if (result.status !== undefined) {
@@ -316,7 +381,7 @@ class SipdQueryBase extends SipdQuery {
                     })
                     .catch(err => reject(err));
             } else {
-                const actionCol = this.columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
+                const actionCol = this.columns.find(column => column.type === SipdQueryColumn.COL_ACTION);
                 if (actionCol) {
                     delete values[actionCol.name];
                 }
@@ -345,24 +410,29 @@ class SipdQueryBase extends SipdQuery {
             return false;
         }
         const iterator = el => {
-            switch (this.mode) {
-                case SipdQueryBase.MODE_MATCH:
-                    return [
-                        [x => this.getRowData(this.columns, el)],
-                        [x => this.doMatch(el, x.getRes(0), result)],
-                    ];
-                case SipdQueryBase.MODE_ITERATE:
+            switch (true) {
+                case this.isMode(SipdQueryBase.ITERATE):
                     return [
                         [x => this.getRowData(this.columns, el)],
                         [x => this.doIterate(el, x.getRes(0), result)],
+                    ];
+                case this.isMode(SipdQueryBase.MATCH):
+                    return [
+                        [x => this.getRowData(this.columns, el)],
+                        [x => this.doMatch(el, x.getRes(0), result)],
                     ];
             }
         }
         const resolver = res => {
             return new Promise((resolve, reject) => {
-                switch (this.mode) {
-                    case SipdQueryBase.MODE_MATCH:
-                        if (!this.actionEnabled) {
+                switch (true) {
+                    case this.isMode(SipdQueryBase.ITERATE):
+                        resolve(res.retval || []);
+                        break;
+                    case this.isMode(SipdQueryBase.MATCH):
+                        let resolved;
+                        if (resolved === undefined && this.isMode(SipdQueryBase.MATCH_CUSTOM)) {
+                            resolved = true;
                             if (typeof this.onAction === 'function') {
                                 this.onAction(res)
                                     .then(() => resolve(res.retval))
@@ -370,17 +440,29 @@ class SipdQueryBase extends SipdQuery {
                             } else {
                                 resolve(res.retval);
                             }
-                        } else if (res.clicker) {
-                            res.clicker.click()
-                                .then(() => resolve())
-                                .catch(err => reject(err));
-                        } else {
-                            reject(SipdOperationError.create('%title%: %value% not found',
-                                {title: this.options.title, value: this.queryState.expectedValue}));
                         }
-                        break;
-                    case SipdQueryBase.MODE_ITERATE:
-                        resolve(res.retval || []);
+                        if (resolved === undefined && this.isMode(SipdQueryBase.MATCH_ACTION)) {
+                            resolved = res.clicker ? true : false;
+                            if (resolved) {
+                                res.clicker.click()
+                                    .then(() => resolve())
+                                    .catch(err => reject(err));
+                            }
+                        }
+                        if (resolved === undefined && this.isMode(SipdQueryBase.MATCH_EXIST)) {
+                            resolved = res.retval ? true : false;
+                            if (resolved) {
+                                resolve(res.retval);
+                            }
+                        }
+                        if (resolved === undefined) {
+                            resolved = true;
+                            resolve(res.retval);
+                        }
+                        if (!resolved) {
+                            reject(SipdOperationError.create('%title%: %value% not found',
+                                {title: this.page.getTitle(), value: this.queryState.expectedValue}));
+                        }
                         break;
                 }
             });
@@ -391,7 +473,7 @@ class SipdQueryBase extends SipdQuery {
             [w => this.parent.waitContent()],
             [w => new Promise((resolve, reject) => {
                 const options = {};
-                if (this.mode === SipdQueryBase.MODE_ITERATE && this.restartOnIterate) {
+                if (this.isMode(SipdQueryBase.ITERATE) && this.restartOnIterate) {
                     options.states = {};
                 }
                 const f = () => {
@@ -425,8 +507,11 @@ class SipdQueryBase extends SipdQuery {
         ]);
     }
 
-    static get MODE_MATCH() { return 1 }
-    static get MODE_ITERATE() { return 2 }
+    static get ITERATE() { return 0x100 }
+    static get MATCH() { return 0x200 }
+    static get MATCH_EXIST() { return 0x01 }
+    static get MATCH_ACTION() { return 0x02 }
+    static get MATCH_CUSTOM() { return 0x04 }
 }
 
 /**
@@ -437,7 +522,7 @@ class SipdQueryBase extends SipdQuery {
 class SipdVoter extends SipdQueryBase {
 
     doPreInitialize() {
-        this.actionEnabled = true;
+        this.mode = SipdQueryBase.MATCH | SipdQueryBase.MATCH_ACTION;
         this.dialog = true;
     }
 
@@ -449,6 +534,64 @@ class SipdVoter extends SipdQueryBase {
             } : {}),
             ...(this.pageOptions || {}),
         }
+    }
+}
+
+/**
+ * Holds query column mappings.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdColumnsMap {
+
+    /**
+     * Get columns mapping.
+     *
+     * @param {string} key Column map key
+     * @returns {object[]}
+     */
+    get(key) {
+        return this.maps[key];
+    }
+
+    /**
+     * Create columns map.
+     *
+     * @param {object} maps Columns map
+     * @returns {SipdColumnsMap}
+     */
+    static create(maps) {
+        const res = new this();
+        /**
+         * @param {string} k Map key
+         * @returns {object[]}
+         */
+        const f = k => {
+            let key = k;
+            const res = [];
+            if (k.includes(':')) {
+                const [id, parent] = k.split(':');
+                key = id;
+                res.push(...f(parent)[1]);
+            }
+            if (Array.isArray(maps[k])) {
+                for (const map of maps[k]) {
+                    const idx = res.findIndex(a => a.name === map.name);
+                    if (idx < 0) {
+                        res.push(map);
+                    } else {
+                        res[idx] = map;
+                    }
+                }
+            }
+            return [key, res];
+        }
+        res.maps = {};
+        for (const k of Object.keys(maps)) {
+            const [key, mappings] = f(k);
+            res.maps[key] = mappings;
+        }
+        return res;
     }
 }
 
@@ -469,16 +612,15 @@ class SipdQueryState {
                 this.states.push({column, ref: cmpRef, fnOrReq: cmpFnOrRequired});
             }
         }
-        /** @type {SipdColumnQuery} */
-        this.statusCol = columns.find(column => [SipdColumnQuery.COL_STATUS, SipdColumnQuery.COL_PROGRESS]
+        /** @type {SipdQueryColumn} */
+        this.statusCol = columns.find(column => [SipdQueryColumn.COL_STATUS, SipdQueryColumn.COL_PROGRESS]
             .includes(column.type));
-        /** @type {SipdColumnQuery} */
-        this.actionCol = columns.find(column => column.type === SipdColumnQuery.COL_ACTION);
+        /** @type {SipdQueryColumn} */
+        this.actionCol = columns.find(column => column.type === SipdQueryColumn.COL_ACTION);
         /** @type {string} */
-        this.expectedValue = this.states
+        this.expectedValue = SipdUtil.kvStr(this.states
             .filter(v => v.fnOrReq)
-            .map(v => v.ref)
-            .join('-');
+            .map(v => [v.column.label ?? v.column.name, v.ref]));
     }
 
     dbg(l, s) {

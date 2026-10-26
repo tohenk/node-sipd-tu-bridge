@@ -23,7 +23,6 @@
  */
 
 const { SipdQueryBase } = require('.');
-const { SipdColumnQuery } = require('../../sipd/query');
 const SipdUtil = require('../../sipd/util');
 
 /**
@@ -33,16 +32,14 @@ const SipdUtil = require('../../sipd/util');
  */
 class SipdQueryLpj extends SipdQueryBase {
 
+    doSetup() {
+        this.id = 'LPJ';
+        this.title = 'Laporan Pertanggung Jawaban';
+        this.navigates = ['Pengeluaran', 'LPJ', 'UP / GU', 'Pembuatan'];
+    }
+
     doInitialize() {
-        this.options.title = 'Laporan Pertanggung Jawaban';
         this.group = this.options.jenis;
-        this.defaultColumns = {
-            no: 1,
-            tgl: 2,
-            nom: 5,
-            url: {type: SipdColumnQuery.COL_ACTION_URL, selector: './/a/span/p[text()="Cetak"]/../..'},
-        }
-        const nomor = SipdQueryLpj.LPJ;
         const tgl = [
             SipdUtil.getDate(this.data.getDataValue('LPJ_START')),
             SipdUtil.getDate(this.data.getDataValue('LPJ_END'))
@@ -51,13 +48,11 @@ class SipdQueryLpj extends SipdQueryBase {
             ['tgl', tgl, SipdUtil.isDateInRange.bind(SipdUtil)],
         ];
         this.onResult = () => {
-            this.data[`${nomor}`] = this.data.values.no;
-            this.data[`${nomor}_TGL`] = this.data.values.tgl;
-            this.data[`${nomor}_NOM`] = this.data.values.nom;
+            this.data[`${this.id}`] = this.data.values.no;
+            this.data[`${this.id}_TGL`] = this.data.values.tgl;
+            this.data[`${this.id}_NOM`] = this.data.values.nom;
         }
     }
-
-    static get LPJ() { return 'LPJ' }
 }
 
 module.exports = { SipdQueryLpj };

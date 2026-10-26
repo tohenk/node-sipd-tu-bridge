@@ -67,7 +67,14 @@ class SipdQuery {
         if (this.options.navigates !== undefined) {
             this.navigates = this.options.navigates;
         }
+        this.setup();
         this.initialize();
+    }
+
+    /**
+     * Do setup.
+     */
+    setup() {
     }
 
     /**
@@ -77,41 +84,43 @@ class SipdQuery {
     }
 
     /**
-     * @returns {SipdColumnQuery[]}
+     * @returns {SipdQueryColumn[]}
      */
     get columns() {
         if (this._columns === undefined) {
             this._columns = [];
             const tselectors = {
-                [SipdColumnQuery.COL_ACTION]: 'div/button',
-                [SipdColumnQuery.COL_ACTION_URL]: 'div/a',
-                [SipdColumnQuery.COL_STATUS]: '*/*/*/p',
-                [SipdColumnQuery.COL_PROGRESS]: '*/ol/li/*/*[@class="stepProgressBar__step__button__indicator"]',
-                [SipdColumnQuery.COL_ICON]: '*/*/*[2]/*[1]',
-                [SipdColumnQuery.COL_ICON2]: '*/*/*[2]/*[2]',
-                [SipdColumnQuery.COL_SINGLE]: '*/*/span',
-                [SipdColumnQuery.COL_TIPPY]: 'div[@class="custom-tippy"]/div/div/div/div[2]/span[1]',
-                [SipdColumnQuery.COL_TWOLINE]: 'span[2]',
+                [SipdQueryColumn.COL_ACTION]: 'div/button',
+                [SipdQueryColumn.COL_ACTION_URL]: 'div/a',
+                [SipdQueryColumn.COL_STATUS]: '*/*/*/p',
+                [SipdQueryColumn.COL_PROGRESS]: '*/ol/li/*/*[@class="stepProgressBar__step__button__indicator"]',
+                [SipdQueryColumn.COL_ICON]: '*/*/*[2]/*[1]',
+                [SipdQueryColumn.COL_ICON2]: '*/*/*[2]/*[2]',
+                [SipdQueryColumn.COL_SINGLE]: '*/*/span',
+                [SipdQueryColumn.COL_TIPPY]: 'div[@class="custom-tippy"]/div/div/div/div[2]/span[1]',
+                [SipdQueryColumn.COL_TWOLINE]: 'span[2]',
             }
             const defaultColumns = this.defaultColumns || {};
             // index, withIcon, withTippy
-            const columns = {
-                ...defaultColumns,
-                ...(this.options.columns || {}),
-            }
+            const columns = {...defaultColumns, ...(this.options.columns || [])};
             for (const [k, v] of Object.entries(columns)) {
-                const idx = Array.isArray(v) ? v[0] : (v.index !== undefined ? v.index : (typeof v === 'number' ? v : null));
-                const colType = Array.isArray(v) ? v[1] : (v.type !== undefined ? v.type : SipdColumnQuery.COL_ICON);
+                const name = isNaN(k) ? k : (v.name !== undefined ? v.name : null);
+                const idx = Array.isArray(v) ? v[0] : (v.col !== undefined ? v.col : (typeof v === 'number' ? v : null));
+                const colType = Array.isArray(v) ? v[1] : (v.type !== undefined ? SipdQueryColumn.getType(v.type) : SipdQueryColumn.COL_ICON);
                 const withTippy = Array.isArray(v) ? v[2] : (v.tippy !== undefined ? v.tippy : false);
                 const selector = typeof v === 'object' && v.selector ? v.selector : tselectors[colType];
-                const column = new SipdColumnQuery(colType, k, idx, withTippy, selector);
-                if (typeof this.getNormalizer === 'function') {
-                    column.setNormalizer(this.getNormalizer(column));
+                const label = typeof v === 'object' && v.label ? v.label : null;
+                const placeholder = typeof v === 'object' && v.placeholder ? v.placeholder : null;
+                if (name) {
+                    const column = new SipdQueryColumn(name, label ?? name, idx, colType, selector, withTippy, placeholder);
+                    if (typeof this.getNormalizer === 'function') {
+                        column.setNormalizer(this.getNormalizer(column));
+                    }
+                    if (typeof this.getStringable === 'function') {
+                        column.setStringable(this.getStringable(column));
+                    }
+                    this._columns.push(column);
                 }
-                if (typeof this.getStringable === 'function') {
-                    column.setStringable(this.getStringable(column));
-                }
-                this._columns.push(column);
             }
         }
         return this._columns;
@@ -123,30 +132,34 @@ class SipdQuery {
  *
  * @author Toha <tohenk@yahoo.com>
  */
-class SipdColumnQuery {
+class SipdQueryColumn {
 
     /**
      * Constructor.
      *
-     * @param {number} type Column type
      * @param {string} name Column name
+     * @param {string} label Column label
      * @param {int} idx Column index
-     * @param {boolean} tippy Is tippy column
+     * @param {number} type Column type
      * @param {string} selector Column value element selector
+     * @param {boolean} tippy Is tippy column
+     * @param {string} placeholder Column filter element placeholder
      */
-    constructor(type, name, idx, tippy, selector) {
-        this.type = type;
+    constructor(name, label, idx, type, selector, tippy, placeholder) {
         this.name = name;
+        this.label = label;
         this.idx = idx;
-        this.tippy = tippy;
+        this.type = type;
         this.selector = selector;
+        this.placeholder = placeholder;
+        this.tippy = tippy;
     }
 
     /**
      * Set value normalizer function.
      *
      * @param {Function|string} fn Normalizer function
-     * @returns {SipdColumnQuery}
+     * @returns {SipdQueryColumn}
      */
     setNormalizer(fn) {
         if (typeof fn === 'function') {
@@ -165,7 +178,7 @@ class SipdColumnQuery {
      * Set value normalizer function.
      *
      * @param {Function|string} fn Normalizer function
-     * @returns {SipdColumnQuery}
+     * @returns {SipdQueryColumn}
      */
     setStringable(fn) {
         if (typeof fn === 'function') {
@@ -230,6 +243,32 @@ class SipdColumnQuery {
         return this.tippy ? By.xpath(`./td[${this.idx}]/div[@class="custom-tippy"]/div`) : null;
     }
 
+    /**
+     * Translate column type from string to number.
+     *
+     * @param {string|number} type Column type
+     * @returns {number}
+     */
+    static getType(type) {
+        if (typeof type === 'string') {
+            const types = {
+                'action': SipdQueryColumn.COL_ACTION,
+                'url': SipdQueryColumn.COL_ACTION_URL,
+                'status': SipdQueryColumn.COL_STATUS,
+                'progress': SipdQueryColumn.COL_PROGRESS,
+                'icon': SipdQueryColumn.COL_ICON,
+                'icon2': SipdQueryColumn.COL_ICON2,
+                'single': SipdQueryColumn.COL_SINGLE,
+                'tippy': SipdQueryColumn.COL_TIPPY,
+                'twoline': SipdQueryColumn.COL_TWOLINE,
+            }
+            if (types[type.toLowerCase()] !== undefined) {
+                type = types[type.toLowerCase()];
+            }
+        }
+        return type;
+    }
+
     static get COL_ACTION() { return 1 }
     static get COL_ACTION_URL() { return 2 }
     static get COL_STATUS() { return 3 }
@@ -243,5 +282,5 @@ class SipdColumnQuery {
 
 module.exports = {
     SipdQuery,
-    SipdColumnQuery,
+    SipdQueryColumn,
 }

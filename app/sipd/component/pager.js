@@ -45,7 +45,7 @@ class SipdComponentPager extends SipdComponent {
      * @returns {Promise<any>}
      */
     doSetup() {
-        this._title = this.options.title;
+        this._title = this.getTitle();
         this._wrapper = this.options.wrapper;
         return this.setupPagination();
     }
@@ -58,7 +58,8 @@ class SipdComponentPager extends SipdComponent {
     setupPagination() {
         const selector = this.options.paginationSelector ?? './/div[@class="container-pagination-table-list"]';
         return this.works([
-            [w => Promise.reject(SipdOperationError.create('Wrapper is required')), w => !this._wrapper],
+            [w => Promise.reject(SipdOperationError.create('Pager wrapper %title% is required', {title: this._title})),
+                w => !this._wrapper],
             [w => this._wrapper.findElements(By.xpath(selector))],
             [w => Promise.resolve(this._pager = w.res[0]), w => w.getRes(1).length],
             [w => Promise.resolve(delete this._pager), w => !w.getRes(1).length],
@@ -87,7 +88,8 @@ class SipdComponentPager extends SipdComponent {
             .map(s => `contains(@class,"${s}")`)
             .join(' or ');
         return this.works([
-            [w => Promise.reject(SipdOperationError.create('Pager is not initialized')), w => !this._pager],
+            [w => Promise.reject(SipdOperationError.create('Pager %title% is not initialized', {title: this._title})),
+                w => !this._pager],
             [w => this._pager.findElements(By.xpath(`.//ul[@class="${this.PAGINATION_CLASS}"]/li[not (${skipped})]/a`))],
             [w => new Promise((resolve, reject) => {
                 const q = new Queue(w.getRes(1), el => {
@@ -114,7 +116,8 @@ class SipdComponentPager extends SipdComponent {
      */
     getPage() {
         return this.works([
-            [w => Promise.reject(SipdOperationError.create('Pager is not initialized')), w => !this._pager],
+            [w => Promise.reject(SipdOperationError.create('Pager %title% is not initialized', {title: this._title})),
+                w => !this._pager],
             [w => this._pager.findElements(By.xpath(`.//ul[@class="${this.PAGINATION_CLASS}"]/li[@class="selected"]`))],
             [w => w.getRes(1)[0].getAttribute('innerText'), w => w.getRes(1).length],
             [w => Promise.resolve(parseInt(w.getRes(2))), w => w.getRes(1).length],

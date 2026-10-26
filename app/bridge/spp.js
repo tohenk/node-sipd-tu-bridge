@@ -110,10 +110,8 @@ class SipdBridgeSpp extends SipdBridgeHandler {
         let type = SipdUtil.pickNrLs(queue.getMappedData('info.check'));
         switch (type) {
             case 'SP2D':
-                queue.SPM = true;
                 // no break
             case 'SPM':
-                queue.SPP = true;
                 queue.REF = true;
                 // no break
         }
@@ -133,14 +131,15 @@ class SipdBridgeSpp extends SipdBridgeHandler {
             }
             return res;
         }
+        const options = {exist: true};
         return this.bridge.processQueue({
             queue,
             works: [
                 ['bp', w => this.bridge.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
-                ['bp-cek-spp', w => w.bp.checkSpp(queue)],
-                ['bp-cek-spm', w => w.bp.checkSpm(queue)],
-                ['bp-cek-sp2d', w => w.bp.checkSp2d(queue)],
+                ['bp-cek-spp', w => w.bp.checkSpp(queue, options)],
+                ['bp-cek-spm', w => w.bp.checkSpm(queue, options)],
+                ['bp-cek-sp2d', w => w.bp.checkSp2d(queue, options)],
             ],
             sorter,
             session: SipdSppSession,

@@ -44,7 +44,7 @@ class SipdComponentFilter extends SipdComponent {
      * @returns {Promise<any>}
      */
     doSetup() {
-        this._title = this.options.title;
+        this._title = this.getTitle();
         this._wrapper = this.options.wrapper;
         this._filterToggle = this.options.filterToggle !== undefined ?
             this.options.filterToggle : true;
@@ -64,7 +64,7 @@ class SipdComponentFilter extends SipdComponent {
     setupFiltering(data) {
         this.data = data;
         return this.works([
-            [w => Promise.reject(SipdOperationError.create('Wrapper is required')), w => !this._wrapper],
+            [w => Promise.reject(SipdOperationError.create('Filter wrapper %title% is required', {title: this._title})), w => !this._wrapper],
             [w => this._wrapper.findElement(data.toggler), w => data.toggler],
             [w => Promise.resolve(this._toggler = w.res), w => data.toggler],
             [w => this._wrapper.findElement(data.filter), w => data.filter],
@@ -101,8 +101,9 @@ class SipdComponentFilter extends SipdComponent {
      * @returns {Promise<any>}
      */
     apply(value, key = null) {
+        this.applied = {};
         return this.works([
-            [w => Promise.reject(SipdOperationError.create('Filter component is not initialized')), w => !this._filter],
+            [w => Promise.reject(SipdOperationError.create('Filter component %title% is not initialized', {title: this._title})), w => !this._filter],
             [w => this._toggler.getAttribute('aria-expanded'), w => this._toggler],
             [w => this.parent.clickExpanded(this._toggler), w => this._toggler && w.getRes(1) === 'false'],
             [w => this._choices.click(), w => this._choices && key],
@@ -116,9 +117,15 @@ class SipdComponentFilter extends SipdComponent {
                 const selectors = Array.isArray(this._filter) ? this.data.input : [this.data.input];
                 const searches = Array.isArray(this._filter) ? this._filter : [this._filter];
                 const values = Array.isArray(this._filter) ? value : [value];
+                const labels = Array.isArray(this.data.label) ? this.data.label : [this.data.label];
                 const queues = [];
                 for (let i = 0; i < searches.length; i++) {
-                    queues.push({el: searches[i], value: values[i], selector: selectors[i]});
+                    queues.push({
+                        el: searches[i],
+                        value: values[i],
+                        selector: selectors[i],
+                        label: labels[i],
+                    });
                 }
                 const q = new Queue(queues, s => {
                     const data = {
@@ -127,7 +134,8 @@ class SipdComponentFilter extends SipdComponent {
                         clearUsingKey: this.parent.options.clearUsingKey,
                     }
                     this.parent.debug(dtag)(_('Applying filter %filter% with %value%',
-                        {filter: s.selector, value: data.value}));
+                        {filter: s.label, value: data.value}));
+                    this.applied[s.label] = data.value;
                     this.parent.fillInFormValue(data)
                         .then(() => q.next())
                         .catch(err => reject(err));

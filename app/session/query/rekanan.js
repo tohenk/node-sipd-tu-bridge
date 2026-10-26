@@ -22,8 +22,7 @@
  * SOFTWARE.
  */
 
-const { SipdVoter } = require('.');
-const { SipdColumnQuery } = require('../../sipd/query');
+const { SipdQueryBase, SipdVoter } = require('.');
 const SipdUtil = require('../../sipd/util');
 
 /**
@@ -33,9 +32,14 @@ const SipdUtil = require('../../sipd/util');
  */
 class SipdVoterRekanan extends SipdVoter {
 
+    doSetup() {
+        this.id = 'REKANAN-VOTER';
+        this.title = 'Rekanan';
+        this.pageTitle = 'Daftar Rekanan';
+    }
+
     doInitialize() {
         const queue = this.data.queue ?? this.data;
-        this.options.title = 'Daftar Rekanan';
         this.options.jenis = queue.getMappedData('info.jenis');
         this.diffs = [];
         const rekanan = Array.isArray(this.data.value) ? this.data.value[0] : this.data.value;
@@ -43,7 +47,7 @@ class SipdVoterRekanan extends SipdVoter {
         if (this.usaha) {
             const fRekanan = () => SipdUtil.escapeTerm(rekanan, true);
             this.filter = [fRekanan];
-            this.placeholder = 'perusahaan';
+            this.placeholder = 'usaha';
             this.diffs.push(['usaha', rekanan]);
             if (nik) {
                 this.filter = [[fRekanan, nik]];
@@ -60,12 +64,6 @@ class SipdVoterRekanan extends SipdVoter {
         this.pageOptions = {
             selector: '//h1[contains(@class,"card-title")]/h1[text()="%TITLE%"]/../../../..',
             filter: this.getFilterSelector(),
-        }
-        this.defaultColumns = {
-            nama: {selector: './td[1]/div/div/div[2]/span[1]'},
-            nik: {selector: './td[1]/div/div/div[2]/span[2]'},
-            usaha: {selector: './td[2]/div/div/div[2]/span[1]'},
-            action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
         }
     }
 
@@ -89,18 +87,18 @@ class SipdVoterRekanan extends SipdVoter {
  */
 class SipdQueryRekanan extends SipdVoterRekanan {
 
+    doPostSetup() {
+        this.id = 'REKANAN';
+        this.navigates = ['Pengeluaran', 'Daftar Rekanan'];
+    }
+
     doPreInitialize() {
-        this.actionEnabled = false;
+        this.mode = SipdQueryBase.MATCH;
         this.dialog = false;
         this.data.value = [
             SipdUtil.getSafeStr(this.data.getMappedData('info.rekanan')),
             this.data.getMappedData('info.nik'),
         ];
-    }
-
-    doPostInitialize() {
-        this.defaultColumns.action.selector = './td[4]/a';
-        this.defaultColumns.url = {type: SipdColumnQuery.COL_ACTION_URL, selector: './td[4]/a'};
     }
 }
 

@@ -99,7 +99,7 @@ class SipdComponent {
                                     reject(err);
                                 } else {
                                     const e = SipdOperationError.create('Session has been logged-out while setup %name%',
-                                        {name: SipdComponent.getName(this.constructor.name)});
+                                        {name: this.getTitle(true)});
                                     e.cause = err;
                                     reject(e);
                                 }
@@ -119,6 +119,19 @@ class SipdComponent {
      */
     doSetup() {
         return Promise.reject('Not implemented yet!');
+    }
+
+    /**
+     * Get component title.
+     *
+     * @param {boolean} withBase Include component base name
+     * @returns {string}
+     */
+    getTitle(withBase = false) {
+        return [
+            withBase ? SipdComponent.getName() : null,
+            this.options.name || this.options.title,
+        ].filter(Boolean).join(' ');
     }
 
     /**

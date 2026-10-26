@@ -414,15 +414,21 @@ class SipdSession {
      * Perform data query match operation.
      *
      * @param {SipdQueryBase} query Query data
-     * @param {Function} onIterate Data row iterator
+     * @param {object|Function} options Options or data row iterator function
      * @returns {Promise<any>}
      */
-    doQuery(query, onIterate = null) {
-        if (typeof onIterate === 'function') {
-            query.mode = SipdQueryBase.MODE_ITERATE;
-            query.onIterate = onIterate;
+    doQuery(query, options = null) {
+        options = options || {};
+        if (typeof options === 'function') {
+            options = {onIterate: options};
+        }
+        if (typeof options.onIterate === 'function') {
+            query.mode = SipdQueryBase.ITERATE;
+            query.onIterate = options.onIterate;
         } else {
-            query.mode = SipdQueryBase.MODE_MATCH;
+            if (options.match) {
+                query.mode = SipdQueryBase.MATCH | SipdQueryBase.MATCH_EXIST;
+            }
         }
         return query.walk();
     }

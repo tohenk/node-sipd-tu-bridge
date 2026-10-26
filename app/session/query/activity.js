@@ -23,7 +23,6 @@
  */
 
 const { SipdVoter } = require('.');
-const { SipdColumnQuery } = require('../../sipd/query');
 const { By } = require('selenium-webdriver');
 const SipdUtil = require('../../sipd/util');
 
@@ -34,8 +33,12 @@ const SipdUtil = require('../../sipd/util');
  */
 class SipdVoterActivity extends SipdVoter {
 
+    doSetup() {
+        this.id = 'KEG-VOTER';
+        this.title = 'Sub Kegiatan';
+    }
+
     doInitialize() {
-        this.options.title = 'Sub Kegiatan';
         this.pageOptions = {
             tableSelector: './/div[1]',
             paginationSelector: './/div[1]',
@@ -46,10 +49,6 @@ class SipdVoterActivity extends SipdVoter {
                         resolve(td.length > 1 ? true : false);
                     });
             }),
-        }
-        this.defaultColumns = {
-            keg: [1, SipdColumnQuery.COL_ICON2],
-            action: [2, SipdColumnQuery.COL_ACTION],
         }
         this.diffs = [
             ['keg', this.data.value, SipdUtil.matchKeg],

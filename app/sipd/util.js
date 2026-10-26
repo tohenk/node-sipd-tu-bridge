@@ -22,6 +22,8 @@
  * SOFTWARE.
  */
 
+const _ = require('@ntlab/ntlib/translator');
+
 /**
  * SIPD common utility.
  *
@@ -429,6 +431,22 @@ class SipdUtil {
             .update((new Date().getTime() + Math.random()).toString())
             .digest('hex')
             .substring(0, len);
+    }
+
+    /**
+     * Convert key value pair array as string.
+     *
+     * @param {Array} kv Key value array
+     * @param {string} sep Separator
+     * @returns {string}
+     */
+    static kvStr(kv, sep = ', ') {
+        kv = kv.map(a => `${a[0]}: ${a[1]}`);
+        if (kv.length > 2) {
+            const last = kv.pop();
+            kv = [`${kv.join(sep)}${sep.trim()}`, last];
+        }
+        return kv.join(_(' and '));
     }
 
     /**

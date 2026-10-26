@@ -124,13 +124,14 @@ class SipdBridgeLpj extends SipdBridgeHandler {
     queryLpj(queue) {
         const npd = this._checkOp(queue, 'npd');
         const tbp = this._checkOp(queue, 'tbp');
+        const options = {exist: true};
         return this.bridge.processQueue({
             queue,
             works: [
                 ['bp', w => this.bridge.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
-                ['bp-cek-npd', w => w.bp.checkNpd(queue), w => npd],
-                ['bp-cek-tbp', w => w.bp.checkTbp(queue), w => tbp],
+                ['bp-cek-npd', w => w.bp.checkNpd(queue, options), w => npd],
+                ['bp-cek-tbp', w => w.bp.checkTbp(queue, options), w => tbp],
             ],
             session: SipdLpjSession,
             onResult: this._onResult,

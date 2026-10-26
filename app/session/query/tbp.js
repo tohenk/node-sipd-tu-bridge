@@ -23,7 +23,6 @@
  */
 
 const { SipdQueryBase } = require('.');
-const { SipdColumnQuery } = require('../../sipd/query');
 const SipdUtil = require('../../sipd/util');
 
 /**
@@ -33,25 +32,22 @@ const SipdUtil = require('../../sipd/util');
  */
 class SipdQueryTbp extends SipdQueryBase {
 
+    doSetup() {
+        this.id = 'TBP';
+        this.title = 'Tanda Bukti Pembayaran';
+        this.navigates = ['Pengeluaran', 'TBP', 'UP / GU'];
+    }
+
     doInitialize() {
-        this.options.title = 'Tanda Bukti Pembayaran';
-        this.defaultColumns = {
-            no: 1,
-            tgl: 2,
-            untuk: [3, SipdColumnQuery.COL_SINGLE, true],
-            nom: 6,
-            url: {type: SipdColumnQuery.COL_ACTION_URL, selector: './/a/span/p[text()="Cetak"]/../..'},
-        }
-        const nomor = SipdQueryTbp.TBP;
         const no = this.data.getMappedData('info.tbp');
         const tgl = SipdUtil.getDate(this.data.getMappedData('npd.npd:TGL'));
         const nominal = this.data.getMappedData('npd.npd:NOMINAL');
         const untuk = SipdUtil.getSafeStr(this.data.getMappedData('npd.npd:UNTUK'));
         if (no) {
-            this.placeholder = 'nomor dokumen';
+            this.placeholder = 'no';
             this.filter = [no];
         } else {
-            this.placeholder = 'tujuan pembayaran';
+            this.placeholder = 'untuk';
             this.filter = [() => SipdUtil.escapeTerm(untuk, true)];
         }
         this.diffs = [
@@ -61,14 +57,12 @@ class SipdQueryTbp extends SipdQueryBase {
         ];
         this.pageOptions = {filter: this.getFilterSelector()};
         this.onResult = () => {
-            this.data[`${nomor}`] = this.data.values.no;
-            this.data[`${nomor}_TGL`] = this.data.values.tgl;
-            this.data[`${nomor}_UNTUK`] = this.data.values.untuk;
-            this.data[`${nomor}_NOM`] = this.data.values.nom;
+            this.data[`${this.id}`] = this.data.values.no;
+            this.data[`${this.id}_TGL`] = this.data.values.tgl;
+            this.data[`${this.id}_UNTUK`] = this.data.values.untuk;
+            this.data[`${this.id}_NOM`] = this.data.values.nom;
         }
     }
-
-    static get TBP() { return 'TBP' }
 }
 
 module.exports = { SipdQueryTbp };

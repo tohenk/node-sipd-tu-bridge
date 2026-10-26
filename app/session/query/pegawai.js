@@ -23,7 +23,6 @@
  */
 
 const { SipdVoter } = require('.');
-const { SipdColumnQuery } = require('../../sipd/query');
 
 /**
  * Handles employee selection.
@@ -32,15 +31,15 @@ const { SipdColumnQuery } = require('../../sipd/query');
  */
 class SipdVoterPegawai extends SipdVoter {
 
+    doSetup() {
+        this.id = 'PEGAWAI-VOTER';
+        this.title = 'Pegawai';
+        this.pageTitle = 'Pilih Pegawai';
+    }
+
     doInitialize() {
-        this.options.title = 'Pilih Pegawai';
         this.placeholder = 'nip';
         this.pageOptions = {filter: this.getFilterSelector()};
-        this.defaultColumns = {
-            nama: {selector: './td[1]/div/span/div/span[1]'},
-            nip: {selector: './td[1]/div/span/div/span[2]'},
-            action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
-        }
         this.filter = [this.data.value];
         this.diffs = [
             ['nip', this.data.value],

@@ -22,8 +22,7 @@
  * SOFTWARE.
  */
 
-const { SipdVoter } = require('.');
-const { SipdColumnQuery } = require('../../sipd/query');
+const { SipdQueryBase, SipdVoter } = require('.');
 const SipdUtil = require('../../sipd/util');
 
 /**
@@ -33,20 +32,17 @@ const SipdUtil = require('../../sipd/util');
  */
 class SipdVoterNpd extends SipdVoter {
 
+    doSetup() {
+        this.id = 'NPD-VOTER';
+        this.title = 'Nota Pencairan Dana';
+        this.pageTitle = 'Pengajuan | Nota Pencairan Dana';
+    }
+
     doInitialize() {
-        this.options.title = 'Pengajuan | Nota Pencairan Dana';
         if (this.placeholder === undefined) {
-            this.placeholder = 'nomor dokumen';
+            this.placeholder = 'no';
         }
         this.pageOptions = {filter: this.getFilterSelector()};
-        this.defaultColumns = {
-            no: 1,
-            tgl: [1, SipdColumnQuery.COL_ICON2],
-            untuk: [2, SipdColumnQuery.COL_SINGLE, true],
-            nom: 5,
-            status: [4, SipdColumnQuery.COL_PROGRESS],
-            action: {type: SipdColumnQuery.COL_ACTION, selector: './/button'},
-        }
         const queue = this.data.queue ?? this.data;
         this.filter = [queue[this.data.value]];
         this.diffs = [
@@ -68,20 +64,21 @@ class SipdVoterNpd extends SipdVoter {
  */
 class SipdQueryNpd extends SipdVoterNpd {
 
+    doPostSetup() {
+        this.id = 'NPD';
+        this.navigates = ['Pengeluaran', 'Pengajuan', 'NPD'];
+    }
+
     doPreInitialize() {
-        this.actionEnabled = false;
+        this.mode = SipdQueryBase.MATCH;
         this.dialog = false;
-        const nomor = SipdQueryNpd.NPD;
-        if (!this.data[nomor]) {
-            this.placeholder = 'tujuan pembayaran';
+        if (!this.data[this.id]) {
+            this.placeholder = 'untuk';
         }
     }
 
     doPostInitialize() {
-        this.dialog = false;
-        this.defaultColumns.action = [10, SipdColumnQuery.COL_ACTION];
-        const nomor = SipdQueryNpd.NPD;
-        const no = this.data[nomor];
+        const no = this.data[this.id];
         if (no) {
             this.filter = [no];
             this.diffs = [
@@ -99,14 +96,12 @@ class SipdQueryNpd extends SipdVoterNpd {
             ];
         }
         this.onResult = () => {
-            this.data[`${nomor}`] = this.data.values.no;
-            this.data[`${nomor}_TGL`] = this.data.values.tgl;
-            this.data[`${nomor}_UNTUK`] = this.data.values.untuk;
-            this.data[`${nomor}_NOM`] = this.data.values.nom;
+            this.data[`${this.id}`] = this.data.values.no;
+            this.data[`${this.id}_TGL`] = this.data.values.tgl;
+            this.data[`${this.id}_UNTUK`] = this.data.values.untuk;
+            this.data[`${this.id}_NOM`] = this.data.values.nom;
         }
     }
-
-    static get NPD() { return 'NPD' }
 }
 
 module.exports = { SipdVoterNpd, SipdQueryNpd };

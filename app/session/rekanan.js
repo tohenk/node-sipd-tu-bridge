@@ -70,7 +70,7 @@ class SipdRekananSession extends SipdSession {
     createRekanan(queue, forceEdit = false) {
         const allowChange = this.isEditable(queue);
         return this.works([
-            [w => this.doQuery(new SipdQueryRekanan(this.sipd, queue, {navigates: ['Pengeluaran', 'Daftar Rekanan']}))],
+            [w => this.doQuery(new SipdQueryRekanan(this.sipd, queue))],
             [w => this.sipd.gotoPageTop(), w => !w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//button[text()="Tambah Rekanan"]')), w => !w.getRes(0) && allowChange],
             [w => queue.values.action.click(), w => w.getRes(0) && forceEdit && allowChange],
@@ -88,7 +88,7 @@ class SipdRekananSession extends SipdSession {
      * @returns {Promise<object[]>}
      */
     listRekanan(queue) {
-        const query = new SipdQueryRekanan(this.sipd, queue, {navigates: ['Pengeluaran', 'Daftar Rekanan']});
+        const query = new SipdQueryRekanan(this.sipd, queue);
         return this.doQuery(query, this.createRekananIterator(query, queue));
     }
 }

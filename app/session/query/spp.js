@@ -23,7 +23,6 @@
  */
 
 const { SipdQueryBase } = require('.');
-const { SipdColumnQuery } = require('../../sipd/query');
 const SipdUtil = require('../../sipd/util');
 
 /**
@@ -33,23 +32,28 @@ const SipdUtil = require('../../sipd/util');
  */
 class SipdQuerySpp extends SipdQueryBase {
 
+    doSetup() {
+        this.id = SipdQuerySpp.SPP;
+        this.title = 'Surat Permintaan Pembayaran';
+        this.pageTitle = 'Surat Permintaan Pembayaran (SPP) | LS';
+        this.navigates = ['Pengeluaran', 'SPP', 'LS'];
+    }
+
     doInitialize() {
-        const nomor = this.options.nomor || SipdQuerySpp.SPP;
-        this.defaultColumns = SipdQuerySpp.getColumns(nomor);
         this.filter = [];
         this.diffs = [];
         this.group = this.options.jenis;
         const query = this.data.getMappedData('info.check');
         let no, tgl, nominal, untuk, type = SipdUtil.pickNrLs(query);
-        if (type == nomor) {
+        if (type === this.id) {
             no = query;
         }
         if (no) {
-            this.placeholder = 'nomor';
+            this.placeholder = 'no';
             this.filter.push(no);
             this.diffs.push(['no', no]);
         } else {
-            if (nomor !== SipdQuerySpp.SPP) {
+            if (this.id !== SipdQuerySpp.SPP) {
                 tgl = this.data.SPP_TGL;
                 nominal = this.data.SPP_NOM;
                 untuk = this.data.SPP_UNTUK;
@@ -58,7 +62,7 @@ class SipdQuerySpp extends SipdQueryBase {
                 nominal = this.data.getMappedData('spp.spp:NOMINAL');
                 untuk = this.data.getMappedData('spp.spp:UNTUK');
             }
-            this.placeholder = 'keterangan';
+            this.placeholder = 'untuk';
             this.filter.push(untuk);
             if (!this.options.skipDate) {
                 this.diffs.push(['tgl', tgl]);
@@ -70,53 +74,21 @@ class SipdQuerySpp extends SipdQueryBase {
         }
         this.pageOptions = {filter: this.getFilterSelector()};
         this.onResult = () => {
-            this.data[`${nomor}`] = this.data.values.no;
-            this.data[`${nomor}_TGL`] = this.data.values.tgl;
-            this.data[`${nomor}_UNTUK`] = this.data.values.untuk;
-            this.data[`${nomor}_NOM`] = this.data.values.nom;
+            this.data[`${this.id}`] = this.data.values.no;
+            this.data[`${this.id}_TGL`] = this.data.values.tgl;
+            this.data[`${this.id}_UNTUK`] = this.data.values.untuk;
+            this.data[`${this.id}_NOM`] = this.data.values.nom;
             if (this.data.values.ref && this.data.REF) {
                 this.data.setValue('info.check', this.data.values.ref);
             }
         }
-        // for SPP number query, column `untuk` must retained as is
+        // for SPP number query, column `untuk` must be retained as is
         if (no) {
             const col = this.columns.find(column => column.name === 'untuk');
             if (col) {
                 delete col.normalizer;
             }
         }
-    }
-
-    static getColumns(type) {
-        const columns = {
-            [this.SPP]: {
-                no: 1,
-                tgl: 4,
-                untuk: [5, SipdColumnQuery.COL_SINGLE, true],
-                nom: 6,
-                status: [2, SipdColumnQuery.COL_STATUS],
-                action: [8, SipdColumnQuery.COL_ACTION],
-            },
-            [this.SPM]: {
-                ref: [1, SipdColumnQuery.COL_ICON, true],
-                no: [1, SipdColumnQuery.COL_TIPPY],
-                tgl: 3,
-                untuk: [6, SipdColumnQuery.COL_SINGLE, true],
-                nom: 7,
-                status: {index: 5, type: SipdColumnQuery.COL_STATUS, selector: '*/*/p'},
-                action: [9, SipdColumnQuery.COL_ACTION],
-            },
-            [this.SP2D]: {
-                ref: [1, SipdColumnQuery.COL_ICON, true],
-                no: [1, SipdColumnQuery.COL_TIPPY],
-                tgl: 3,
-                untuk: [9, SipdColumnQuery.COL_SINGLE, true],
-                nom: 10,
-                tglCair: 7,
-                status: {index: 6, type: SipdColumnQuery.COL_STATUS, selector: '*/*/p'},
-            }
-        }
-        return columns[type];
     }
 
     static get SPP() { return 'SPP' }

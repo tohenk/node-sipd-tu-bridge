@@ -29,7 +29,6 @@ const SipdQueue = require('../queue');
 const SipdRekananSession = require('./rekanan');
 const SipdLpjReader = require('./reader/lpj');
 const SipdTbpReader = require('./reader/tbp');
-const { SipdOperationError } = require('../sipd/error');
 const { SipdQueryBase } = require('./query');
 const { SipdQueryNpd } = require('./query/npd');
 const { SipdQueryTbp } = require('./query/tbp');
@@ -132,7 +131,7 @@ class SipdLpjSession extends SipdRekananSession {
      * @returns {Promise<any>}
      */
     checkNpd(queue, options = null) {
-        return this.queryNpd(queue, {navigates: ['Pengeluaran', 'Pengajuan', 'NPD'], ...(options || {})});
+        return this.queryNpd(queue, options || {});
     }
 
     /**
@@ -151,7 +150,7 @@ class SipdLpjSession extends SipdRekananSession {
                 By.xpath('//h1[text()="Pengajuan | Nota Pencairan Dana"]/../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],
             [w => this.sipd.confirmSubmission(By.xpath('//button[text()="Tambah Sekarang"]'), {spinner: true}), w => !w.getRes(0) && allowChange],
-            [w => this.queryNpd(queue), w => !w.getRes(0) && allowChange],
+            [w => this.queryNpd(queue, {exist: true}), w => !w.getRes(0) && allowChange],
         ]);
     }
 
@@ -165,14 +164,13 @@ class SipdLpjSession extends SipdRekananSession {
     setujuiNpd(queue, status = 'Baru') {
         const allowChange = this.isEditable(queue);
         return this.works([
-            [w => Promise.reject(SipdOperationError.create('NPD is not created yet')), w => !queue.NPD],
-            [w => this.checkNpd(queue)],
-            [w => this.executeAction(queue, 'Persetujuan', status), w => allowChange],
+            [w => this.checkNpd(queue, {exist: true})],
+            [w => this.executeAction(queue, 'Persetujuan', status), w => w.getRes(0) && allowChange],
             [w => this.fillForm(queue, 'setuju-npd',
                 By.xpath('//header/span[contains(text(),"Setujui Pengajuan (NPD)")]/../../div[contains(@class,"chakra-modal__body")]'),
-                By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(2)],
-            [w => this.sipd.waitSpinner(w.getRes(3)), w => w.getRes(2)],
-            [w => this.queryNpd(queue), w => w.getRes(2)],
+                By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(1)],
+            [w => this.sipd.waitSpinner(w.getRes(2)), w => w.getRes(1)],
+            [w => this.queryNpd(queue, {exist: true}), w => w.getRes(1)],
         ]);
     }
 
@@ -186,14 +184,13 @@ class SipdLpjSession extends SipdRekananSession {
     validasiNpd(queue, status = 'Persetujuan') {
         const allowChange = this.isEditable(queue);
         return this.works([
-            [w => Promise.reject(SipdOperationError.create('NPD is not created yet')), w => !queue.NPD],
-            [w => this.checkNpd(queue)],
-            [w => this.executeAction(queue, 'Validasi', status), w => allowChange],
+            [w => this.checkNpd(queue, {exist: true})],
+            [w => this.executeAction(queue, 'Validasi', status), w => w.getRes(0) && allowChange],
             [w => this.fillForm(queue, 'validasi-npd',
                 By.xpath('//header/span[contains(text(),"Validasi Pengajuan (NPD)")]/../../div[contains(@class,"chakra-modal__body")]'),
-                By.xpath('//button[text()="Validasi Sekarang"]')), w => w.getRes(2)],
-            [w => this.sipd.waitSpinner(w.getRes(3)), w => w.getRes(2)],
-            [w => this.queryNpd(queue), w => w.getRes(2)],
+                By.xpath('//button[text()="Validasi Sekarang"]')), w => w.getRes(1)],
+            [w => this.sipd.waitSpinner(w.getRes(2)), w => w.getRes(1)],
+            [w => this.queryNpd(queue, {exist: true}), w => w.getRes(1)],
         ]);
     }
 
@@ -220,7 +217,7 @@ class SipdLpjSession extends SipdRekananSession {
      * @returns {Promise<any>}
      */
     checkTbp(queue, options = null) {
-        return this.queryTbp(queue, {navigates: ['Pengeluaran', 'TBP', 'UP / GU'], ...(options || {})});
+        return this.queryTbp(queue, options || {});
     }
 
     /**
@@ -239,7 +236,7 @@ class SipdLpjSession extends SipdRekananSession {
                 By.xpath('//h1[text()="Tanda Bukti Pembayaran (TBP)"]/../../../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],
             [w => this.sipd.confirmSubmission(By.xpath('//button[text()="Tambah Sekarang"]'), {spinner: true}), w => !w.getRes(0) && allowChange],
-            [w => this.queryTbp(queue), w => !w.getRes(0) && allowChange],
+            [w => this.queryTbp(queue, {exist: true}), w => !w.getRes(0) && allowChange],
         ]);
     }
 
@@ -250,10 +247,7 @@ class SipdLpjSession extends SipdRekananSession {
      * @returns {Promise<object[]>}
      */
     listLpj(queue) {
-        const query = new SipdQueryLpj(this.sipd, queue, {
-            navigates: ['Pengeluaran', 'LPJ', 'UP / GU', 'Pembuatan'],
-            jenis: 'Diverifikasi',
-        });
+        const query = new SipdQueryLpj(this.sipd, queue, {jenis: 'Diverifikasi'});
         return this.doQuery(query, this.createLpjIterator(query, queue));
     }
 }

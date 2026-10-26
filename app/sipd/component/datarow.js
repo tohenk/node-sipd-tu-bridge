@@ -44,7 +44,7 @@ class SipdComponentDataRow extends SipdComponent {
      * @returns {Promise<any>}
      */
     doSetup() {
-        this._title = this.options.title;
+        this._title = this.getTitle();
         this._wrapper = this.options.wrapper;
         return this.setupDataRow();
     }

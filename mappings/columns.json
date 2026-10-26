@@ -1,0 +1,71 @@
+{
+    "REKANAN-VOTER": [
+        {"name": "nama", "label": "Nama", "col": 1, "selector": "div/div/div[2]/span[1]"},
+        {"name": "nik", "label": "NIK", "col": 1, "selector": "div/div/div[2]/span[2]", "placeholder": "nik"},
+        {"name": "usaha", "label": "Perusahaan", "col": 2, "selector": "div/div/div[2]/span[1]", "placeholder": "perusahaan"},
+        {"name": "action", "label": "Action", "type": "action", "selector": ".//button"}
+    ],
+    "PEGAWAI-VOTER": [
+        {"name": "nama", "label": "Nama", "col": 1, "selector": "div/div/div[2]/span[1]"},
+        {"name": "nip", "label": "NIP", "col": 1, "selector": "div/div/div[2]/span[2]", "placeholder": "nip"},
+        {"name": "action", "label": "Action", "type": "action", "selector": ".//button"}
+    ],
+    "KEG-VOTER": [
+        {"name": "keg", "label": "Kegiatan", "col": 1, "type": "icon2"},
+        {"name": "action", "label": "Action", "col": 2, "type": "action"}
+    ],
+    "NPD-VOTER": [
+        {"name": "no", "label": "Nomor", "col": 1, "placeholder": "nomor dokumen"},
+        {"name": "tgl", "label": "Tanggal", "col": 1, "type": "icon2"},
+        {"name": "untuk", "label": "Untuk", "col": 2, "type": "single", "tippy": true, "placeholder": "tujuan pembayaran"},
+        {"name": "nom", "label": "Nominal", "col": 5},
+        {"name": "status", "label": "Status", "col": 4, "type": "progress"},
+        {"name": "action", "label": "Action", "type": "action", "selector": ".//button"}
+    ],
+    "REKANAN:REKANAN-VOTER": [
+        {"name": "action", "label": "Action", "col": 4, "type": "action", "selector": "a"},
+        {"name": "url", "label": "URL", "col": 4, "type": "url", "selector": "a"}
+    ],
+    "SPP": [
+        {"name": "no", "label": "Nomor", "col": 1, "placeholder": "nomor SPP"},
+        {"name": "tgl", "label": "Tanggal", "col": 4},
+        {"name": "untuk", "label": "Untuk", "col": 5, "type": "single", "tippy": true, "placeholder": "keterangan"},
+        {"name": "nom", "label": "Nominal", "col": 6},
+        {"name": "status", "label": "Status", "col": 2, "type": "status"},
+        {"name": "action", "label": "Action", "col": 8, "type": "action"}
+    ],
+    "SPM": [
+        {"name": "ref", "label": "Ref", "col": 1, "tippy": true},
+        {"name": "no", "label": "Nomor", "col": 1, "type": "tippy", "placeholder": "nomor SPM"},
+        {"name": "tgl", "label": "Tanggal", "col": 3},
+        {"name": "untuk", "label": "Untuk", "col": 6, "type": "single", "tippy": true, "placeholder": "keterangan"},
+        {"name": "nom", "label": "Nominal", "col": 7},
+        {"name": "status", "label": "Status", "col": 5, "type": "status", "selector": "*/*/p"},
+        {"name": "action", "label": "Action", "col": 9, "type": "action"}
+    ],
+    "SP2D": [
+        {"name": "ref", "label": "Ref", "col": 1, "tippy": true},
+        {"name": "no", "label": "Nomor", "col": 1, "type": "tippy", "placeholder": "nomor SP2D"},
+        {"name": "tgl", "label": "Tanggal", "col": 3},
+        {"name": "untuk", "label": "Untuk", "col": 9, "type": "single", "tippy": true, "placeholder": "keterangan"},
+        {"name": "nom", "label": "Nominal", "col": 10},
+        {"name": "tglCair", "label": "Tanggal Cair", "col": 7},
+        {"name": "status", "label": "Status", "col": 6, "type": "status", "selector": "*/*/p"}
+    ],
+    "NPD:NPD-VOTER": [
+        {"name": "action", "label": "Action", "col": 10, "type": "action"}
+    ],
+    "TBP": [
+        {"name": "no", "label": "Nomor", "col": 1, "placeholder": "nomor dokumen"},
+        {"name": "tgl", "label": "Tanggal", "col": 2},
+        {"name": "untuk", "label": "Untuk", "col": 3, "type": "single", "tippy": true, "placeholder": "tujuan pembayaran"},
+        {"name": "nom", "label": "Nominal", "col": 6},
+        {"name": "url", "label": "URL", "type": "url", "selector": ".//a/span/p[text()=\"Cetak\"]/../.."}
+    ],
+    "LPJ": [
+        {"name": "no", "label": "Nomor", "col": 1},
+        {"name": "tgl", "label": "Tanggal", "col": 2},
+        {"name": "nom", "label": "Nominal", "col": 5},
+        {"name": "url", "label": "URL", "type": "url", "selector": ".//a/span/p[text()=\"Cetak\"]/../.."}
+    ]
+}

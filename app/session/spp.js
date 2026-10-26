@@ -26,8 +26,9 @@ const SipdQueue = require('../queue');
 const SipdRekananSession = require('./rekanan');
 const SipdSppActivitySelector = require('./activity/spp');
 const SipdUtil = require('../sipd/util');
-const { SipdOperationError } = require('../sipd/error');
 const { SipdQuerySpp } = require('./query/spp');
+const { SipdQuerySpm } = require('./query/spm');
+const { SipdQuerySp2d } = require('./query/sp2d');
 const { By } = require('selenium-webdriver');
 
 /**
@@ -55,15 +56,14 @@ class SipdSppSession extends SipdRekananSession {
      * @returns {Promise<any>}
      */
     querySpp(queue, options) {
-        options = {
-            title: 'Surat Permintaan Pembayaran (SPP) | LS',
-            ...(options || {}),
-        }
+        options = options || {};
         const fVerified = options.flags === undefined ? true : (options.flags & this.VERIFIED) === this.VERIFIED;
         const fUnverified = options.flags === undefined ? true : (options.flags & this.UNVERIFIED) === this.UNVERIFIED;
         return this.works([
-            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: 'Sudah Diverifikasi'})), w => fVerified],
-            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: 'Belum Diverifikasi'})), w => fUnverified && !w.getRes(0)],
+            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: 'Sudah Diverifikasi'})),
+                w => fVerified],
+            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: 'Belum Diverifikasi'}), {match: options.exist}),
+                w => fUnverified && !w.getRes(0)],
         ]);
     }
 
@@ -75,11 +75,7 @@ class SipdSppSession extends SipdRekananSession {
      * @returns {Promise<any>}
      */
     checkSpp(queue, options = null) {
-        options = options || {};
-        return this.works([
-            [w => Promise.reject(SipdOperationError.create('SPP is not created yet')), w => options.exist && !queue.SPP],
-            [w => this.querySpp(queue, {navigates: ['Pengeluaran', 'SPP', 'LS'], ...options})],
-        ]);
+        return this.querySpp(queue, options || {});
     }
 
     /**
@@ -99,7 +95,7 @@ class SipdSppSession extends SipdRekananSession {
                 By.xpath('//h1[text()="Surat Permintaan Pembayaran Langsung (SPP-LS)"]/../../../../..'),
                 By.xpath('//button/span/span[text()="Konfirmasi"]/../..')), w => allowChange && !w.getRes(0) && allowChange],
             [w => this.sipd.confirmSubmission(By.xpath('//button[text()="Tambah Sekarang"]'), {spinner: true}), w => !w.getRes(0) && allowChange],
-            [w => this.querySpp(queue, {flags: this.UNVERIFIED}), w => !w.getRes(0) && allowChange],
+            [w => this.querySpp(queue, {flags: this.UNVERIFIED, exist: true}), w => !w.getRes(0) && allowChange],
         ]);
     }
 
@@ -113,14 +109,14 @@ class SipdSppSession extends SipdRekananSession {
     verifikasiSpp(queue, status = 'Belum Diverifikasi') {
         const allowChange = this.isEditable(queue);
         return this.works([
-            [w => this.checkSpp(queue, {flags: this.VERIFIED | this.UNVERIFIED, exist: true})],
-            [w => this.executeAction(queue, 'Verifikasi', status), w => allowChange],
+            [w => this.checkSpp(queue, {flags: this.UNVERIFIED})],
+            [w => this.executeAction(queue, 'Verifikasi', status), w => w.getRes(0) && allowChange],
             [w => this.fillForm(queue, 'verifikasi-spp',
                 By.xpath('//header[contains(text(),"Konfirmasi")]/../div[contains(@class,"chakra-modal__body")]'),
                 By.xpath('//button[text()="Setujui Sekarang"]')), w => w.getRes(1)],
             [w => this.sipd.waitSpinner(w.getRes(2)), w => w.getRes(1)],
             [w => this.dismissModal('Verifikasi SPP Berhasil'), w => w.getRes(1)],
-            [w => this.querySpp(queue, {flags: this.VERIFIED}), w => w.getRes(1)],
+            [w => this.querySpp(queue, {flags: this.VERIFIED, exist: true}), w => w.getRes(1)],
         ]);
     }
 
@@ -132,16 +128,14 @@ class SipdSppSession extends SipdRekananSession {
      * @returns {Promise<any>}
      */
     querySpm(queue, options) {
-        options = {
-            title: 'Pengeluaran',
-            nomor: SipdQuerySpp.SPM,
-            ...(options || {}),
-        }
+        options = options || {};
         const fVerified = options.flags === undefined ? true : (options.flags & this.VERIFIED) === this.VERIFIED;
         const fUnverified = options.flags === undefined ? true : (options.flags & this.UNVERIFIED) === this.UNVERIFIED;
         return this.works([
-            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: ['LS', 'Sudah Diverifikasi']})), w => fVerified],
-            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: ['LS', 'Belum Diverifikasi']})), w => fUnverified && !w.getRes(0)],
+            [w => this.doQuery(new SipdQuerySpm(this.sipd, queue, {...options, jenis: ['LS', 'Sudah Diverifikasi']})),
+                w => fVerified],
+            [w => this.doQuery(new SipdQuerySpm(this.sipd, queue, {...options, jenis: ['LS', 'Belum Diverifikasi']}), {match: options.exist}),
+                w => fUnverified && !w.getRes(0)],
         ]);
     }
 
@@ -149,13 +143,11 @@ class SipdSppSession extends SipdRekananSession {
      * Check for SPM.
      *
      * @param {SipdQueue} queue Queue
+     * @param {object} options Options
      * @returns {Promise<any>}
      */
-    checkSpm(queue) {
-        return this.works([
-            [w => Promise.reject(SipdOperationError.create('SPP is not created yet')), w => !queue.SPP],
-            [w => this.querySpm(queue, {navigates: ['Pengeluaran', 'SPM', 'Pembuatan']})],
-        ]);
+    checkSpm(queue, options = null) {
+        return this.querySpm(queue, options || {});
     }
 
     /**
@@ -168,11 +160,11 @@ class SipdSppSession extends SipdRekananSession {
     verifikasiSpm(queue, status = 'Belum Disetujui') {
         const allowChange = this.isEditable(queue);
         return this.works([
-            [w => this.checkSpm(queue)],
-            [w => this.executeAction(queue, 'Persetujuan', status), w => allowChange],
+            [w => this.checkSpm(queue, {flags: this.UNVERIFIED})],
+            [w => this.executeAction(queue, 'Persetujuan', status), w => w.getRes(0) && allowChange],
             [w => this.sipd.waitAndClick(By.xpath('//header[contains(text(),"Persetujuan SPM")]/../footer/button[text()="Setujui Sekarang"]')), w => w.getRes(1)],
             [w => this.sipd.waitSpinner(w.getRes(2)), w => w.getRes(1)],
-            [w => this.querySpm(queue, {flags: this.VERIFIED}), w => w.getRes(1)],
+            [w => this.querySpm(queue, {flags: this.VERIFIED, exist: true}), w => w.getRes(1)],
         ]);
     }
 
@@ -185,14 +177,13 @@ class SipdSppSession extends SipdRekananSession {
      */
     querySp2d(queue, options) {
         options = {
-            title: 'Surat Perintah Pencairan Dana | Pencairan',
-            nomor: SipdQuerySpp.SP2D,
             skipDate: true,
             ...(options || {}),
         }
         const fTransfered = options.flags === undefined ? true : (options.flags & this.TRANSFERED) === this.TRANSFERED;
         return this.works([
-            [w => this.doQuery(new SipdQuerySpp(this.sipd, queue, {...options, jenis: 'Sudah Ditransfer'})), w => fTransfered],
+            [w => this.doQuery(new SipdQuerySp2d(this.sipd, queue, {...options, jenis: 'Sudah Ditransfer'}), {match: options.exist}),
+                w => fTransfered],
             [w => new Promise((resolve, reject) => {
                 const res = w.getRes(0);
                 if (queue.values && queue.values.tglCair) {
@@ -207,13 +198,11 @@ class SipdSppSession extends SipdRekananSession {
      * Check for SP2D.
      *
      * @param {SipdQueue} queue Queue
+     * @param {object} options Options
      * @returns {Promise<any>}
      */
-    checkSp2d(queue) {
-        return this.works([
-            [w => Promise.reject(SipdOperationError.create('SPM is not created yet')), w => !queue.SPM],
-            [w => this.querySp2d(queue, {navigates: ['Pengeluaran', 'SP2D', 'Pencairan']})],
-        ]);
+    checkSp2d(queue, options = null) {
+        return this.querySp2d(queue, options || {});
     }
 }
 
