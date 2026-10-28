@@ -40,6 +40,7 @@ Cmd.addVar('profile', '', 'Use profile for operation', 'profile');
 Cmd.addBool('clean', '', 'Clean profile directory');
 Cmd.addBool('queue', 'q', 'Enable queue saving and loading');
 Cmd.addBool('noop', '', 'Do not process queue');
+Cmd.addBool('snapshot', '', 'Save page snapshot');
 Cmd.addVar('count', '', 'Limit number of operation such as when fetching captcha', 'number');
 Cmd.addVar('out', '', 'Set the output directory for certain operation', 'directory');
 
@@ -79,6 +80,9 @@ class Configuration {
             if (Cmd.get(cmd)) {
                 this[prop] = Cmd.get(cmd);
             }
+        }
+        if (Cmd.get('snapshot')) {
+            this.snapshotdir = Configuration.SNAPSHOT_DIR;
         }
         if (this.lang) {
             Translator.addLang(path.join(rootDir, 'langs', `messages.${this.lang}.json`));
@@ -318,6 +322,7 @@ class Configuration {
 
     static get LOG_DIR() { return 'logs' }
     static get CAPTURE_DIR() { return 'captures' }
+    static get SNAPSHOT_DIR() { return 'snapshots' }
     static get SESSION_DIR() { return 'sessions' }
     static get OUT_DIR() { return 'out' }
     static get TMP_DIR() { return 'tmp' }

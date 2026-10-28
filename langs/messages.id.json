@@ -149,6 +149,7 @@
   ["Expecting %target% to be %state%, but got login form instead", "Menunggu %target% untuk %state%, tetapi form login yang didapat"],
   ["present", "muncul"],
   ["gone", "hilang"],
+  ["Unable to navigate to menu %menu%: %message%", "Tidak dapat menavigasi ke menu %menu%: %message%"],
   ["Unable to find menu %menu%", "Tidak dapat menemukan menu %menu%"],
   ["Unable to find menu %menu%, session logged-out", "Tidak dapat menemukan menu %menu%, sesi telah keluar"],
   ["Unable to find sub page %page%, session logged-out", "Tidak dapat menemukan sub halaman %page%, sesi telah keluar"],

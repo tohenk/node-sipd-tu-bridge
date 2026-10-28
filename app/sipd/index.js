@@ -22,11 +22,14 @@
  * SOFTWARE.
  */
 
+const fs = require('fs');
+const path = require('path');
 const Queue = require('@ntlab/work/queue');
 const WebRobot = require('@ntlab/webrobot');
 const SipdLogger = require('./logger');
 const SipdUtil = require('./util');
 const SipdTimer = require('./timer');
+const Util = require('@ntlab/ntlib/util');
 const { SipdOperationError, SipdRestartError, SipdRetryError, SipdAbortError } = require('./error');
 const { By, error, WebElement } = require('selenium-webdriver');
 const _ = require('@ntlab/ntlib/translator');
@@ -148,6 +151,7 @@ class Sipd extends WebRobot {
     doPreLogin() {
         return this.works([
             [w => Promise.resolve(this.isSecure = false)],
+            [w => this.savePageSnapshot('login-pre')],
             [w => this.isContinueable(null, false)],
             [w => this.gotoPenatausahaan()],
             [w => this.dismissAnnouncement()],
@@ -164,6 +168,7 @@ class Sipd extends WebRobot {
             [w => this.dismissStatuses()],
             [w => this.checkMessages()],
             [w => this.dismissUpdate()],
+            [w => this.savePageSnapshot('full')],
         ]);
     }
 
@@ -178,6 +183,7 @@ class Sipd extends WebRobot {
         return this.works([
             [w => this.doSubmitLogin(username, password)],
             [w => this.doSelectRole(username, role)],
+            [w => this.savePageSnapshot('login-post')],
             [w => this.waitLoader()],
             [w => Promise.resolve(this.isSecure = true)],
         ]);
@@ -818,11 +824,12 @@ class Sipd extends WebRobot {
                         w => reload > 0 && !this.driver],
                     [w => Promise.resolve(this.tmo = setTimeout(() => this.driver.navigate().refresh(), reload * 1000)),
                         w => reload > 0],
+                    [w => this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0})],
                     [w => this.waitForPresence(By.xpath('//div[@class="css-fnE_f8jr-4g"]'), {timeout: this.delay})],
-                    [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]')), w => w.getRes(2)],
-                    [w => w.getRes(3)[0].click(), w => w.getRes(2) && w.getRes(3).length],
-                    [w => Promise.resolve(count++), w => w.getRes(2) && w.getRes(3).length],
-                    [w => Promise.resolve(restart = true), w => w.getRes(2) && w.getRes(3).length],
+                    [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]')), w => w.getRes(3)],
+                    [w => w.getRes(4)[0].click(), w => w.getRes(3) && w.getRes(4).length],
+                    [w => Promise.resolve(count++), w => w.getRes(3) && w.getRes(4).length],
+                    [w => Promise.resolve(restart = true), w => w.getRes(3) && w.getRes(4).length],
                 ])
                 .then(() => {
                     if (this.tmo !== undefined) {
@@ -851,7 +858,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     waitSidebar() {
-        return this.waitForPresence(By.xpath('//div[@class="simplebar-content"]/ul/div/div[contains(@class,"animate-pulse")]'), {presence: false, timeout: 0});
+        return this.waitForPresence(By.xpath('//div[@class="sn-card"]/div[@class="sn-skel"]'), {presence: false, timeout: 0});
     }
 
     /**
@@ -1125,15 +1132,19 @@ class Sipd extends WebRobot {
     findMenu(parent, root, title, level, logged) {
         const selector = `${root}/*/span[@class="sn-item-title" and text()="${title}"]/..`;
         let res;
-        return this.works([
-            [w => parent.findElements(By.xpath(selector))],
-            [w => w.getRes(0)[0].getAttribute('aria-expanded'), w => w.getRes(0).length],
-            [w => Promise.resolve(res = {el: w.getRes(0)[0]}), w => w.getRes(0).length],
-            [w => w.getRes(0)[0].click(), w => w.getRes(0).length && w.getRes(1) !== 'true'],
-            [w => this.sleep(this.opdelay), w => w.getRes(0).length && w.getRes(1) !== 'true'],
-            [w => Promise.resolve(this.debug(dtag)(_('Menu level %level% %selector%', {level, selector}))), w => res && logged],
-            [w => Promise.resolve(res)],
-        ]);
+        return new Promise((resolve, reject) => {
+            this.works([
+                [w => parent.findElements(By.xpath(selector))],
+                [w => w.getRes(0)[0].getAttribute('aria-expanded'), w => w.getRes(0).length],
+                [w => w.getRes(0)[0].click(), w => w.getRes(0).length && w.getRes(1) !== 'true'],
+                [w => this.sleep(this.opdelay), w => w.getRes(0).length && w.getRes(1) !== 'true'],
+                [w => Promise.resolve(res = {el: w.getRes(0)[0]}), w => w.getRes(0).length],
+                [w => Promise.resolve(this.debug(dtag)(_('Menu level %level% %selector%', {level, selector}))), w => res && logged],
+            ])
+            .then(() => resolve(res))
+            .catch(err => reject(SipdOperationError.create('Unable to navigate to menu %menu%: %message%',
+                {menu: title, message: err instanceof Error ? err.message : err})));
+        });
     }
 
     /**
@@ -1203,6 +1214,24 @@ class Sipd extends WebRobot {
     }
 
     /**
+     * Save current page source snapshot.
+     *
+     * @param {string} name Snapshot name
+     * @returns {Promise<string|undefined>}
+     */
+    savePageSnapshot(name) {
+        if (this.options.snapshotdir) {
+            return this.works([
+                [w => this.driver.getPageSource()],
+                [w => Promise.resolve(this.saveFile(this.genFilename(this.options.snapshotdir,
+                    `${name ? name + '-' : ''}${Util.formatDate(new Date(), 'yyyyMMddHHmmsszzz')}.html`), w.getRes(0)))],
+            ]);
+        } else {
+            return Promise.resolve();
+        }
+    }
+
+    /**
      * Get target element for display.
      *
      * @param {object|By} data Source data
@@ -1218,6 +1247,35 @@ class Sipd extends WebRobot {
             res = data;
         }
         return res;
+    }
+
+    /**
+     * Generate a filename relative to the working directory.
+     *
+     * @param {string} dir Directory name
+     * @param {string} filename File name
+     * @returns {string}
+     */
+    genFilename(dir, filename) {
+        return path.join(this.options.workdir, dir, filename);
+    }
+
+    /**
+     * Write content to file.
+     *
+     * @param {string} filepath File path
+     * @param {Buffer|string} content File content
+     * @returns {string}
+     */
+    saveFile(filepath, content) {
+        const dir = path.dirname(filepath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, {recursive: true});
+        }
+        if (fs.existsSync(dir)) {
+            fs.writeFileSync(filepath, content);
+        }
+        return filepath;
     }
 
     /**

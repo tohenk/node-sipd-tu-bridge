@@ -185,35 +185,6 @@ class SipdSession {
     }
 
     /**
-     * Generate a filename relative to the working directory.
-     *
-     * @param {string} dir Directory name
-     * @param {string} filename File name
-     * @returns {string}
-     */
-    genFilename(dir, filename) {
-        return path.join(this.options.workdir, dir, filename);
-    }
-
-    /**
-     * Write content to file.
-     *
-     * @param {string} filepath File path
-     * @param {Buffer|string} content File content
-     * @returns {string}
-     */
-    saveFile(filepath, content) {
-        const dir = path.dirname(filepath);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, {recursive: true});
-        }
-        if (fs.existsSync(dir)) {
-            fs.writeFileSync(filepath, content);
-        }
-        return filepath;
-    }
-
-    /**
      * Save captcha image data to file and returns the file name.
      *
      * @param {string} data Captcha image data
@@ -223,8 +194,8 @@ class SipdSession {
     saveCaptcha(data, dir = 'captcha') {
         const content = SipdUtil.getMimeContent(data, true);
         if (content.data) {
-            const filename = this.genFilename(dir, content.checksum + '.' + (content.mimetype.indexOf('png') > 0 ? 'png' : 'jpg'));
-            return this.saveFile(filename, content.data);
+            const filename = this.sipd.genFilename(dir, content.checksum + '.' + (content.mimetype.indexOf('png') > 0 ? 'png' : 'jpg'));
+            return this.sipd.saveFile(filename, content.data);
         }
     }
 
@@ -1263,7 +1234,7 @@ class SipdSession {
             if (!Buffer.isBuffer(value)) {
                 return reject(SipdOperationError.create('Value for file upload must be buffer'));
             }
-            let storedFile = this.genFilename(tmpdirname, `${queue.id}.${ext}`);
+            let storedFile = this.sipd.genFilename(tmpdirname, `${queue.id}.${ext}`);
             let storedSize = value.byteLength;
             let maxSizeByte, saved = false, optimize = false;
             const done = () => {
@@ -1271,7 +1242,7 @@ class SipdSession {
                     reject(SipdOperationError.create('File size is larger than %size%', {size: maxSize}));
                 } else {
                     if (!saved) {
-                        this.saveFile(storedFile, value);
+                        this.sipd.saveFile(storedFile, value);
                     }
                     if (fs.existsSync(storedFile)) {
                         queue.filesize = storedSize;
@@ -1297,8 +1268,8 @@ class SipdSession {
                 }
             }
             if (optimize) {
-                const tmpfile = this.genFilename(tmpdirname, `${queue.id}.orig.${ext}`);
-                this.saveFile(tmpfile, value);
+                const tmpfile = this.sipd.genFilename(tmpdirname, `${queue.id}.orig.${ext}`);
+                this.sipd.saveFile(tmpfile, value);
                 const exec = require('child_process').exec;
                 const cmd = this.pdfOptimizer
                     .replace(/%IN%/g, tmpfile)
@@ -1363,10 +1334,10 @@ class SipdSession {
             [w => this.sipd.driver.getPageSource()],
             [w => Promise.resolve(Buffer.from(w.getRes(0), 'base64')), w => w.getRes(0)],
             [w => Promise.resolve(`${this.bridge.name}-${Util.formatDate(new Date(), 'yyyyMMddHHmmsszzz')}`), w => w.getRes(0)],
-            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(3)}.html`), w.getRes(1))), w => w.getRes(0)],
-            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(3)}.png`), w.getRes(2))), w => w.getRes(0)],
-            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(3)}.err`), f(message))), w => w.getRes(0) && message],
-            [w => Promise.resolve(this.saveFile(this.genFilename(dir, `${w.getRes(3)}.json`), JSON.stringify(data))), w => w.getRes(0) && data],
+            [w => Promise.resolve(this.sipd.saveFile(this.sipd.genFilename(dir, `${w.getRes(3)}.html`), w.getRes(1))), w => w.getRes(0)],
+            [w => Promise.resolve(this.sipd.saveFile(this.sipd.genFilename(dir, `${w.getRes(3)}.png`), w.getRes(2))), w => w.getRes(0)],
+            [w => Promise.resolve(this.sipd.saveFile(this.sipd.genFilename(dir, `${w.getRes(3)}.err`), f(message))), w => w.getRes(0) && message],
+            [w => Promise.resolve(this.sipd.saveFile(this.sipd.genFilename(dir, `${w.getRes(3)}.json`), JSON.stringify(data))), w => w.getRes(0) && data],
         ]);
     }
 }
