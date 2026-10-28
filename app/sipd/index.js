@@ -818,11 +818,11 @@ class Sipd extends WebRobot {
                         w => reload > 0 && !this.driver],
                     [w => Promise.resolve(this.tmo = setTimeout(() => this.driver.navigate().refresh(), reload * 1000)),
                         w => reload > 0],
-                    [w => this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0})],
-                    [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]'))],
-                    [w => w.getRes(3)[0].click(), w => w.getRes(3).length],
-                    [w => Promise.resolve(count++), w => w.getRes(3).length],
-                    [w => Promise.resolve(restart = true), w => w.getRes(3).length],
+                    [w => this.waitForPresence(By.xpath('//div[@class="css-fnE_f8jr-4g"]'), {timeout: this.delay})],
+                    [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]')), w => w.getRes(2)],
+                    [w => w.getRes(3)[0].click(), w => w.getRes(2) && w.getRes(3).length],
+                    [w => Promise.resolve(count++), w => w.getRes(2) && w.getRes(3).length],
+                    [w => Promise.resolve(restart = true), w => w.getRes(2) && w.getRes(3).length],
                 ])
                 .then(() => {
                     if (this.tmo !== undefined) {
