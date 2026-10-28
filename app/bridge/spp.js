@@ -119,27 +119,26 @@ class SipdBridgeSpp extends SipdBridgeHandler {
             let res = 0;
             switch (type) {
                 case 'SP2D':
-                    if (a[0] === 'bp-cek-sp2d' && b[0] === 'bp-cek-spm') {
+                    if (a[0].includes('sp2d') && b[0].includes('spm')) {
                         res = -1;
                     }
                     // no break
                 case 'SPM':
-                    if (a[0] === 'bp-cek-spm' && b[0] === 'bp-cek-spp') {
+                    if (a[0].includes('spm') && b[0].includes('spp')) {
                         res = -1;
                     }
                     // no break
             }
             return res;
         }
-        const options = {exist: true};
         return this.bridge.processQueue({
             queue,
             works: [
                 ['bp', w => this.bridge.doAs(SipdRole.BP)],
                 ['bp-login', w => w.bp.login()],
-                ['bp-cek-spp', w => w.bp.checkSpp(queue, options)],
-                ['bp-cek-spm', w => w.bp.checkSpm(queue, options)],
-                ['bp-cek-sp2d', w => w.bp.checkSp2d(queue, options)],
+                ['bp-cek-spp', w => w.bp.checkSpp(queue, {exist: true})],
+                ['bp-cek-spm', w => w.bp.checkSpm(queue, {exist: true})],
+                ['bp-cek-sp2d', w => w.bp.checkSp2d(queue, {exist: type === 'SP2D'})],
             ],
             sorter,
             session: SipdSppSession,
