@@ -1176,10 +1176,11 @@ class Sipd extends WebRobot {
                         f();
                     }), w => w.getRes(0).length],
                     [w => this.isLoggedIn(false), w => w.getRes(0).length === 0],
-                    [w => Promise.reject(SipdOperationError.create('Unable to find sub page %page%, session logged-out', {page: nav})), w => w.getRes(0).length === 0 && !w.getRes(3)],
+                    [w => Promise.reject(_('session logged-out')), w => w.getRes(0).length === 0 && !w.getRes(3)],
                 ])
                 .then(() => q.next())
-                .catch(err => reject(err));
+                .catch(err => reject(SipdOperationError.create('Unable to navigate to sub page %page%: %message%',
+                    {page: nav, message: err instanceof Error ? err.message : err})));
             });
             q.once('done', () => {
                 this.debug(dtag)(_('Done navigating to sub page %subpage%', {subpage: subs.join('->')}));
