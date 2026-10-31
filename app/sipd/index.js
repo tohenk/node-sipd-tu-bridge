@@ -884,6 +884,15 @@ class Sipd extends WebRobot {
     }
 
     /**
+     * Wait for page to be fully loaded.
+     *
+     * @returns {Promise<any>}
+     */
+    waitPageLoad() {
+        return this.waitForPresence(By.xpath(`//div[@class="${Sipd.ANIMATE_PULSE}"]`), {presence: false, timeout: 0});
+    }
+
+    /**
      * Wait for SIPD Penatausahaan spinner to be gone.
      *
      * @param {WebElement} el Spinner container element
@@ -891,7 +900,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     waitSpinner(el, spinner = null) {
-        return this.waitForPresence({el, data: spinner ?? Sipd.SPINNER_ANIMATE}, {presence: false, timeout: 0});
+        return this.waitForPresence({el, data: spinner ?? Sipd.ANIMATE_SPIN}, {presence: false, timeout: 0});
     }
 
     /**
@@ -1154,38 +1163,58 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     subPageNav(...subs) {
+        return this.works([
+            [w => new Promise((resolve, reject) => {
+                const q = new Queue([...subs], nav => {
+                    this.findSubPageMenu(nav)
+                        .then(() => q.next())
+                        .catch(err => reject(err));
+                });
+                q.once('done', () => {
+                    this.debug(dtag)(_('Done navigating to sub page %subpage%', {subpage: subs.join('->')}));
+                    resolve();
+                });
+            })],
+            [w => this.waitPageLoad()],
+        ]);
+    }
+
+    /**
+     * Find sub page menu.
+     *
+     * @param {string} nav Sub page title
+     * @returns {Promise<WebElement>}
+     */
+    findSubPageMenu(nav) {
+        const selector = `//button/p[text()="${nav}"]/..`;
+        let res;
         return new Promise((resolve, reject) => {
-            const q = new Queue([...subs], nav => {
-                this.works([
-                    [w => this.findElements(By.xpath(`//button/p[text()="${nav}"]/..`))],
-                    [w => w.getRes(0)[0].click(), w => w.getRes(0).length],
-                    [w => this.sleep(this.loopdelay), w => w.getRes(0).length],
-                    [w => new Promise((resolve, reject) => {
-                        const el = w.getRes(0)[0];
-                        const f = () => {
-                            el.getAttribute('disabled')
-                                .then(res => {
-                                    if (res) {
-                                        setTimeout(() => f(), this.loopdelay);
-                                    } else {
-                                        resolve();
-                                    }
-                                })
-                                .catch(err => reject(err));
-                        }
-                        f();
-                    }), w => w.getRes(0).length],
-                    [w => this.isLoggedIn(false), w => w.getRes(0).length === 0],
-                    [w => Promise.reject(_('session logged-out')), w => w.getRes(0).length === 0 && !w.getRes(3)],
-                ])
-                .then(() => q.next())
-                .catch(err => reject(SipdOperationError.create('Unable to navigate to sub page %page%: %message%',
-                    {page: nav, message: err instanceof Error ? err.message : err})));
-            });
-            q.once('done', () => {
-                this.debug(dtag)(_('Done navigating to sub page %subpage%', {subpage: subs.join('->')}));
-                resolve();
-            });
+            this.works([
+                [w => this.findElements(By.xpath(selector))],
+                [w => new Promise((resolve, reject) => {
+                    const el = w.getRes(0)[0];
+                    const f = () => {
+                        el.getAttribute('disabled')
+                            .then(res => {
+                                if (res) {
+                                    setTimeout(() => f(), this.loopdelay);
+                                } else {
+                                    resolve();
+                                }
+                            })
+                            .catch(err => reject(err));
+                    }
+                    f();
+                }), w => w.getRes(0).length],
+                [w => w.getRes(0)[0].click(), w => w.getRes(0).length],
+                [w => this.sleep(this.opdelay), w => w.getRes(0).length],
+                [w => this.isLoggedIn(false), w => w.getRes(0).length === 0],
+                [w => Promise.resolve(res = w.getRes(0)[0]), w => w.getRes(0).length && w.getRes(4)],
+                [w => Promise.reject(_('session logged-out')), w => w.getRes(0).length === 0 && !w.getRes(4)],
+            ])
+            .then(() => resolve(res))
+            .catch(err => reject(SipdOperationError.create('Unable to navigate to sub page %page%: %message%',
+                {page: nav, message: err instanceof Error ? err.message : err})));
         });
     }
 
@@ -1378,7 +1407,8 @@ class Sipd extends WebRobot {
     static get LOGIN_FORM() { return '//div[contains(@class,"auth-box")]/div/form' }
     static get CAPTCHA_CONTAINER() { return '//div[contains(@class,"css-S-k-eg4wgs")]' }
     static get SPINNER_CHAKRA() { return 'chakra-spinner' }
-    static get SPINNER_ANIMATE() { return 'animate-spin' }
+    static get ANIMATE_SPIN() { return 'animate-spin' }
+    static get ANIMATE_PULSE() { return 'animate-pulse' }
     static get MENU_UTAMA() { return 'Menu Utama' }
     static get MENU_PENATAUSAHAAN() { return 'Penatausahaan' }
     static get MENU_LAPORAN() { return 'Laporan' }

@@ -143,7 +143,7 @@ class SipdComponentFilter extends SipdComponent {
                 q.once('done', () => resolve());
             })],
             [w => this._submit.click(), w => this._submit],
-            [w => this.parent.sleep(this.parent.animdelay), w => typeof this.onfilter === 'function'],
+            [w => this.parent.waitPageLoad(), w => this._submit],
             [w => this.onfilter(), w => typeof this.onfilter === 'function'],
             [w => this.parent.gotoPageTop(), w => this._toggler && this._filterToggle],
             [w => this.parent.clickExpanded(this._toggler, false), w => this._toggler && this._filterToggle],
