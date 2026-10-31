@@ -737,13 +737,16 @@ class Sipd extends WebRobot {
      */
     reactSelect(el, value, message = null) {
         return this.works([
-            [w => el.click()],
+            [w => this.clickWait(el)],
             [w => el.getAttribute('aria-controls')],
-            [w => this.findElement(By.id(w.getRes(1)))],
-            [w => w.getRes(2).findElements(By.xpath(`.//*[contains(.,"${value}")]`))],
+            [w => this.findElement(By.id(w.getRes(1))), w => w.getRes(1)],
+            [w => w.getRes(2).findElements(By.xpath(`.//*[contains(.,"${value}")]`)), w => w.getRes(1)],
             [w => Promise.reject(SipdOperationError.create(message ? message : 'Select choice %value% is unavailable', {value})),
-                w => w.getRes(3).length === 0],
-            [w => w.getRes(3)[0].click(), w => w.getRes(3).length],
+                w => w.getRes(1) && w.getRes(3).length === 0],
+            [w => w.getRes(3)[0].click(), w => w.getRes(1) && w.getRes(3).length],
+            [w => this.getHtml(el), w => !w.getRes(1)],
+            [w => Promise.reject(SipdOperationError.create('Select %select% has no option', {select: this.truncate(w.getRes(6))})),
+                w => !w.getRes(1)],
         ]);
     }
 

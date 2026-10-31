@@ -143,6 +143,7 @@
   ["Not logged in", "Belum login"],
   ["SIPD Penatausahaan is experiencing problem: %error%", "SIPD Penatausahaan mengalami gangguan: %error%"],
   ["Select choice %value% is unavailable", "Pilihan select %value% tidak tersedia"],
+  ["Select %select% has no option", "Select %select% tidak memiliki pilihan"],
   ["Budgeting %value% is not available", "Anggaran %value% tidak tersedia"],
   ["Browser session has been closed while opening SIPD Penatausahaan", "Sesi browser telah ditutup saat membuka SIPD Penatausahaan"],
   ["Too many retry while opening SIPD Penatausahaan", "Terlalu banyak percoaban pada saat membuka SIPD Penatausahaan"],
