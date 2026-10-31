@@ -24,12 +24,7 @@
 
 const Queue = require('@ntlab/work/queue');
 const SipdComponent = require('.');
-const SipdTimer = require('../timer');
-const { SipdOperationError } = require('../error');
 const { By, WebElement } = require('selenium-webdriver');
-const _ = require('@ntlab/ntlib/translator');
-
-const dtag = 'datarow';
 
 /**
  * SIPD data row component.
@@ -38,80 +33,24 @@ const dtag = 'datarow';
  */
 class SipdComponentDataRow extends SipdComponent {
 
+    initialize() {
+        this._title = this.getTitle();
+    }
+
     /**
      * Do setup.
      *
      * @returns {Promise<any>}
      */
     doSetup() {
-        this._title = this.getTitle();
-        this._wrapper = this.options.wrapper;
-        return this.setupDataRow();
-    }
-
-    /**
-     * Setup data row result either with data table or empty one.
-     *
-     * @returns {Promise<any>}
-     */
-    setupDataRow() {
-        return new Promise((resolve, reject) => {
-            const timer = new SipdTimer({delta: 10});
-            const f = () => {
-                this.works([
-                    [w => this.findRows()],
-                    [w => this.findEmpty(), w => !this._rows],
-                    [w => Promise.resolve(this._rows || this._empty)],
-                ])
-                .then(res => {
-                    if (res) {
-                        this.parent.getHtml(res)
-                            .then(html => {
-                                this.parent.debug(dtag)(_('Data row %title% result is %result%',
-                                    {title: this._title, result: this.parent.truncate(html)}));
-                                resolve();
-                            })
-                            .catch(err => reject(err));
-                    } else {
-                        timer.check(t => this.parent.debug(dtag)(_('Still waiting data row %title% result after %duration%...',
-                            {title: this._title, duration: t.elapsedTime})));
-                        setTimeout(() => f(), this.parent.loopdelay);
-                    }
-                })
-                .catch(err => reject(err));
-            }
-            f();
-        });   
-    }
-
-    /**
-     * Find if page is empty.
-     *
-     * @returns {Promise<any>}
-     */
-    findEmpty() {
-        const selector = this.options.emptySelector ?? './/div[@class="container-no-data-access-modal"]';
-        return this.works([
-            [w => Promise.reject(SipdOperationError.create('Wrapper is required')), w => !this._wrapper],
-            [w => this._wrapper.findElements(By.xpath(selector))],
-            [w => Promise.resolve(this._empty = w.res[0]), w => w.getRes(1).length],
-            [w => Promise.resolve(delete this._empty), w => !w.getRes(1).length],
-        ]);
-    }
-
-    /**
-     * Find page data table.
-     *
-     * @returns {Promise<any>}
-     */
-    findRows() {
-        const selector = this.options.tableSelector ?? './/div[contains(@class,"css-table-responsive")]';
-        return this.works([
-            [w => Promise.reject(SipdOperationError.create('Wrapper is required')), w => !this._wrapper],
-            [w => this._wrapper.findElements(By.xpath(selector))],
-            [w => Promise.resolve(this._rows = w.res[0]), w => w.getRes(1).length],
-            [w => Promise.resolve(delete this._rows), w => !w.getRes(1).length],
-        ]);
+        this
+            .reset()
+            .setPart(SipdComponentDataRow.ROWS, this.options.tableSelector ??
+                './/div[contains(@class,"css-table-responsive")]', SipdComponent.REQUIRED)
+            .setPart(SipdComponentDataRow.EMPTY, this.options.emptySelector ??
+                './/div[@class="container-no-data-access-modal"]', SipdComponent.REQUIRED)
+            .setWrapper();
+        return this.queryParts();
     }
 
     /**
@@ -161,6 +100,9 @@ class SipdComponentDataRow extends SipdComponent {
     isEmpty() {
         return !this._rows && this._empty !== undefined;
     }
+
+    static get ROWS() { return 'ROWS' }
+    static get EMPTY() { return 'EMPTY' }
 }
 
 module.exports = SipdComponentDataRow;

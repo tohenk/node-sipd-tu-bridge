@@ -38,59 +38,27 @@ const dtag = 'filter';
  */
 class SipdComponentFilter extends SipdComponent {
 
+    initialize() {
+        this._title = this.getTitle();
+        this._filterToggle = this.options.filterToggle !== undefined ?
+            this.options.filterToggle : true;
+    }
+
     /**
      * Do setup.
      *
      * @returns {Promise<any>}
      */
     doSetup() {
-        this._title = this.getTitle();
-        this._wrapper = this.options.wrapper;
-        this._filterToggle = this.options.filterToggle !== undefined ?
-            this.options.filterToggle : true;
-        return this.setupFiltering(this.options.filter);
-    }
-
-    /**
-     * Setup page filtering form element.
-     *
-     * @param {object} data Search model object
-     * @param {By} data.toggler Toggler element to expand the filter form
-     * @param {By|By[]} data.input Text input element
-     * @param {By} data.filter Filter choices element
-     * @param {By} data.submit Form submit element
-     * @returns {Promise<any>}
-     */
-    setupFiltering(data) {
-        this.data = data;
-        return this.works([
-            [w => Promise.reject(SipdOperationError.create('Filter wrapper %title% is required', {title: this._title})), w => !this._wrapper],
-            [w => this._wrapper.findElement(data.toggler), w => data.toggler],
-            [w => Promise.resolve(this._toggler = w.res), w => data.toggler],
-            [w => this._wrapper.findElement(data.filter), w => data.filter],
-            [w => Promise.resolve(this._choices = w.res), w => data.filter],
-            [w => new Promise((resolve, reject) => {
-                if (Array.isArray(data.input)) {
-                    const res = [];
-                    const q = new Queue([...data.input], input => {
-                        this._wrapper.findElement(input)
-                            .then(el => {
-                                res.push(el);
-                                q.next();
-                            })
-                            .catch(err => reject(err));
-                    });
-                    q.once('done', () => resolve(res));
-                } else {
-                    this._wrapper.findElement(data.input)
-                        .then(el => resolve(el))
-                        .catch(err => reject(err));
-                }
-            }), w => data.input],
-            [w => Promise.resolve(this._filter = w.res), w => data.input],
-            [w => this._wrapper.findElement(data.submit), w => data.submit],
-            [w => Promise.resolve(this._submit = w.res), w => data.submit],
-        ]);
+        this.data = this.options.filter;
+        this
+            .reset()
+            .setPart(SipdComponentFilter.FILTER, this.data.input)
+            .setPart(SipdComponentFilter.TOGGLER, this.data.toggler)
+            .setPart(SipdComponentFilter.CHOICES, this.data.filter)
+            .setPart(SipdComponentFilter.SUBMIT, this.data.submit)
+            .setWrapper();
+        return this.queryParts();
     }
 
     /**
@@ -103,13 +71,12 @@ class SipdComponentFilter extends SipdComponent {
     apply(value, key = null) {
         this.applied = {};
         return this.works([
-            [w => Promise.reject(SipdOperationError.create('Filter component %title% is not initialized', {title: this._title})), w => !this._filter],
             [w => this._toggler.getAttribute('aria-expanded'), w => this._toggler],
-            [w => this.parent.clickExpanded(this._toggler), w => this._toggler && w.getRes(1) === 'false'],
+            [w => this.parent.clickExpanded(this._toggler), w => this._toggler && w.getRes(0) === 'false'],
             [w => this._choices.click(), w => this._choices && key],
             [w => this._choices.findElements(By.xpath(`./../*/*/button/span/p[text()="${key}"]/../..`)), w => this._choices && key],
             [w => Promise.reject(SipdOperationError.create('No filter key found for %key%', {key})), w => this._choices && key && !w.getRes(4).length],
-            [w => w.getRes(4)[0].click(), w => this._choices && key && w.getRes(4).length],
+            [w => w.getRes(3)[0].click(), w => this._choices && key && w.getRes(3).length],
             [w => new Promise((resolve, reject) => {
                 if (Array.isArray(this._filter) && !Array.isArray(value)) {
                     return reject(SipdOperationError.create('Filter value must be an array'));
@@ -149,6 +116,11 @@ class SipdComponentFilter extends SipdComponent {
             [w => this.parent.clickExpanded(this._toggler, false), w => this._toggler && this._filterToggle],
         ]);
     }
+
+    static get FILTER() { return 'FILTER' }
+    static get TOGGLER() { return 'TOGGLER' }
+    static get SUBMIT() { return 'SUBMIT' }
+    static get CHOICES() { return 'CHOICES' }
 }
 
 module.exports = SipdComponentFilter;

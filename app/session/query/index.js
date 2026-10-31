@@ -110,7 +110,7 @@ class SipdQueryBase extends SipdQuery {
         let input, label;
         /**
          * @param {string} name Column name
-         * @returns {[string, By]}
+         * @returns {[string, string]}
          */
         const f = name => {
             let placeholder = name, title = name;
@@ -123,7 +123,7 @@ class SipdQueryBase extends SipdQuery {
                     placeholder = col.placeholder;
                 }
             }
-            return [title, By.xpath(`//*[contains(@placeholder,"Cari ${placeholder}")]`)];
+            return [title, `//*[contains(@placeholder,"Cari ${placeholder}")]`];
         }
         placeholder = placeholder ?? this.placeholder;
         if (Array.isArray(placeholder)) {
@@ -135,8 +135,8 @@ class SipdQueryBase extends SipdQuery {
         }
         return {
             input,
-            submit: By.xpath('//button[text()="Cari Sekarang"]'),
-            toggler: By.xpath('//button/div/p[text()="Filter Pencarian"]/../..'),
+            submit: '//button[text()="Cari Sekarang"]',
+            toggler: '//button/div/p[text()="Filter Pencarian"]/../..',
             label,
         }
     }

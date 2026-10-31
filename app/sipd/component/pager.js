@@ -24,7 +24,7 @@
 
 const Queue = require('@ntlab/work/queue');
 const SipdComponent = require('.');
-const { SipdError, SipdOperationError } = require('../../sipd/error');
+const { SipdError } = require('../../sipd/error');
 const { By, WebElement } = require('selenium-webdriver');
 const _ = require('@ntlab/ntlib/translator');
 
@@ -39,31 +39,22 @@ class SipdComponentPager extends SipdComponent {
 
     PAGINATION_CLASS = 'pagination-custom'
 
+    initialize() {
+        this._title = this.getTitle();
+    }
+
     /**
      * Do setup.
      *
      * @returns {Promise<any>}
      */
     doSetup() {
-        this._title = this.getTitle();
-        this._wrapper = this.options.wrapper;
-        return this.setupPagination();
-    }
-
-    /**
-     * Setup page pagination element.
-     *
-     * @returns {Promise<any>}
-     */
-    setupPagination() {
-        const selector = this.options.paginationSelector ?? './/div[@class="container-pagination-table-list"]';
-        return this.works([
-            [w => Promise.reject(SipdOperationError.create('Pager wrapper %title% is required', {title: this._title})),
-                w => !this._wrapper],
-            [w => this._wrapper.findElements(By.xpath(selector))],
-            [w => Promise.resolve(this._pager = w.res[0]), w => w.getRes(1).length],
-            [w => Promise.resolve(delete this._pager), w => !w.getRes(1).length],
-        ]);
+        this
+            .reset()
+            .setPart(SipdComponentPager.PAGER, this.options.paginationSelector ??
+                './/div[@class="container-pagination-table-list"]')
+            .setWrapper();
+        return this.queryParts();
     }
 
     /**
@@ -88,11 +79,9 @@ class SipdComponentPager extends SipdComponent {
             .map(s => `contains(@class,"${s}")`)
             .join(' or ');
         return this.works([
-            [w => Promise.reject(SipdOperationError.create('Pager %title% is not initialized', {title: this._title})),
-                w => !this._pager],
             [w => this._pager.findElements(By.xpath(`.//ul[@class="${this.PAGINATION_CLASS}"]/li[not (${skipped})]/a`))],
             [w => new Promise((resolve, reject) => {
-                const q = new Queue(w.getRes(1), el => {
+                const q = new Queue(w.getRes(0), el => {
                     const r = page => {
                         res.push({page, el});
                         q.next();
@@ -116,12 +105,10 @@ class SipdComponentPager extends SipdComponent {
      */
     getPage() {
         return this.works([
-            [w => Promise.reject(SipdOperationError.create('Pager %title% is not initialized', {title: this._title})),
-                w => !this._pager],
             [w => this._pager.findElements(By.xpath(`.//ul[@class="${this.PAGINATION_CLASS}"]/li[@class="selected"]`))],
-            [w => w.getRes(1)[0].getAttribute('innerText'), w => w.getRes(1).length],
-            [w => Promise.resolve(parseInt(w.getRes(2))), w => w.getRes(1).length],
-            [w => Promise.resolve(0), w => !w.getRes(1).length],
+            [w => w.getRes(0)[0].getAttribute('innerText'), w => w.getRes(0).length],
+            [w => Promise.resolve(parseInt(w.getRes(1))), w => w.getRes(0).length],
+            [w => Promise.resolve(0), w => !w.getRes(0).length],
         ]);
     }
 
@@ -243,6 +230,8 @@ class SipdComponentPager extends SipdComponent {
             })],
         ]);
     }
+
+    static get PAGER() { return 'PAGER' }
 
     static get SKIP_PREV() { return 1 }
     static get SKIP_NEXT() { return 2 }

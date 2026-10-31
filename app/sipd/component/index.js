@@ -23,8 +23,13 @@
  */
 
 const Sipd = require('..');
+const SipdTimer = require('../timer');
+const Queue = require('@ntlab/work/queue');
 const { SipdOperationError } = require('../error');
-const { error } = require('selenium-webdriver');
+const { By, error, WebElement } = require('selenium-webdriver');
+const _ = require('@ntlab/ntlib/translator');
+
+const dtag = 'component';
 
 /**
  * SIPD interaction component abstraction.
@@ -47,6 +52,10 @@ class SipdComponent {
         this.parent = parent;
         this.options = options;
         this.works = this.parent.works.bind(this.parent);
+        /** @type {?WebElement} */
+        this._wrapper;
+        /** @type {{name: string, selector: string, flag: number, el: ?WebElement}[]} */
+        this._parts = [];
         this.initialize();
         this.components = [];
         for (const factory of this._subComponents) {
@@ -71,6 +80,55 @@ class SipdComponent {
      * Initialize component.
      */
     initialize() {
+    }
+
+    /**
+     * Get component title.
+     *
+     * @param {boolean} withBase Include component base name
+     * @returns {string}
+     */
+    getTitle(withBase = false) {
+        return [
+            withBase ? _(this.name) : null,
+            this.options.name || this.options.title,
+        ].filter(Boolean).join(' ');
+    }
+
+    /**
+     * Set component wrapper from options.
+     *
+     * @returns {SipdComponent}
+     */
+    setWrapper() {
+        if (!this.options.wrapper instanceof WebElement) {
+            throw new Error(`${this.name} requires a wrapper!`);
+        }
+        this._wrapper = this.options.wrapper;
+        return this;
+    }
+
+    /**
+     * Add component part.
+     *
+     * @param {string} name Part name
+     * @param {string} selector Element xpath selector
+     * @param {?number} flag Part flag
+     * @returns {SipdComponent}
+     */
+    setPart(name, selector, flag = null) {
+        this._parts.push({name, selector, flag: flag ?? SipdComponent.OPTIONAL});
+        return this;
+    }
+
+    /**
+     * Reset component.
+     *
+     * @returns {SipdComponent}
+     */
+    reset() {
+        this._parts = [];
+        return this;
     }
 
     /**
@@ -122,16 +180,129 @@ class SipdComponent {
     }
 
     /**
-     * Get component title.
+     * Component parts handler.
      *
-     * @param {boolean} withBase Include component base name
+     * @returns {Promise<any>}
+     */
+    queryParts() {
+        for (const part of this._parts) {
+            delete this[`_${part.name.toLowerCase()}`];
+            delete part.el;
+        }
+        return this.works([
+            [w => this.queryRequired()],
+            [w => this.queryOptional()],
+        ]);
+    }
+
+    /**
+     * Query required component parts.
+     *
+     * @returns {Promise<undefined>}
+     */
+    queryRequired() {
+        return new Promise((resolve, reject) => {
+            const parts = this._parts
+                .filter(a => a.selector && a.flag === SipdComponent.REQUIRED);
+            if (parts.length) {
+                const timer = new SipdTimer({delta: 10});
+                const f = () => {
+                    let res;
+                    const q = new Queue([...parts], part => {
+                        this.queryPart(part)
+                            .then(found => {
+                                if ((Array.isArray(found) && found.length) || found) {
+                                    res = part.el = this[`_${part.name.toLowerCase()}`] = Array.isArray(found) ? found[0] : found;
+                                    q.done();
+                                } else {
+                                    q.next();
+                                }
+                            })
+                            .catch(err => reject(err));
+                    });
+                    q.once('done', () => {
+                        if (res) {
+                            this.parent.getHtml(res)
+                                .then(html => {
+                                    this.parent.debug(dtag)(_('%name% result is %result%',
+                                        {name: this.getTitle(true), result: this.parent.truncate(html)}));
+                                    resolve();
+                                })
+                                .catch(err => reject(err));
+                        } else {
+                            timer.check(t => this.parent.debug(dtag)(_('Still waiting %name% result after %duration%...',
+                                {name: this.getTitle(true), duration: t.elapsedTime})));
+                            setTimeout(() => f(), this.parent.loopdelay);
+                        }
+                    });
+                }
+                f();
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    /**
+     * Query optional component parts.
+     *
+     * @returns {Promise<undefined>}
+     */
+    queryOptional() {
+        return new Promise((resolve, reject) => {
+            const parts = this._parts
+                .filter(a => a.selector && a.flag === SipdComponent.OPTIONAL);
+            if (parts.length) {
+                const q = new Queue([...parts], part => {
+                    this.queryPart(part)
+                        .then(found => {
+                            if (found) {
+                                part.el = this[`_${part.name.toLowerCase()}`] = found;
+                            }
+                            q.next();
+                        })
+                        .catch(err => reject(err));
+                });
+                q.once('done', () => resolve());
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    /**
+     * Query component part.
+     *
+     * @returns {Promise<?WebElement|WebElement[]>}
+     */
+    queryPart(part) {
+        return new Promise((resolve, reject) => {
+            if (Array.isArray(part.selector)) {
+                const res = [];
+                const q = new Queue([...part.selector], selector => {
+                    this._wrapper.findElements(By.xpath(selector))
+                        .then(found => {
+                            res.push(found.length ? found[0] : undefined);
+                            q.next();
+                        })
+                        .catch(err => reject(err));
+                });
+                q.once('done', () => resolve(res));
+            } else {
+                this._wrapper.findElements(By.xpath(part.selector))
+                    .then(found => resolve(found.length ? found[0] : undefined))
+                    .catch(err => reject(err));
+            }
+        });
+    }
+
+    /**
+     * Component name.
+     *
      * @returns {string}
      */
-    getTitle(withBase = false) {
-        return [
-            withBase ? SipdComponent.getName(this.constructor.name) : null,
-            this.options.name || this.options.title,
-        ].filter(Boolean).join(' ');
+    get name() {
+        return SipdComponent.getName(this.constructor.name);
     }
 
     /**
@@ -143,6 +314,9 @@ class SipdComponent {
     static getName(name) {
         return name.substr(13);
     }
+
+    static get REQUIRED() { return 1 }
+    static get OPTIONAL() { return 2 }
 }
 
 module.exports = SipdComponent;
