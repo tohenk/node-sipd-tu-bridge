@@ -65,7 +65,7 @@ class SipdQuerySpp extends SipdQueryBase {
             this.placeholder = 'untuk';
             this.filter.push(untuk);
             if (!this.options.skipDate) {
-                this.diffs.push(['tgl', tgl]);
+                this.diffs.push(['tgl', tgl, , this.options.minDate ? SipdUtil.GEQ : SipdUtil.EQ]);
             }
             this.diffs.push(
                 ['untuk', SipdUtil.getSafeStr(untuk)],

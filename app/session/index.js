@@ -23,7 +23,6 @@
  */
 
 const fs = require('fs');
-const path = require('path');
 const Queue = require('@ntlab/work/queue');
 const Sipd = require('../sipd');
 const SipdActivitySelector = require('./activity');
@@ -882,15 +881,8 @@ class SipdSession {
                 if (p > 0) {
                     vcond = value.substr(0, p);
                     value = value.substr(p + 1);
-                    const operators = {
-                        '!=': (a, b) => a !== b,
-                        '<=': (a, b) => a <= b,
-                        '>=': (a, b) => a >= b,
-                        '<':  (a, b) => a < b,
-                        '>':  (a, b) => a > b,
-                        '=':  (a, b) => a === b,
-                    }
-                    for (const [op, fn] of Object.entries(operators)) {
+                    const operators = Object.keys(SipdUtil.OPERATORS);
+                    for (const op of operators) {
                         if (vcond.indexOf(op) > 0) {
                             const params = vcond.split(op).map(p => p.trim());
                             for (let i = 0; i < params.length; i++) {
@@ -899,7 +891,7 @@ class SipdSession {
                                     params[i] = pvalue;
                                 }
                             }
-                            okay = fn(params[0], params[1]);
+                            okay = SipdUtil.cmp(op, params[0], params[1]);
                             break;
                         }
                     }

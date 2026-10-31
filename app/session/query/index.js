@@ -604,12 +604,12 @@ class SipdQueryState {
 
     constructor(columns, diffs) {
         this.states = [];
-        for (const [col, value, opt] of diffs) {
+        for (const [col, value, opt, op] of diffs) {
             const column = columns.find(column => column.name === col);
             if (column) {
                 const cmpFnOrRequired = opt !== undefined ? opt : true;
                 const cmpRef = typeof cmpFnOrRequired === 'function' ? value : column.asString(value);
-                this.states.push({column, ref: cmpRef, fnOrReq: cmpFnOrRequired});
+                this.states.push({column, ref: cmpRef, fnOrReq: cmpFnOrRequired, op: op ?? SipdUtil.EQ});
             }
         }
         /** @type {SipdQueryColumn} */
@@ -635,13 +635,9 @@ class SipdQueryState {
             if (state.fnOrReq) {
                 let okay;
                 if (typeof state.fnOrReq === 'function') {
-                    // 0 -> ref value
-                    // 1 -> row value
-                    okay = state.fnOrReq(val, state.ref);
-                } else if (typeof state.ref === 'string' && typeof val === 'string') {
-                    okay = state.ref.toLowerCase() === val.toLowerCase();
+                    okay = state.fnOrReq(val, state.ref, state.op);
                 } else {
-                    okay = state.ref == val;
+                    okay = SipdUtil.cmp(state.op, val, state.ref);
                 }
                 res.states.push(okay);
                 res.info.push(this.dbg(val, okay));

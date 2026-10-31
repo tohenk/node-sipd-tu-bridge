@@ -147,7 +147,7 @@ class SipdSppSession extends SipdRekananSession {
      * @returns {Promise<any>}
      */
     checkSpm(queue, options = null) {
-        return this.querySpm(queue, options || {});
+        return this.querySpm(queue, {minDate: true, ...(options || {})});
     }
 
     /**
@@ -176,10 +176,7 @@ class SipdSppSession extends SipdRekananSession {
      * @returns {Promise<any>}
      */
     querySp2d(queue, options) {
-        options = {
-            skipDate: true,
-            ...(options || {}),
-        }
+        options = {minDate: true, ...(options || {})};
         const fTransfered = options.flags === undefined ? true : (options.flags & this.TRANSFERED) === this.TRANSFERED;
         return this.works([
             [w => this.doQuery(new SipdQuerySp2d(this.sipd, queue, {...options, jenis: 'Sudah Ditransfer'}), {match: options.exist}),

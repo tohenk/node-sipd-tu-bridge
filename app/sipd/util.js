@@ -32,6 +32,21 @@ const _ = require('@ntlab/ntlib/translator');
 class SipdUtil {
 
     /**
+     * Perform simple comparison.
+     *
+     * @param {string} op Operator
+     * @param {any} a Left value
+     * @param {any} b Right value
+     * @returns {boolean}
+     */
+    static cmp(op, a, b) {
+        if (this.OPERATORS[op] === undefined) {
+            throw new Error(`Compare operator ${op} should be in ${Object.keys(this.OPERATORS).join(', ')}!`);
+        }
+        return this.OPERATORS[op](a, b);
+    }
+
+    /**
      * Escape single or double quote for xpath expression.
      *
      * @param {string} s String expression
@@ -527,6 +542,23 @@ class SipdUtil {
             }
         }
         return res;
+    }
+
+    static get EQ()  { return '='  }
+    static get NEQ() { return '!=' }
+    static get LE()  { return '<'  }
+    static get LEQ() { return '<=' }
+    static get GE()  { return '>'  }
+    static get GEQ() { return '>=' }
+    static get OPERATORS() {
+        return {
+            [this.NEQ]: (a, b) => a !== b,
+            [this.LEQ]: (a, b) => a <= b,
+            [this.GEQ]: (a, b) => a >= b,
+            [this.LE]:  (a, b) => a < b,
+            [this.GE]:  (a, b) => a > b,
+            [this.EQ]:  (a, b) => a === b,
+        }
     }
 }
 
