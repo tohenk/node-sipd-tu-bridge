@@ -129,7 +129,7 @@ class SipdComponent {
      */
     getTitle(withBase = false) {
         return [
-            withBase ? SipdComponent.getName() : null,
+            withBase ? SipdComponent.getName(this.constructor.name) : null,
             this.options.name || this.options.title,
         ].filter(Boolean).join(' ');
     }
