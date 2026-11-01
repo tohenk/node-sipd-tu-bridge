@@ -80,6 +80,14 @@ class SipdAbortError extends SipdError {
 class SipdOperationError extends SipdError {
 }
 
+/**
+ * An error to indicate the data sought is not found.
+ *
+ * @author Toha <tohenk@yahoo.com>
+ */
+class SipdNotFoundError extends SipdError {
+}
+
 module.exports = {
     SipdError,
     SipdRestartError,
@@ -88,4 +96,5 @@ module.exports = {
     SipdStopError,
     SipdAbortError,
     SipdOperationError,
+    SipdNotFoundError,
 }

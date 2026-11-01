@@ -25,7 +25,7 @@
 const Queue = require('@ntlab/work/queue');
 const SipdPage = require('../../sipd/component/page');
 const SipdUtil = require('../../sipd/util');
-const { SipdRestartError, SipdStopError, SipdOperationError } = require('../../sipd/error');
+const { SipdNotFoundError, SipdOperationError, SipdRestartError, SipdStopError } = require('../../sipd/error');
 const { SipdQuery, SipdQueryColumn } = require('../../sipd/query');
 const { By, WebElement } = require('selenium-webdriver');
 const _ = require('@ntlab/ntlib/translator');
@@ -486,6 +486,9 @@ class SipdQueryBase extends SipdQuery {
                     ])
                     .then(() => resolve())
                     .catch(err => {
+                        if (err instanceof SipdNotFoundError) {
+                            return resolve();
+                        }
                         if (err instanceof SipdRestartError) {
                             options.states.row++;
                             if (options.states.row > options.states.rows) {
@@ -495,7 +498,7 @@ class SipdQueryBase extends SipdQuery {
                                     return resolve();
                                 }
                             }
-                            setTimeout(() => f(), 0);
+                            setTimeout(() => f(), this.parent.loopdelay);
                         } else {
                             reject(err);
                         }

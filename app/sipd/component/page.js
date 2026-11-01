@@ -29,7 +29,7 @@ const SipdComponentDataRow = require('./datarow');
 const SipdComponentFilter = require('./filter');
 const SipdComponentPager = require('./pager');
 const SipdUtil = require('../util');
-const { SipdOperationError, SipdStopError } = require('../error');
+const { SipdNotFoundError, SipdOperationError, SipdStopError } = require('../error');
 const { By } = require('selenium-webdriver');
 const _ = require('@ntlab/ntlib/translator');
 
@@ -151,14 +151,14 @@ class SipdComponentPage extends SipdComponent {
                         .then(() => {
                             if (this._datarow.isEmpty()) {
                                 if (this._filter.enabled && Object.keys(this._filter.applied).length) {
-                                    reject(SipdOperationError.create('Unable to find matched %title% row: %filter%',
+                                    reject(SipdNotFoundError.create('Unable to find matched %title% row: %filter%',
                                         {title: this._title, filter: SipdUtil.kvStr(Object.entries(this._filter.applied))}));
                                 } else {
-                                    reject(SipdOperationError.create('Page %page% of %title% returns empty instead of rows',
+                                    reject(SipdNotFoundError.create('Page %page% of %title% returns empty instead of rows',
                                         {title: this._title, page}));
                                 }
                             } else {
-                                q.next()
+                                q.next();
                             }
                         })
                         .catch(err => {

@@ -162,10 +162,10 @@ class SipdComponentPager extends SipdComponent {
                     [w => Promise.resolve(w.getRes(1) ? true : false)],
                 ])
                 .then(res => {
-                    if (res) {
+                    if (res || this._pager === undefined) {
                         resolve();
                     } else {
-                        f();
+                        setTimeout(() => f(), this.parent.loopdelay);
                     }
                 })
                 .catch(err => reject(err));
