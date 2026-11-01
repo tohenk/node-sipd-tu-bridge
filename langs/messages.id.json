@@ -138,6 +138,7 @@
   ["User %username% is not found", "User %username% tidak ditemukan"],
   ["No opened window", "Tidak ada window terbuka"],
   ["Cloudflare: %status% (%message%)", "Cloudflare: %status% (%message%)"],
+  ["RateLimit: %ip% is hit by rate limiting", "RateLimit: %ip% sedang dibatasi"],
   ["SIPD Penatausahaan is in maintenance", "SIPD Penatausahaan sedang dalam pemeliharaan"],
   ["Window has been closed", "Window sudah ditutup"],
   ["Not logged in", "Belum login"],

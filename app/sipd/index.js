@@ -582,6 +582,21 @@ class Sipd extends WebRobot {
     }
 
     /**
+     * Check if SIPD Penatausahaan is hit with rate limiting?
+     *
+     * @returns {Promise<undefined>}
+     */
+    isRateLimited() {
+        return this.works([
+            [w => this.driver.getTitle()],
+            [w => this.getText([By.id('ip')]), w => w.getRes(0)?.includes('RateLimit')],
+            [w => Promise.reject(SipdOperationError.create('RateLimit: %ip% is hit by rate limiting',
+                {ip: w.getRes(1)[0]?.substr(w.getRes(1)[0]?.indexOf(':'))})),
+                w => w.getRes(0)?.includes('RateLimit')],
+        ]);
+    }
+
+    /**
      * Check if in maintenance mode?
      *
      * @returns {Promise<any>}
@@ -592,6 +607,41 @@ class Sipd extends WebRobot {
             [w => this.waitForPresence(By.xpath('//div[contains(@class,"chakra-modal__body")]/*/*[contains(text(),"Pemeliharaan")]'), {timeout: this.delay})],
             [w => Promise.reject(SipdOperationError.create('SIPD Penatausahaan is in maintenance')), w => w.getRes(0) || w.getRes(1)],
         ]);
+    }
+
+    /**
+     * Check if page is need reloading?
+     *
+     * @param {number} restartCount  Number of restart try
+     * @returns {Promise<any>}
+     */
+    isNeedReloading(restartCount = 10) {
+        return new Promise((resolve, reject) => {
+            let count = 0;
+            const f = () => {
+                let restart = false;
+                this.works([
+                    [w => this.waitForPresence(By.xpath('//div[@class="css-fnE_f8jr-4g"]'), {timeout: this.delay})],
+                    [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]')), w => w.getRes(0)],
+                    [w => w.getRes(1)[0].click(), w => w.getRes(0) && w.getRes(1).length],
+                    [w => Promise.resolve(count++), w => w.getRes(0) && w.getRes(1).length],
+                    [w => Promise.resolve(restart = true), w => w.getRes(0) && w.getRes(1).length],
+                ])
+                .then(() => {
+                    if (restart) {
+                        if (count > restartCount) {
+                            reject(SipdOperationError.create('Too many retry while opening SIPD Penatausahaan'));
+                        } else {
+                            setTimeout(() => f(), this.delay);
+                        }
+                    } else {
+                        resolve();
+                    }
+                })
+                .catch(err => reject(err));
+            }
+            f();
+        });
     }
 
     /**
@@ -606,6 +656,8 @@ class Sipd extends WebRobot {
             [w => Promise.reject(SipdOperationError.create('Window has been closed')),
                 w => err && (err instanceof error.NoSuchWindowError || err instanceof error.NoSuchSessionError)],
             [w => this.isWafError()],
+            [w => this.isRateLimited()],
+            [w => this.isNeedReloading()],
             [w => this.isInMaintenance()],
             [w => this.isLoggedIn(false), w => secured],
             [w => Promise.reject(SipdOperationError.create('Not logged in')), w => secured && !w.getRes(3)],
@@ -811,48 +863,12 @@ class Sipd extends WebRobot {
     }
 
     /**
-     * Wait for SIPD Penatausahaan page to be fully loaded.
+     * Wait for SIPD Penatausahaan page for initial page load to complete.
      *
-     * @param {number} reload Force reload page in second
-     * @param {number} restartCount Number of page restart to try before throwing error
      * @returns {Promise<any>}
      */
-    waitPage(reload = 60, restartCount = 10) {
-        return new Promise((resolve, reject) => {
-            let count = 0;
-            const f = () => {
-                let restart = false;
-                this.works([
-                    [w => Promise.reject(SipdOperationError.create('Browser session has been closed while opening SIPD Penatausahaan')),
-                        w => reload > 0 && !this.driver],
-                    [w => Promise.resolve(this.tmo = setTimeout(() => this.driver.navigate().refresh(), reload * 1000)),
-                        w => reload > 0],
-                    [w => this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0})],
-                    [w => this.waitForPresence(By.xpath('//div[@class="css-fnE_f8jr-4g"]'), {timeout: this.delay})],
-                    [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]')), w => w.getRes(3)],
-                    [w => w.getRes(4)[0].click(), w => w.getRes(3) && w.getRes(4).length],
-                    [w => Promise.resolve(count++), w => w.getRes(3) && w.getRes(4).length],
-                    [w => Promise.resolve(restart = true), w => w.getRes(3) && w.getRes(4).length],
-                ])
-                .then(() => {
-                    if (this.tmo !== undefined) {
-                        clearTimeout(this.tmo);
-                        delete this.tmo;
-                    }
-                    if (restart) {
-                        if (count > restartCount) {
-                            reject(SipdOperationError.create('Too many retry while opening SIPD Penatausahaan'));
-                        } else {
-                            setTimeout(() => f(), this.delay);
-                        }
-                    } else {
-                        resolve();
-                    }
-                })
-                .catch(err => reject(err));
-            }
-            f();
-        });
+    waitPage() {
+        return this.waitForPresence(By.id('cw-wwwig-gw'), {presence: false, timeout: 0});
     }
 
     /**
