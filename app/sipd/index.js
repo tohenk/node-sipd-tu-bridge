@@ -838,25 +838,48 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     clickExpanded(el, state = true) {
-        let click = true;
         if (typeof state === 'boolean') {
             state = true === state ? 'true' : 'false';
         }
         return new Promise((resolve, reject) => {
             const f = () => {
                 this.works([
-                    [w => this.clickWait(el), w => click],
                     [w => el.getAttribute('aria-expanded')],
+                    [w => this.waitEnabled(el), w => w.getRes(0) !== state],
+                    [w => this.clickWait(el), w => w.getRes(0) !== state],
+                    [w => el.getAttribute('aria-expanded'), w => w.getRes(0) !== state],
                 ])
                 .then(res => {
-                    click = false;
-                    if (res === state) {
+                    if (res === state || res === null) {
                         resolve();
                     } else {
                         setTimeout(() => f(), this.loopdelay);
                     }
                 })
                 .catch(err => reject(err));
+            }
+            f();
+        });
+    }
+
+    /**
+     * Wait an element for enabled state.
+     *
+     * @param {WebElement} el Element
+     * @returns {Promise<undefined>}
+     */
+    waitEnabled(el) {
+        return new Promise((resolve, reject) => {
+            const f = () => {
+                el.isEnabled()
+                    .then(enabled => {
+                        if (!enabled) {
+                            setTimeout(() => f(), this.loopdelay);
+                        } else {
+                            resolve();
+                        }
+                    })
+                    .catch(err => reject(err));
             }
             f();
         });
@@ -1163,9 +1186,8 @@ class Sipd extends WebRobot {
         return new Promise((resolve, reject) => {
             this.works([
                 [w => parent.findElements(By.xpath(selector))],
-                [w => w.getRes(0)[0].getAttribute('aria-expanded'), w => w.getRes(0).length],
-                [w => w.getRes(0)[0].click(), w => w.getRes(0).length && w.getRes(1) !== 'true'],
-                [w => this.sleep(this.opdelay), w => w.getRes(0).length && w.getRes(1) !== 'true'],
+                [w => this.waitEnabled(w.getRes(0)[0]), w => w.getRes(0).length],
+                [w => this.clickExpanded(w.getRes(0)[0]), w => w.getRes(0).length],
                 [w => Promise.resolve(res = {el: w.getRes(0)[0]}), w => w.getRes(0).length],
                 [w => Promise.resolve(this.debug(dtag)(_('Menu level %level% %selector%', {level, selector}))), w => res && logged],
             ])
@@ -1210,26 +1232,11 @@ class Sipd extends WebRobot {
         return new Promise((resolve, reject) => {
             this.works([
                 [w => this.findElements(By.xpath(selector))],
-                [w => new Promise((resolve, reject) => {
-                    const el = w.getRes(0)[0];
-                    const f = () => {
-                        el.getAttribute('disabled')
-                            .then(res => {
-                                if (res) {
-                                    setTimeout(() => f(), this.loopdelay);
-                                } else {
-                                    resolve();
-                                }
-                            })
-                            .catch(err => reject(err));
-                    }
-                    f();
-                }), w => w.getRes(0).length],
-                [w => w.getRes(0)[0].click(), w => w.getRes(0).length],
-                [w => this.sleep(this.opdelay), w => w.getRes(0).length],
+                [w => this.waitEnabled(w.getRes(0)[0]), w => w.getRes(0).length],
+                [w => this.clickWait(w.getRes(0)[0]), w => w.getRes(0).length],
                 [w => this.isLoggedIn(false), w => w.getRes(0).length === 0],
-                [w => Promise.resolve(res = w.getRes(0)[0]), w => w.getRes(0).length && w.getRes(4)],
-                [w => Promise.reject(_('session logged-out')), w => w.getRes(0).length === 0 && !w.getRes(4)],
+                [w => Promise.resolve(res = w.getRes(0)[0]), w => w.getRes(0).length && w.getRes(3)],
+                [w => Promise.reject(_('session logged-out')), w => w.getRes(0).length === 0 && !w.getRes(3)],
             ])
             .then(() => resolve(res))
             .catch(err => reject(SipdOperationError.create('Unable to navigate to sub page %page%: %message%',
