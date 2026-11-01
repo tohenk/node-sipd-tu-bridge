@@ -151,18 +151,17 @@ class SipdComponentPager extends SipdComponent {
             const f = () => {
                 this.works([
                     [w => this.listPages(SipdComponentPager.SKIP_PREV | SipdComponentPager.SKIP_NEXT)],
-                    [w => Promise.resolve(w.getRes(0).find(p => p.page === page.toString()))],
-                    [w => w.getRes(1).el.click(), w => w.getRes(1)],
-                    [w => this.parent.waitPageLoad(), w => w.getRes(1)],
-                    [w => this.onpage(), w => w.getRes(1) && typeof this.onpage === 'function'],
+                    [w => Promise.resolve(w.getRes(0).find(p => p.page === page.toString())?.el)],
                     [w => Promise.resolve(jumpPage(w.getRes(0))), w => !w.getRes(1)],
-                    [w => w.getRes(5).click(), w => !w.getRes(1)],
-                    [w => this.parent.waitPageLoad(), w => !w.getRes(1)],
-                    [w => this.setup(), w => !w.getRes(1)],
-                    [w => Promise.resolve(w.getRes(1) ? true : false)],
+                    [w => Promise.resolve(w.getRes(1) || w.getRes(2))],
+                    [w => w.getRes(3).click(), w => w.getRes(3)],
+                    [w => this.parent.waitPageLoad(), w => w.getRes(3)],
+                    [w => this.onpage(), w => w.getRes(3) && typeof this.onpage === 'function'],
+                    [w => this.getPage(), w => w.getRes(3) && this._pager],
+                    [w => Promise.resolve(this._pager === undefined || w.getRes(7) == page ? true : false)],
                 ])
                 .then(res => {
-                    if (res || this._pager === undefined) {
+                    if (res) {
                         resolve();
                     } else {
                         setTimeout(() => f(), this.parent.loopdelay);
