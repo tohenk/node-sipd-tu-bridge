@@ -284,7 +284,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     clearMessages() {
-        return this.driver.executeScript('clearSipdMessages()');
+        return this.driver.executeScript('SipdBridge?.clearMessages()');
     }
 
     /**
@@ -293,7 +293,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<string[]>}
      */
     getMessages() {
-        return this.driver.executeScript('return getSipdMessages()');
+        return this.driver.executeScript('return SipdBridge?.getMessages()');
     }
 
     /**
@@ -302,7 +302,7 @@ class Sipd extends WebRobot {
      * @returns {Promise<string>}
      */
     getLastMessage() {
-        return this.driver.executeScript('return getSipdLastMessage()');
+        return this.driver.executeScript('return SipdBridge?.getLastMessage()');
     }
 
     /**
@@ -574,7 +574,7 @@ class Sipd extends WebRobot {
      */
     isWafError() {
         return this.works([
-            [w => this.waitForPresence(By.xpath('//div[@id="cf-error-details"]/header/h1'), {timeout: this.delay})],
+            [w => this.waitForPresence(By.xpath('//div[@id="cf-error-details"]/header/h1'), {timeout: this.wait})],
             [w => this.getText([By.xpath('.//span[@class="inline-block"]'), By.xpath('.//span[@class="code-label"]')], w.getRes(0)), w => w.getRes(0)],
             [w => Promise.reject(SipdOperationError.create('Cloudflare: %status% (%message%)',
                 {status: w.getRes(1)[0], message: w.getRes(1)[1]})), w => w.getRes(0)],
@@ -597,19 +597,6 @@ class Sipd extends WebRobot {
     }
 
     /**
-     * Check if in maintenance mode?
-     *
-     * @returns {Promise<any>}
-     */
-    isInMaintenance() {
-        return this.works([
-            [w => this.waitForPresence(By.xpath('//h1[contains(@class,"css-n-ca-jf-qawac") and text()="Maintenance"]'), {timeout: this.delay})],
-            [w => this.waitForPresence(By.xpath('//div[contains(@class,"chakra-modal__body")]/*/*[contains(text(),"Pemeliharaan")]'), {timeout: this.delay})],
-            [w => Promise.reject(SipdOperationError.create('SIPD Penatausahaan is in maintenance')), w => w.getRes(0) || w.getRes(1)],
-        ]);
-    }
-
-    /**
      * Check if page is need reloading?
      *
      * @param {number} restartCount  Number of restart try
@@ -621,7 +608,7 @@ class Sipd extends WebRobot {
             const f = () => {
                 let restart = false;
                 this.works([
-                    [w => this.waitForPresence(By.xpath('//div[@class="css-fnE_f8jr-4g"]'), {timeout: this.delay})],
+                    [w => this.waitForPresence(By.xpath('//div[@class="css-fnE_f8jr-4g"]'), {timeout: this.wait})],
                     [w => this.findElements(By.xpath('//button[text()="Muat Ulang Halaman"]')), w => w.getRes(0)],
                     [w => w.getRes(1)[0].click(), w => w.getRes(0) && w.getRes(1).length],
                     [w => Promise.resolve(count++), w => w.getRes(0) && w.getRes(1).length],
@@ -632,7 +619,7 @@ class Sipd extends WebRobot {
                         if (count > restartCount) {
                             reject(SipdOperationError.create('Too many retry while opening SIPD Penatausahaan'));
                         } else {
-                            setTimeout(() => f(), this.delay);
+                            setTimeout(() => f(), this.opdelay);
                         }
                     } else {
                         resolve();
@@ -642,6 +629,19 @@ class Sipd extends WebRobot {
             }
             f();
         });
+    }
+
+    /**
+     * Check if in maintenance mode?
+     *
+     * @returns {Promise<any>}
+     */
+    isInMaintenance() {
+        return this.works([
+            [w => this.waitForPresence(By.xpath('//h1[contains(@class,"css-n-ca-jf-qawac") and text()="Maintenance"]'), {timeout: this.wait})],
+            [w => this.waitForPresence(By.xpath('//div[contains(@class,"chakra-modal__body")]/*/*[contains(text(),"Pemeliharaan")]'), {timeout: this.wait})],
+            [w => Promise.reject(SipdOperationError.create('SIPD Penatausahaan is in maintenance')), w => w.getRes(0) || w.getRes(1)],
+        ]);
     }
 
     /**
@@ -769,7 +769,7 @@ class Sipd extends WebRobot {
         return new Promise((resolve, reject) => {
             const q = new Queue([...(Array.isArray(elements) ? elements : [elements])], el => {
                 this.works([
-                    [w => this.waitForPresence(el, {timeout: this.delay})],
+                    [w => this.waitForPresence(el, {timeout: this.wait})],
                     [w => this.click(clicker), w => w.getRes(0)],
                 ])
                 .then(res => res ? q.done() : q.next())
@@ -1082,7 +1082,7 @@ class Sipd extends WebRobot {
     observeChildren({data, options}) {
         if (!options.observed && data.el) {
             options.observed = true;
-            return this.driver.executeScript('_xchildObserve(arguments[0], arguments[1])', data.el, options.classname);
+            return this.driver.executeScript('SipdBridge?.observeChild(arguments[0], arguments[1])', data.el, options.classname);
         } else {
             return Promise.resolve();
         }
@@ -1097,7 +1097,7 @@ class Sipd extends WebRobot {
         if (options.observed && options.classname) {
             const state = _(options.presence ? 'present' : 'gone');
             return this.works([
-                [w => this.driver.executeScript('return getObservedChildren()')],
+                [w => this.driver.executeScript('return SipdBridge?.getObservedChildren()')],
                 [w => Promise.resolve(w.getRes(0).state && w.getRes(0).state[options.classname])],
                 [w => Promise.resolve(this.debug(dtag)(_('Wait for %state% %target% is now fulfilled', {state, target}))),
                     w => w.getRes(1)],
@@ -1345,88 +1345,91 @@ class Sipd extends WebRobot {
             'Y3JlYXRlRWxlbWVudCA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQ7DQogICAgZG9jdW1lbnQuY3JlYXRl' +
             'RWxlbWVudCA9IGZ1bmN0aW9uKC4uLmFyZ3MpIHsNCiAgICAgICAgaWYgKGFyZ3NbMF0gPT09ICdpZnJh' +
             'bWUnKSB7DQogICAgICAgICAgICByZXR1cm47DQogICAgICAgIH0NCiAgICAgICAgcmV0dXJuIGRvY3Vt' +
-            'ZW50Ll9jcmVhdGVFbGVtZW50KC4uLmFyZ3MpOw0KICAgIH0NCn0NCmlmICh3aW5kb3cuX3hoZWxwZXIg' +
-            'PT09IHVuZGVmaW5lZCkgew0KICAgIHdpbmRvdy5feHN0YXRlcyA9IHt9Ow0KICAgIHdpbmRvdy5feGhl' +
-            'bHBlciA9IFsNCiAgICAgICAgew0KICAgICAgICAgICAgc2VsZWN0b3I6ICcuY3NzLWFmLWVnLWt3M2cy' +
-            'MScsDQogICAgICAgICAgICBjYWxsYmFjayhlbCkgew0KICAgICAgICAgICAgICAgIHdpbmRvdy5feHN0' +
-            'YXRlcy5sb2FkaW5nID0gZWwgPyB0cnVlIDogZmFsc2U7DQogICAgICAgICAgICAgICAgcmV0dXJuIHdp' +
-            'bmRvdy5feHN0YXRlcy5sb2FkaW5nOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9LA0KICAgICAgICB7' +
-            'DQogICAgICAgICAgICBzZWxlY3RvcjogJ1tkYXRhLXJodC10b2FzdGVyXScsDQogICAgICAgICAgICBj' +
-            'YWxsYmFjayhlbCkgew0KICAgICAgICAgICAgICAgIHdpbmRvdy5feGxvZ01lc3NhZ2UoZWwpOw0KICAg' +
-            'ICAgICAgICAgICAgIHJldHVybiBmYWxzZTsNCiAgICAgICAgICAgIH0NCiAgICAgICAgfQ0KICAgIF07' +
-            'DQogICAgd2luZG93Ll94b2JzZXJ2ZSA9IChlbCwgY2IpID0+IHsNCiAgICAgICAgaWYgKGVsIGluc3Rh' +
-            'bmNlb2YgTm9kZSkgew0KICAgICAgICAgICAgY29uc3Qgb2JzZXJ2ZXIgPSBuZXcgTXV0YXRpb25PYnNl' +
-            'cnZlcihtdXRhdGlvbnMgPT4gew0KICAgICAgICAgICAgICAgIG11dGF0aW9ucy5mb3JFYWNoKG11dGF0' +
-            'aW9uID0+IHsNCiAgICAgICAgICAgICAgICAgICAgaWYgKG11dGF0aW9uLnR5cGUgPT09ICdjaGlsZExp' +
-            'c3QnICYmIG11dGF0aW9uLnRhcmdldCA9PT0gZWwpIHsNCiAgICAgICAgICAgICAgICAgICAgICAgIGNi' +
-            'KG11dGF0aW9uKTsNCiAgICAgICAgICAgICAgICAgICAgfQ0KICAgICAgICAgICAgICAgIH0pOw0KICAg' +
-            'ICAgICAgICAgfSk7DQogICAgICAgICAgICBvYnNlcnZlci5vYnNlcnZlKGVsLCB7YXR0cmlidXRlczog' +
-            'ZmFsc2UsIGNoaWxkTGlzdDogdHJ1ZSwgc3VidHJlZTogdHJ1ZX0pOw0KICAgICAgICAgICAgcmV0dXJu' +
-            'IG9ic2VydmVyOw0KICAgICAgICB9DQogICAgfQ0KICAgIHdpbmRvdy5feGxvZ01lc3NhZ2UgPSBlbCA9' +
-            'PiB7DQogICAgICAgIGlmIChlbCkgew0KICAgICAgICAgICAgd2luZG93Ll94b2JzZXJ2ZShlbCwgKCkg' +
-            'PT4gew0KICAgICAgICAgICAgICAgIGlmICh3aW5kb3cuX3htZXNzYWdlcyA9PT0gdW5kZWZpbmVkKSB7' +
-            'DQogICAgICAgICAgICAgICAgICAgIHdpbmRvdy5feG1lc3NhZ2VzID0gW107DQogICAgICAgICAgICAg' +
-            'ICAgfQ0KICAgICAgICAgICAgICAgIGNvbnN0IHN0YXR1cyA9IGVsLnF1ZXJ5U2VsZWN0b3IoJ2Rpdlty' +
-            'b2xlPSJzdGF0dXMiXScpOw0KICAgICAgICAgICAgICAgIGlmIChzdGF0dXMpIHsNCiAgICAgICAgICAg' +
-            'ICAgICAgICAgd2luZG93Ll94bWVzc2FnZXMucHVzaChzdGF0dXMudGV4dENvbnRlbnQpOw0KICAgICAg' +
-            'ICAgICAgICAgICAgICBlbC5yZW1vdmUoKTsNCiAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICB9' +
-            'KTsNCiAgICAgICAgfQ0KICAgIH0NCiAgICB3aW5kb3cuX3hsb2cgPSBlbCA9PiB7DQogICAgICAgIGlm' +
-            'IChlbCkgew0KICAgICAgICAgICAgd2luZG93Ll94b2JzZXJ2ZShlbCwgKCkgPT4gY29uc29sZS5sb2co' +
-            'ZWwpKTsNCiAgICAgICAgfQ0KICAgIH0NCiAgICB3aW5kb3cuX3hjaGlsZE9ic2VydmUgPSAoZWwsIGNs' +
-            'YXNzbmFtZSkgPT4gew0KICAgICAgICBpZiAoZWwpIHsNCiAgICAgICAgICAgIHdpbmRvdy5feG9ic2Vy' +
-            'dmVzID0ge307DQogICAgICAgICAgICB3aW5kb3cuX3hvYnNlcnZlKGVsLCBtdXRhdGlvbiA9PiB7DQog' +
-            'ICAgICAgICAgICAgICAgaWYgKCF3aW5kb3cuX3hvYnNlcnZlcy5zdGF0ZSkgew0KICAgICAgICAgICAg' +
-            'ICAgICAgICB3aW5kb3cuX3hvYnNlcnZlcy5zdGF0ZSA9IHt9Ow0KICAgICAgICAgICAgICAgIH0NCiAg' +
-            'ICAgICAgICAgICAgICBpZiAoIXdpbmRvdy5feG9ic2VydmVzLmFkZGVkKSB7DQogICAgICAgICAgICAg' +
-            'ICAgICAgIHdpbmRvdy5feG9ic2VydmVzLmFkZGVkID0gW107DQogICAgICAgICAgICAgICAgfQ0KICAg' +
-            'ICAgICAgICAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSB7DQogICAg' +
-            'ICAgICAgICAgICAgICAgIGlmICghd2luZG93Ll94b2JzZXJ2ZXMuYWRkZWQuaW5jbHVkZXMobm9kZS5v' +
-            'dXRlckhUTUwpKSB7DQogICAgICAgICAgICAgICAgICAgICAgICB3aW5kb3cuX3hvYnNlcnZlcy5hZGRl' +
-            'ZC5wdXNoKG5vZGUub3V0ZXJIVE1MKTsNCiAgICAgICAgICAgICAgICAgICAgfQ0KICAgICAgICAgICAg' +
-            'ICAgICAgICBpZiAobm9kZS5jbGFzc0xpc3QgJiYgY2xhc3NuYW1lKSB7DQogICAgICAgICAgICAgICAg' +
-            'ICAgICAgICBjb25zdCBjbGFzc2VzID0gQXJyYXkuZnJvbShub2RlLmNsYXNzTGlzdCk7DQogICAgICAg' +
-            'ICAgICAgICAgICAgICAgICBpZiAoY2xhc3Nlcy5pbmNsdWRlcyhjbGFzc25hbWUpKSB7DQogICAgICAg' +
-            'ICAgICAgICAgICAgICAgICAgICAgd2luZG93Ll94b2JzZXJ2ZXMuc3RhdGVbY2xhc3NuYW1lXSA9ICdh' +
-            'ZGRlZCc7DQogICAgICAgICAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAgICAgIH0NCiAg' +
-            'ICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAgaWYgKCF3aW5kb3cuX3hvYnNlcnZlcy5yZW1v' +
-            'dmVkKSB7DQogICAgICAgICAgICAgICAgICAgIHdpbmRvdy5feG9ic2VydmVzLnJlbW92ZWQgPSBbXTsN' +
-            'CiAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAgZm9yIChjb25zdCBub2RlIG9mIG11dGF0' +
-            'aW9uLnJlbW92ZWROb2Rlcykgew0KICAgICAgICAgICAgICAgICAgICBpZiAoIXdpbmRvdy5feG9ic2Vy' +
-            'dmVzLnJlbW92ZWQuaW5jbHVkZXMobm9kZS5vdXRlckhUTUwpKSB7DQogICAgICAgICAgICAgICAgICAg' +
-            'ICAgICB3aW5kb3cuX3hvYnNlcnZlcy5yZW1vdmVkLnB1c2gobm9kZS5vdXRlckhUTUwpOw0KICAgICAg' +
-            'ICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAgICAgIGlmIChub2RlLmNsYXNzTGlzdCAmJiBj' +
-            'bGFzc25hbWUpIHsNCiAgICAgICAgICAgICAgICAgICAgICAgIGNvbnN0IGNsYXNzZXMgPSBBcnJheS5m' +
-            'cm9tKG5vZGUuY2xhc3NMaXN0KTsNCiAgICAgICAgICAgICAgICAgICAgICAgIGlmIChjbGFzc2VzLmlu' +
-            'Y2x1ZGVzKGNsYXNzbmFtZSkpIHsNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICB3aW5kb3cuX3hv' +
-            'YnNlcnZlcy5zdGF0ZVtjbGFzc25hbWVdID0gJ3JlbW92ZWQnOw0KICAgICAgICAgICAgICAgICAgICAg' +
-            'ICAgfQ0KICAgICAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAgfQ0KICAgICAgICAgICAg' +
-            'fSk7DQogICAgICAgIH0NCiAgICB9DQogICAgd2luZG93Ll94aW5pdCA9ICgpID0+IHsNCiAgICAgICAg' +
-            'Y29uc3QgeiA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdaRVVTJyk7DQogICAgICAgIGNvbnN0IG8g' +
-            'PSB3aW5kb3cuX3hvYnNlcnZlKHosICgpID0+IHsNCiAgICAgICAgICAgIGxldCBpZHggPSAwOw0KICAg' +
-            'ICAgICAgICAgd2hpbGUgKHRydWUpIHsNCiAgICAgICAgICAgICAgICBpZiAoaWR4ID09PSB3aW5kb3cu' +
-            'X3hoZWxwZXIubGVuZ3RoKSB7DQogICAgICAgICAgICAgICAgICAgIGJyZWFrOw0KICAgICAgICAgICAg' +
-            'ICAgIH0NCiAgICAgICAgICAgICAgICBjb25zdCB4aCA9IHdpbmRvdy5feGhlbHBlcltpZHhdOw0KICAg' +
-            'ICAgICAgICAgICAgIGNvbnN0IGVsID0gZG9jdW1lbnQucXVlcnlTZWxlY3Rvcih4aC5zZWxlY3Rvcik7' +
-            'DQogICAgICAgICAgICAgICAgaWYgKHR5cGVvZiB4aC5jYWxsYmFjayA9PT0gJ2Z1bmN0aW9uJykgew0K' +
-            'ICAgICAgICAgICAgICAgICAgICBjb25zdCByZXR2YWwgPSB4aC5jYWxsYmFjayhlbCk7DQogICAgICAg' +
-            'ICAgICAgICAgICAgIGlmIChyZXR2YWwpIHsNCiAgICAgICAgICAgICAgICAgICAgICAgIGlkeCsrOw0K' +
-            'ICAgICAgICAgICAgICAgICAgICB9IGVsc2Ugew0KICAgICAgICAgICAgICAgICAgICAgICAgd2luZG93' +
-            'Ll94aGVscGVyLnNwbGljZShpZHgsIDEpOw0KICAgICAgICAgICAgICAgICAgICB9DQogICAgICAgICAg' +
-            'ICAgICAgfSBlbHNlIHsNCiAgICAgICAgICAgICAgICAgICAgaWR4Kys7DQogICAgICAgICAgICAgICAg' +
-            'fQ0KICAgICAgICAgICAgfQ0KICAgICAgICAgICAgaWYgKHdpbmRvdy5feGhlbHBlci5sZW5ndGggPT09' +
-            'IDApIHsNCiAgICAgICAgICAgICAgICBvLmRpc2Nvbm5lY3QoKTsNCiAgICAgICAgICAgIH0NCiAgICAg' +
-            'ICAgfSk7DQogICAgfQ0KICAgIHdpbmRvdy5pc1NpcGRMb2FkaW5nID0gKCkgPT4gew0KICAgICAgICBy' +
-            'ZXR1cm4gd2luZG93Ll94c3RhdGVzICYmIHdpbmRvdy5feHN0YXRlcy5sb2FkaW5nICE9PSB1bmRlZmlu' +
-            'ZWQgPyB3aW5kb3cuX3hzdGF0ZXMubG9hZGluZyA6IHRydWU7DQogICAgfQ0KICAgIHdpbmRvdy5nZXRT' +
-            'aXBkTWVzc2FnZXMgPSAoKSA9PiB7DQogICAgICAgIHJldHVybiB3aW5kb3cuX3htZXNzYWdlcyA/IHdp' +
-            'bmRvdy5feG1lc3NhZ2VzIDogW107DQogICAgfQ0KICAgIHdpbmRvdy5nZXRTaXBkTGFzdE1lc3NhZ2Ug' +
-            'PSAoKSA9PiB7DQogICAgICAgIGNvbnN0IG1lc3NhZ2VzID0gd2luZG93LmdldFNpcGRNZXNzYWdlcygp' +
-            'Ow0KICAgICAgICByZXR1cm4gbWVzc2FnZXMubGVuZ3RoID8gbWVzc2FnZXNbbWVzc2FnZXMubGVuZ3Ro' +
-            'IC0gMV0gOiBudWxsOw0KICAgIH0NCiAgICB3aW5kb3cuY2xlYXJTaXBkTWVzc2FnZXMgPSAoKSA9PiB7' +
-            'DQogICAgICAgIHdpbmRvdy5feG1lc3NhZ2VzID0gW107DQogICAgfQ0KICAgIHdpbmRvdy5nZXRPYnNl' +
-            'cnZlZENoaWxkcmVuID0gKCkgPT4gew0KICAgICAgICByZXR1cm4gd2luZG93Ll94b2JzZXJ2ZXMgPz8g' +
-            'e307DQogICAgfQ0KICAgIGFkZEV2ZW50TGlzdGVuZXIoJ2xvYWQnLCBlID0+IHdpbmRvdy5feGluaXQo' +
-            'KSk7DQp9DQo='
+            'ZW50Ll9jcmVhdGVFbGVtZW50KC4uLmFyZ3MpOw0KICAgIH0NCn0NCmNvbnN0IHIgPSB3aW5kb3cgfHwg' +
+            'Z2xvYmFsLCBuID0gJ1NpcGRCcmlkZ2UnLCBnID0gcltuXSAhPT0gdW5kZWZpbmVkID8gcltuXSA6IHJb' +
+            'bl0gPSB7DQogICAgc3RhdGVzOiB7aW5pdDogdHJ1ZX0sDQogICAgZGF0YTogWw0KICAgICAgICB7DQog' +
+            'ICAgICAgICAgICBzZWxlY3RvcjogJy5jc3MtZm5FX2Y4anItNGcnLA0KICAgICAgICAgICAgY2FsbGJh' +
+            'Y2soZWwpIHsNCiAgICAgICAgICAgICAgICByZXR1cm4gdGhpcy5zZXRTdGF0ZSgnZXJyb3InLCBlbCk7' +
+            'DQogICAgICAgICAgICB9DQogICAgICAgIH0sDQogICAgICAgIHsNCiAgICAgICAgICAgIHNlbGVjdG9y' +
+            'OiAnLmNzcy1hZi1lZy1rdzNnMjEnLA0KICAgICAgICAgICAgY2FsbGJhY2soZWwpIHsNCiAgICAgICAg' +
+            'ICAgICAgICByZXR1cm4gdGhpcy5zZXRTdGF0ZSgnbG9hZGluZycsIGVsKTsNCiAgICAgICAgICAgIH0N' +
+            'CiAgICAgICAgfSwNCiAgICAgICAgew0KICAgICAgICAgICAgc2VsZWN0b3I6ICdbZGF0YS1yaHQtdG9h' +
+            'c3Rlcl0nLA0KICAgICAgICAgICAgY2FsbGJhY2soZWwpIHsNCiAgICAgICAgICAgICAgICB0aGlzLmxv' +
+            'Z01lc3NhZ2UoZWwpOw0KICAgICAgICAgICAgICAgIHJldHVybiBmYWxzZTsNCiAgICAgICAgICAgIH0N' +
+            'CiAgICAgICAgfQ0KICAgIF0sDQogICAgc2V0U3RhdGUoc3RhdGUsIHZhbHVlKSB7DQogICAgICAgIHRo' +
+            'aXMuc3RhdGVzW3N0YXRlXSA9IHZhbHVlOw0KICAgICAgICByZXR1cm4gdmFsdWU7DQogICAgfSwNCiAg' +
+            'ICBvYnNlcnZlKGVsLCBjYikgew0KICAgICAgICBpZiAoZWwgaW5zdGFuY2VvZiBOb2RlKSB7DQogICAg' +
+            'ICAgICAgICBjb25zdCBvYnNlcnZlciA9IG5ldyBNdXRhdGlvbk9ic2VydmVyKG11dGF0aW9ucyA9PiB7' +
+            'DQogICAgICAgICAgICAgICAgbXV0YXRpb25zLmZvckVhY2gobXV0YXRpb24gPT4gew0KICAgICAgICAg' +
+            'ICAgICAgICAgICBpZiAobXV0YXRpb24udHlwZSA9PT0gJ2NoaWxkTGlzdCcgJiYgbXV0YXRpb24udGFy' +
+            'Z2V0ID09PSBlbCkgew0KICAgICAgICAgICAgICAgICAgICAgICAgY2IobXV0YXRpb24pOw0KICAgICAg' +
+            'ICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAgfSk7DQogICAgICAgICAgICB9KTsNCiAgICAg' +
+            'ICAgICAgIG9ic2VydmVyLm9ic2VydmUoZWwsIHthdHRyaWJ1dGVzOiBmYWxzZSwgY2hpbGRMaXN0OiB0' +
+            'cnVlLCBzdWJ0cmVlOiB0cnVlfSk7DQogICAgICAgICAgICByZXR1cm4gb2JzZXJ2ZXI7DQogICAgICAg' +
+            'IH0NCiAgICB9LA0KICAgIGxvZ01lc3NhZ2UoZWwpIHsNCiAgICAgICAgaWYgKGVsKSB7DQogICAgICAg' +
+            'ICAgICB0aGlzLm9ic2VydmUoZWwsICgpID0+IHsNCiAgICAgICAgICAgICAgICBpZiAodGhpcy5tZXNz' +
+            'YWdlcyA9PT0gdW5kZWZpbmVkKSB7DQogICAgICAgICAgICAgICAgICAgIHRoaXMubWVzc2FnZXMgPSBb' +
+            'XTsNCiAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAgY29uc3Qgc3RhdHVzID0gZWwucXVl' +
+            'cnlTZWxlY3RvcignZGl2W3JvbGU9InN0YXR1cyJdJyk7DQogICAgICAgICAgICAgICAgaWYgKHN0YXR1' +
+            'cykgew0KICAgICAgICAgICAgICAgICAgICB0aGlzLm1lc3NhZ2VzLnB1c2goc3RhdHVzLnRleHRDb250' +
+            'ZW50KTsNCiAgICAgICAgICAgICAgICAgICAgZWwucmVtb3ZlKCk7DQogICAgICAgICAgICAgICAgfQ0K' +
+            'ICAgICAgICAgICAgfSk7DQogICAgICAgIH0NCiAgICB9LA0KICAgIGxvZyhlbCkgew0KICAgICAgICBp' +
+            'ZiAoZWwpIHsNCiAgICAgICAgICAgIHRoaXMub2JzZXJ2ZShlbCwgKCkgPT4gY29uc29sZS5sb2coZWwp' +
+            'KTsNCiAgICAgICAgfQ0KICAgIH0sDQogICAgb2JzZXJ2ZUNoaWxkKGVsLCBjbGFzc25hbWUpIHsNCiAg' +
+            'ICAgICAgaWYgKGVsKSB7DQogICAgICAgICAgICB0aGlzLm9ic2VydmVzID0ge307DQogICAgICAgICAg' +
+            'ICB0aGlzLm9ic2VydmUoZWwsIG11dGF0aW9uID0+IHsNCiAgICAgICAgICAgICAgICBpZiAoIXRoaXMu' +
+            'b2JzZXJ2ZXMuc3RhdGUpIHsNCiAgICAgICAgICAgICAgICAgICAgdGhpcy5vYnNlcnZlcy5zdGF0ZSA9' +
+            'IHt9Ow0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICBpZiAoIXRoaXMub2JzZXJ2ZXMu' +
+            'YWRkZWQpIHsNCiAgICAgICAgICAgICAgICAgICAgdGhpcy5vYnNlcnZlcy5hZGRlZCA9IFtdOw0KICAg' +
+            'ICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICBmb3IgKGNvbnN0IG5vZGUgb2YgbXV0YXRpb24u' +
+            'YWRkZWROb2Rlcykgew0KICAgICAgICAgICAgICAgICAgICBpZiAoIXRoaXMub2JzZXJ2ZXMuYWRkZWQu' +
+            'aW5jbHVkZXMobm9kZS5vdXRlckhUTUwpKSB7DQogICAgICAgICAgICAgICAgICAgICAgICB0aGlzLm9i' +
+            'c2VydmVzLmFkZGVkLnB1c2gobm9kZS5vdXRlckhUTUwpOw0KICAgICAgICAgICAgICAgICAgICB9DQog' +
+            'ICAgICAgICAgICAgICAgICAgIGlmIChub2RlLmNsYXNzTGlzdCAmJiBjbGFzc25hbWUpIHsNCiAgICAg' +
+            'ICAgICAgICAgICAgICAgICAgIGNvbnN0IGNsYXNzZXMgPSBBcnJheS5mcm9tKG5vZGUuY2xhc3NMaXN0' +
+            'KTsNCiAgICAgICAgICAgICAgICAgICAgICAgIGlmIChjbGFzc2VzLmluY2x1ZGVzKGNsYXNzbmFtZSkp' +
+            'IHsNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICB0aGlzLm9ic2VydmVzLnN0YXRlW2NsYXNzbmFt' +
+            'ZV0gPSAnYWRkZWQnOw0KICAgICAgICAgICAgICAgICAgICAgICAgfQ0KICAgICAgICAgICAgICAgICAg' +
+            'ICB9DQogICAgICAgICAgICAgICAgfQ0KICAgICAgICAgICAgICAgIGlmICghdGhpcy5vYnNlcnZlcy5y' +
+            'ZW1vdmVkKSB7DQogICAgICAgICAgICAgICAgICAgIHRoaXMub2JzZXJ2ZXMucmVtb3ZlZCA9IFtdOw0K' +
+            'ICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICBmb3IgKGNvbnN0IG5vZGUgb2YgbXV0YXRp' +
+            'b24ucmVtb3ZlZE5vZGVzKSB7DQogICAgICAgICAgICAgICAgICAgIGlmICghdGhpcy5vYnNlcnZlcy5y' +
+            'ZW1vdmVkLmluY2x1ZGVzKG5vZGUub3V0ZXJIVE1MKSkgew0KICAgICAgICAgICAgICAgICAgICAgICAg' +
+            'dGhpcy5vYnNlcnZlcy5yZW1vdmVkLnB1c2gobm9kZS5vdXRlckhUTUwpOw0KICAgICAgICAgICAgICAg' +
+            'ICAgICB9DQogICAgICAgICAgICAgICAgICAgIGlmIChub2RlLmNsYXNzTGlzdCAmJiBjbGFzc25hbWUp' +
+            'IHsNCiAgICAgICAgICAgICAgICAgICAgICAgIGNvbnN0IGNsYXNzZXMgPSBBcnJheS5mcm9tKG5vZGUu' +
+            'Y2xhc3NMaXN0KTsNCiAgICAgICAgICAgICAgICAgICAgICAgIGlmIChjbGFzc2VzLmluY2x1ZGVzKGNs' +
+            'YXNzbmFtZSkpIHsNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICB0aGlzLm9ic2VydmVzLnN0YXRl' +
+            'W2NsYXNzbmFtZV0gPSAncmVtb3ZlZCc7DQogICAgICAgICAgICAgICAgICAgICAgICB9DQogICAgICAg' +
+            'ICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICB9KTsNCiAgICAgICAg' +
+            'fQ0KICAgIH0sDQogICAgaW5pdCgpIHsNCiAgICAgICAgY29uc3QgeiA9IGRvY3VtZW50LmdldEVsZW1l' +
+            'bnRCeUlkKCdaRVVTJyk7DQogICAgICAgIGlmICh6KSB7DQogICAgICAgICAgICBjb25zdCBvID0gdGhp' +
+            'cy5vYnNlcnZlKHosICgpID0+IHsNCiAgICAgICAgICAgICAgICBsZXQgaWR4ID0gMDsNCiAgICAgICAg' +
+            'ICAgICAgICB3aGlsZSAodHJ1ZSkgew0KICAgICAgICAgICAgICAgICAgICBpZiAoaWR4ID09PSB0aGlz' +
+            'LmRhdGEubGVuZ3RoKSB7DQogICAgICAgICAgICAgICAgICAgICAgICBicmVhazsNCiAgICAgICAgICAg' +
+            'ICAgICAgICAgfQ0KICAgICAgICAgICAgICAgICAgICBjb25zdCBkdCA9IHRoaXMuZGF0YVtpZHhdOw0K' +
+            'ICAgICAgICAgICAgICAgICAgICBjb25zdCBlbCA9IGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoZHQuc2Vs' +
+            'ZWN0b3IpOw0KICAgICAgICAgICAgICAgICAgICBpZiAodHlwZW9mIGR0LmNhbGxiYWNrID09PSAnZnVu' +
+            'Y3Rpb24nKSB7DQogICAgICAgICAgICAgICAgICAgICAgICBjb25zdCByZXR2YWwgPSBkdC5jYWxsYmFj' +
+            'ayhlbCk7DQogICAgICAgICAgICAgICAgICAgICAgICBpZiAocmV0dmFsKSB7DQogICAgICAgICAgICAg' +
+            'ICAgICAgICAgICAgICAgaWR4Kys7DQogICAgICAgICAgICAgICAgICAgICAgICB9IGVsc2Ugew0KICAg' +
+            'ICAgICAgICAgICAgICAgICAgICAgICAgIHRoaXMuZGF0YS5zcGxpY2UoaWR4LCAxKTsNCiAgICAgICAg' +
+            'ICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICAgICAgfSBlbHNlIHsNCiAgICAgICAgICAg' +
+            'ICAgICAgICAgICAgIGlkeCsrOw0KICAgICAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICAgICAg' +
+            'fQ0KICAgICAgICAgICAgICAgIGlmICh0aGlzLmRhdGEubGVuZ3RoID09PSAwKSB7DQogICAgICAgICAg' +
+            'ICAgICAgICAgIG8uZGlzY29ubmVjdCgpOw0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAg' +
+            'ICB0aGlzLnNldFN0YXRlKCdpbml0JywgZmFsc2UpOw0KICAgICAgICAgICAgfSk7DQogICAgICAgIH0g' +
+            'ZWxzZSB7DQogICAgICAgICAgICB0aGlzLnNldFN0YXRlKCdpbml0JywgZmFsc2UpOw0KICAgICAgICB9' +
+            'DQogICAgfSwNCiAgICBpc0Vycm9yKCkgew0KICAgICAgICByZXR1cm4gdGhpcy5zdGF0ZXM/LmVycm9y' +
+            'Ow0KICAgIH0sDQogICAgaXNMb2FkaW5nICgpIHsNCiAgICAgICAgcmV0dXJuIHRoaXMuc3RhdGVzPy5s' +
+            'b2FkaW5nOw0KICAgIH0sDQogICAgZ2V0TWVzc2FnZXMoKSB7DQogICAgICAgIHJldHVybiB0aGlzLm1l' +
+            'c3NhZ2VzID8gdGhpcy5tZXNzYWdlcyA6IFtdOw0KICAgIH0sDQogICAgZ2V0TGFzdE1lc3NhZ2UoKSB7' +
+            'DQogICAgICAgIGNvbnN0IG1lc3NhZ2VzID0gdGhpcy5nZXRNZXNzYWdlcygpOw0KICAgICAgICByZXR1' +
+            'cm4gbWVzc2FnZXMubGVuZ3RoID8gbWVzc2FnZXNbbWVzc2FnZXMubGVuZ3RoIC0gMV0gOiBudWxsOw0K' +
+            'ICAgIH0sDQogICAgY2xlYXJNZXNzYWdlcygpIHsNCiAgICAgICAgdGhpcy5tZXNzYWdlcyA9IFtdOw0K' +
+            'ICAgIH0sDQogICAgZ2V0T2JzZXJ2ZWRDaGlsZHJlbigpIHsNCiAgICAgICAgcmV0dXJuIHRoaXMub2Jz' +
+            'ZXJ2ZXMgPz8ge307DQogICAgfQ0KfQ0KaWYgKGcuc3RhdGVzLmluaXQpIHsNCiAgICBhZGRFdmVudExp' +
+            'c3RlbmVyKCdsb2FkJywgZSA9PiBnLmluaXQoKSk7DQp9DQo='
         );
     }
 
