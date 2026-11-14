@@ -45,12 +45,11 @@ class SipdVoterRekanan extends SipdVoter {
         const rekanan = Array.isArray(this.data.value) ? this.data.value[0] : this.data.value;
         const nik = Array.isArray(this.data.value) ? this.data.value[1] : null;
         if (this.usaha) {
-            const fRekanan = () => SipdUtil.escapeTerm(rekanan, true);
-            this.filter = [fRekanan];
+            this.filter = [rekanan];
             this.placeholder = 'usaha';
             this.diffs.push(['usaha', rekanan]);
             if (nik) {
-                this.filter = [[fRekanan, nik]];
+                this.filter = [[rekanan, nik]];
                 this.placeholder = [this.placeholder, 'nik'];
             }
         } else {
