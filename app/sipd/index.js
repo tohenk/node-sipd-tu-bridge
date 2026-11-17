@@ -750,11 +750,36 @@ class Sipd extends WebRobot {
      * @returns {Promise<any>}
      */
     dismissUpdate() {
+        return new Promise((resolve, reject) => {
+            const f = () => {
+                this.doDismissModal()
+                    .then(res => {
+                        if (res) {
+                            setTimeout(() => f(), this.opdelay);
+                        } else {
+                            resolve();
+                        }
+                    })
+                    .catch(err => reject(err));
+            }
+            f();
+        });
+    }
+
+    /**
+     * Do dismiss modal.
+     *
+     * @param {?string} title
+     * @param {string} button
+     * @returns {Promise<boolean>}
+     */
+    doDismissModal(title = null, button = 'Mengerti') {
         return this.works([
-            [w => this.waitForPresence(By.xpath('//section[contains(@class,"chakra-modal__content")]'))],
-            [w => this.doDismiss(By.xpath('//h1[contains(@class,"css-nwjwe-j2aft") and text()="Pembaruan"]'),
-                By.xpath('//button[text()="Sembunyikan"]')), w => w.getRes(0)],
+            [w => this.waitForPresence(By.xpath('//section[contains(@class,"chakra-modal__content")]'), {timeout: this.wait})],
+            [w => this.doDismiss(By.xpath(`//h2[contains(@class,"css-ij9lyy")${title ? ' and text()="${title}"' : ''}]`),
+                By.xpath(`//button[text()="${button}"]`)), w => w.getRes(0)],
             [w => this.sleep(this.opdelay), w => w.getRes(0)],
+            [w => Promise.resolve(w.getRes(0) ? true : false)],
         ]);
     }
 
